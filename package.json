@@ -1,0 +1,27 @@
+{
+  "name": "saas-backend",
+  "version": "1.0.0",
+  "description": "SaaS Cybersecurity Audit Platform - Backend\r This repository contains the backend services for a multilingual SaaS platform designed to provide automated cybersecurity audits, initially focusing on organizational aspects of companies. The architecture is modular and extensible to allow seamless integration of AI functionalities in future releases.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.16.3",
+    "nodemailer": "^7.0.5",
+    "otp-generator": "^4.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
