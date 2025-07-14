@@ -52,6 +52,7 @@ class AuthService {
         user.firstName = userData.firstName;
         user.lastName = userData.lastName;
         user.phoneNumber = userData.phoneNumber;
+        // Explicitly hash password before assigning to user object
         user.password = await hashPassword(userData.password);
         user.profileCompleted = true;
         user.inviteToken = undefined;
@@ -61,6 +62,7 @@ class AuthService {
         user.otp = otp;
         user.otpExpires = new Date(Date.now() + authConfig.otpExpiresInMinutes * 60 * 1000);
 
+        console.log(`[DEBUG - completeRegistration] Password before save: '${user.password}'`); // New debug log
         await user.save();
 
         const emailSubject = 'Verify Your Email - SaaS Cybersecurity Audit Platform';
@@ -224,12 +226,6 @@ class AuthService {
         return user;
     }
 
-    /**
-     * Resends an OTP for either email verification or login MFA.
-     * @param {string} email - The user's email address.
-     * @returns {Promise<string>} A message indicating the OTP has been sent.
-     * @throws {Error} If user not found, already verified, or no pending OTP state.
-     */
     async resendOtp(email) {
         const user = await User.findOne({ email }).select('+isVerified +otp +otpExpires');
 
@@ -237,20 +233,14 @@ class AuthService {
             throw new Error('User not found.');
         }
 
-        // Determine if it's for initial verification or login MFA
         let emailSubject = 'OTP Resent - SaaS Cybersecurity Audit Platform';
         let emailText, emailHtml;
 
         if (!user.profileCompleted) {
-            // This case should ideally not happen if completeRegistration is done,
-            // but as a fallback, if profile isn't complete, it means initial invite stage.
-            // However, OTP is sent *after* profile completion, so this is for email verification.
             throw new Error('Please complete your registration first.');
         } else if (!user.isVerified) {
-            // User has completed registration but not verified email
             emailSubject = 'Email Verification OTP Resent - SaaS Cybersecurity Audit Platform';
         } else {
-            // User is verified, this is for login MFA
             emailSubject = 'Login Verification OTP Resent - SaaS Cybersecurity Audit Platform';
         }
 
