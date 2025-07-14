@@ -54,3 +54,6 @@ coverage/
 dist/
 build/
 out/
+
+
+createSuperAdmin.js
