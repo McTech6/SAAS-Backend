@@ -2,7 +2,7 @@
 
 import mongoose from 'mongoose';
 import crypto from 'crypto';
-// Removed direct bcrypt import, as hashing is now handled explicitly in service/script
+import { hashPassword } from '../utils/helpers.js';
 
 const userSchema = new mongoose.Schema({
     firstName: {
@@ -71,11 +71,18 @@ const userSchema = new mongoose.Schema({
     passwordResetExpires: {
         type: Date,
         select: false
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    // New field: managerId to link auditors to their managing admin
+    managerId: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'User',
+        default: null // Only applicable for 'auditor' role managed by an 'admin'
     }
 }, { timestamps: true });
-
-// REMOVED: userSchema.pre('save', ...) for password hashing
-// Password hashing will now be handled explicitly in the service/script before saving.
 
 userSchema.methods.getResetPasswordToken = function() {
     const resetToken = crypto.randomBytes(32).toString('hex');
