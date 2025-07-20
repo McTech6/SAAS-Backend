@@ -7,6 +7,7 @@ import userRoutes from './routes/user.routes.js';
 import companyRoutes from './routes/company.routes.js';
 import auditTemplateRoutes from './routes/auditTemplate.routes.js';
 import auditInstanceRoutes from './routes/auditInstance.routes.js'; 
+import uploadRoutes from './routes/upload.routes.js'
 
 const app = express();
 
@@ -48,6 +49,9 @@ app.use('/api/v1/audit-templates', auditTemplateRoutes);
 
 // Use audit instance management routes with the /api/v1/audit-instances prefix
 app.use('/api/v1/audit-instances', auditInstanceRoutes);
+
+// Use upload routes with the /api/v1/uploads prefix
+app.use('/api/v1/uploads', uploadRoutes);
 
 // Export the Express app instance
 export default app;
