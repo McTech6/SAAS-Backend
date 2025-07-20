@@ -118,7 +118,7 @@ class AuditInstanceController {
     }
 
     /**
-     * Generates a report for an audit instance.
+     * Generates a PDF report for an audit instance.
      * Accessible by Super Admin, Admin, and Auditor.
      * @param {object} req - Express request object.
      * @param {object} res - Express response object.
@@ -127,8 +127,13 @@ class AuditInstanceController {
         try {
             const { id } = req.params;
             const requestingUser = req.user;
-            const reportResult = await auditInstanceService.generateReport(id, requestingUser);
-            sendSuccessResponse(res, 200, reportResult.message, reportResult);
+            const pdfBuffer = await auditInstanceService.generateReport(id, requestingUser);
+
+            // Set headers for PDF viewing in browser
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename=audit_report_${id}.pdf`); // 'inline' for viewing in browser
+
+            res.send(pdfBuffer);
         } catch (error) {
             sendErrorResponse(res, 400, error.message);
         }

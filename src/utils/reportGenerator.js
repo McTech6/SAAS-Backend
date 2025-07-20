@@ -1,7 +1,33 @@
-// src/utils/reportGenerator.js
+// Using the provided ISACA badge image URL for the logo
+const LOGO_URL = 'https://images.credly.com/images/9c7b4205-6582-403c-b656-be1590248fcd/ISACA_CybersecurityAudit_badge_352x352.png';
 
-// Base64 encoded logo image (from image_43015c.png)
-const LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAFwCAYAAAA7/fR2AAAACXBIWXMAAAsTAAALEwEAmpwYAAAF1mlUWHRYTUw6Yy5vbS5hZG9iZS54bXAAAAAAADx4OnZhbGlkYXRpb25zdGF0ZT5JbnZhbGlkPC94OnZhbGlkYXRpb25zdGF0ZT4KPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0cGs9IlhNUCBDb3JlIDYuMC4wIj4KPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4KICA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIgogICAgICB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIKICAgICAgeG1sbnM6c3RSdmY9Imh0dHA6Ly9ucy5hZG9iZS5jb20vcmRmLzEuMC9zVHlwZS9SZXNvdXJjZVZlcmNpZm9ybSNyZWYiCiAgICAgIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIKICAgICAgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIgogICAgICB4bWxuczpwaG90b3Nob3A9Imh0dHA6Ly9ucy5hZG9iZS5jb20vcGhvdG9zaG9wLzEuMC8iPgogICAgPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmRva3VtZW50SUQ9InhtcC5kaWQ6Q0I2N0Y2QzQxQzQ3MTFFRUI2RjFENjE4NzU3RkQ0RjgiIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6Q0I2N0Y2QzMxQzQ3MTFFRUI2RjFENjE4NzU3RkQ0RjgiIHN0UmVmOm9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDpDQjY3RjZDQzFDNDcxMUVFQjZGMRFENjE4NzU3RkQ0RjgiLz4KICAgIDxkYzp0aXRsZT4KICAgICAgPHJkZjpBbHQ+CiAgICAgICAgPHJkZjpsaSB4bWw6bGFuZz0ieC1kZWZhdWx0Ij5DeWJlclNlY3VyaXR5PC9yZGY6bGk+CiAgICAgIDwvcmRmOkFsdD4KICAgIDw4bXA6Q3JlYXRvclRvb2w+QWRvYmUgSWxsdXN0cmF0b3IgMjUuMjwveG1wOkNyZWF0b3JUb29sPgogICAgPHBob3Rvc2hvcDpDb2xvck1vZGU+MzwvcGhvdG9zaG9wOkNvbG9yTW9kZT4KICAgIDxwaG90b3Nob3A6SUNDUHJvZmlsZT5zUkdCPjwvcGhvdG9zaG9wOklDQ1Byb2ZpbGU+CiAgICA8eG1wOk1vZGlmeURhdGU+MjAyMS0wNi0yNlQxMDoxODo1Nlo8L3htcDpNb2RpZnlEYXRlPgogICAgPHhtcDpNZXRhZGF0YURhdGU+MjAyMS0wNi0yNlQxMDoxODo1Nlo8L3htcDpNZXRhZGF0YURhdGU+CiAgICA8eG1wOlRocW1iTmFpbT5DeWJlclNlY3VyaXR5PC94bXA6VGhqbWJOYWltPgogICAgPHhtcDpUaHVtYm5haWxzPgogICAgICA8cmRmOkFsdD4KICAgICAgICA8cmRmOmxpIHJkZjpwYXJzZVR5cGU9IlJlc291cmNlIj4KICAgICAgICAgIDxzdFJrZjp3aWR0aD4yNTY8L3N0UmtmOndpZHRoPgogICAgICAgICAgPHN0UmtmOmhlaWdodD4xNzA8L3N0UmtmOmhlaWdodD4KICAgICAgICAgIDxzdFJrZjpmb3JtYXQ+SlBFRzwvc3RSa2Y6Zm9ybWF0PgogICAgICAgICAgPHN0UmtmOmltYWdlLz4KICAgICAgICA8L3JkZjpsaT4KICAgICAgPC9yZGY6QWx0PgogICAgPC94bXA6VGh1bWJuYWlscz4KICA8L3JkZjpEZXNjcmlwdGlvbj4KPC9yZGY6UkRGPgo8L3g6eG1wbWV0YT4KPHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIwIDEwODAiPjxkZWZzPjxzdHlsZT4uY2xzLTF7ZmlsbDojMDA4MTc1O30uY2xzLTJ7ZmlsbDojMjM1ZjIwO30uY2xzLTN7Zm9udC1zaXplOjEyOHB4O2ZpbGwtcnVsZTpldmVub2RkO2ZvbnQtZmFtaWx5OiJBcmlhbEJsYWNrTUQiO30uY2xzLTR7ZmlsbDojZmZmO308L3N0eWxlPjwvZGVmcz48dGl0bGU+Q3liZXJTZWN1cml0eTwvdGl0bGU+PGcgaWQ9Ikdyb3VwXzEiIGRhdGEtnamePSJHcm91cCAxIj48cGF0aCBpZD0iUGF0aF8xIiBkYXRhLW5hbWU9IlBhdGggMSIgY2xhc3M9ImNscy0xIiBkPSJNMTI3NS4wOSw2NzkuNDdhNDc4LjUxLDQ3OC41MSwwLDAsMS00NzguNDcsNDc4LjQ4SDI4MC41NWE0NzguNTEsNDc4LjUxLDAsMCwxLTQ3OC40Ny00NzguNDhWMjgwLjU1QTQ3OC41MSw0NzguNTEsMCwwLDEyODAuNTUsLDEuMDhoNTE2LjA3YTQ3OC41MSw0NzguNTEsMCwwLDE0NzguNDcsNDc4LjQ3VjY3OS40N1oiLz48cGF0aCBpZD0iUGF0aF8yIiBkYXRhLW5hbWU9IlBhdGggMiIgY2xhc3M9ImNscy0yIiBkPSJNMTI3NS4wOSw2NzkuNDdhNDc4LjUxLDQ3OC41MSwwLDAsMS00NzguNDcsNDc4LjQ4SDI4MC41NWE0NzguNTEsNDc4LjUxLDAsMCwxLTQ3OC40Ny00NzguNDhWMjgwLjU1QTQ3OC41MSw0NzguNTEsMCwwLDEyODAuNTUsLDEuMDhoNTE2LjA3YTQ3OC41MSw0NzguNTEsMCwwLDE0NzguNDcsNDc4LjQ3VjY3OS40N1oiLz48L2c+PGcgaWQ9Ikdyb3VwXzIiIGRhdGEtbmFtZT0iR3JvdXAgMiI+PGcgaWQ9Ikdyb3VwXzMiIGRhdGEtbmFtZT0iR3JvdXAgMyI+PHBhdGggY2xhc3M9ImNscy0zIiBkPSJNMTY2Ny41Nyw2NjMuNjZsLTQxLjY0LTM4LjQ3Yy0yMy40Ny0yMS42NC01MS4yNi0zNS42OS04My40Ni00MS42NGExNzYuODQsMTc2Ljg0LDAsMCwxLTM2LjQxLTIuNjNjLTc4LjQ2LTkuNzctMTQ4LjQ0LTQ3LjI2LTE5NS44OS0xMDcuNzJhNDAwLjQ4LDQwMC40OCwwLDAsMS02Ny42Ni05OC45M0MxMTI5LjU4LDI5Mi41LDExMTUuNTMsMjY0LjcyLDExMDYuMDYsMjM1LjQ2bC0zOC40Ny00MS42NGMtMTkuNTktMjEuNjQtNDkuMjUtMjcuNjYtNzIuNzItMTQuNjRjLTIzLjQ3LDEzLTMyLjU1LDQxLjY0LTIyLjc4LDY1LjExbDM4LjQ3LDQxLjY0YzkuNzcsMjMuNDYsMjMuNDYsNDcuMjYsMzYuNDEsNjcuNjZhMzYyLjQ3LDM2Mi40NywwLDAsMCw1Mi42OSw2Ny42NmM0Ny4yNi02NS4xMSwxMDcuNzItMTEyLjU1LDE4OS43OS0xMzIuMTNhMjE0LjQ0LDIxNC40NCwwLDAsMCw0OS4yNS02LjUxYzI3LjY2LTEuOTUsNTUuMzMtNC41Niw4My40Ni0xNy41NWw0MS42NC0zOC40N2MyMy40Ny0yMS42NCw1MS4yNi0xMy42LDU1LjMzLDE0LjY0QTEwMy44OSwxMDMuODksMCwwLDE2NjcuNTcsNjYzLjY2WiIvPjxwYXRoIGNsYXNzPSJjbHMtMyIgZD0iTTE2NjcuNTcsNjYzLjY2bC00MS42NC0zOC40N2MtMjMuNDctMjEuNjQtNTEuMjYtMzUuNjktODMuNDYtNDEuNjRhMTc2Ljg0LDE3Ni44NCwwLDAsMS0zNi40MS0yLjYzYy03OC40Ni05Ljc3LTE0OC40NC00Ny4yNi0xOTUuODktMTA3LjcyYTQwMC40OCw0MC4wNDgsMCwwLDEtNjcuNjYtOTguOTNDMTEyOS41OCwyOTIuNSwxMTE1LjUzLDI2NC43MiwxMTA2LjA2LDIzNS40NmwtMzguNDctNDEuNjRjLTE5LjU5LTIxLjY0LTQ5LjI1LTI3LjY2LTcyLjcyLTE0LjY0Yy0yMy40NywxMy0zMi41NSw0MS42NC0yMi43OCw2NS4xMWwzOC40Nyw0MS42NGM5Ljc3LDIzLjQ2LDIzLjQ2LDQ3LjI2LDM2LjQxLDY3LjY2YTM2Mi40NywzNjIuNDcsMCwwLDAsNTIuNjksNjcuNjZjNDcuMjYtNjUuMTEsMTA3LjcyLTExMi41NSwxODkuNzktMTMyLjEzYy00OS4yNS02LjUxYzI3LjY2LTEuOTUsNTUuMzMtNC41Niw4My40Ni0xNy41NWw0MS42NC0zOC40N2MyMy40Ny0yMS42NCw1MS4yNi0xMy42LDU1LjMzLDE0LjY0QTEwMy44OSwxMDMuODksMCwwLDE2NjcuNTcsNjYzLjY2WiIvPjwvZz48L2c+PGcgaWQ9Ikdyb3VwXzQiIGRhdGEtbmFtZT0iR3JvdXAgNCI+PGcgaWQ9Ikdyb3VwXzUiIGRhdGEtbmFtZT0iR3JvdXAgNSI+PHBhdGggY2xhc3M9ImNscy0zIiBkPSJNMTQ1MS4yMSw0ODAuMzZhMTcwLjg5LDE3MC44OSwwLDAsMS0xNzAuODksLTE3MC44OXYtNDEuNjRjMC0xNy41NS0xNC42NC0zMi41NS0zMi41NS0zMi41NXMtMzIuNTUsMTQuNjQtMzIuNTUsMzIuNTV2NDEuNjRhMjM2LjI1LDIzNi4yNSwwLDAsMCw2NS4xMSwxNzAuODljNjUuMTEsNjUuMTEsMTcwLjg5LDY1LjExLDIzNS45OSwwYTQ1OS4xNyw0NTkuMTcsMCwwLDAsNjUuMTEtMTcwLjg5VjMyNy44M2MwLTE3LjU1LTE0LjY0LTMyLjU1LTMyLjU1LTMyLjU1cy0zMi41NSwxNC42NC0zMi41NSwzMi41NXY0MS42NEE1NS44OSw1NS44OSwwLDAsMSwxNDUxLjIxLDQ4MC4zNlpNMTI0Ny44Nyw2NzkuNDdhMTcwLjg5LDE3MC44OSwwLDAsMS0xNzAuODktMTcwLjg5VjUyNi4yNGMwLTE3LjU1LTE0LjY0LTMyLjU1LTMyLjU1LTMyLjU1cy0zMi41NSwxNC42NC0zMi41NSwzMi41NXY0MS42NGEyMzYuMjUsMjM2LjI1LDAsMCwwLDY1LjExLDE3MC44OWM2NS4xMSw2NS4xMSwxNzAuODksNjUuMTEsMjM1Ljk5LDBhNDU5LjE3LDQ1OS4xNywwLDAsMCw2NS4xMS0xNzAuODlWNTI2LjI0YzAtMTcuNTUtMTQuNjQtMzIuNTUtMzIuNTUtMzIuNTVzLTMyLjU1LDE0LjY0LTMyLjU1LDMyLjU1djQxLjY0QTE3MC44OSwxNzAuODksMCwwLDEyNDcuODcsNjc5LjQ3WiIvPjxwYXRoIGNsYXNzPSJjbHMtMyIgZD0iTTE0NTEuMjEsNDgwLjM2YTE3MC44OSwxNzAuODksMCwwLDEtMTcwLjg5LTE3MC44OXYtNDEuNjRjMC0xNy41NS0xNC42NC0zMi41NS0zMi41NS0zMi41NXMtMzIuNTUsMTQuNjQtMzIuNTUsMzIuNTV2NDEuNjRhMjM2LjI1LDIzNi4yNSwwLDAsMCw2NS4xMSwxNzAuODljNjUuMTEsNjUuMTEsMTcwLjg5LDY1LjExLDIzNS45OSwwYTQ1OS4xNyw0NTkuMTcsMCwwLDAsNjUuMTEtMTcwLjg5VjMyNy44M2MwLTE3LjU1LTE0LjY0LTMyLjU1LTMyLjU1LTMyLjU1cy0zMi41NSwxNC42NC0zMi41NSwzMi41NXY0MS42NEE1NS44OSw1NS44OSwwLDAsMSwxNDUxLjIxLDQ4MC4zNlpNMTI0Ny44Nyw2NzkuNDdhMTcwLjg5LDE3MC44OSwwLDAsMS0xNzAuODktMTcwLjg5VjUyNi4yNGMwLTE3LjU1LTE0LjY0LTMyLjU1LTMyLjU1LTMyLjU1cy0zMi41NSwxNC42NC0zMi41NSwzMi41NXY0MS42NGEyMzYuMjUsMjM2LjI1LDAsMCwwLDY1LjExLDE3MC44OWM2NS4xMSw2NS4xMSwxNzAuODksNjUuMTEsMjM1Ljk5LDBhNDU5LjE3LDQ1OS4xNywwLDAsMCw2NS4xMS0xNzAuODlWNTI2LjI0YzAtMTcuNTUtMTQuNjQtMzIuNTUtMzIuNTUtMzIuNTVzLTMyLjU1LDE0LjY0LTMyLjU1LDMyLjU1djQxLjY0QTE3MC44OSwxNzAuODksMCwwLDEyNDcuODcsNjc5LjQ3WiIvPjwvZz48L2c+PGg0IGNsYXNzPSJjbHMtNCIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzQ4LjM0IDg2NS40NikiPjxzcGFuIGNsYXNzPSJjbHMtNCI+Q3liZXJTZWN1cml0eTwvc3Bhbj48L2g0Pjwvc3ZnPg==';
+// Array of motivational quotes
+const MOTIVATIONS = [
+    "In the digital age, security is not just a feature, it's the foundation of trust. This report reflects our commitment to empowering your organization with clarity and actionable insights, transforming vulnerabilities into strengths and ensuring a resilient future.",
+    "Cybersecurity is a journey, not a destination. This audit marks a crucial checkpoint, guiding your path towards unwavering digital resilience.",
+    "Protecting your digital assets is paramount. This report illuminates the path to a more secure and compliant future, safeguarding your innovation.",
+    "The strength of your defense lies in understanding your vulnerabilities. This audit provides the intelligence needed to build an impenetrable fortress.",
+    "In a world of evolving threats, proactive security is your greatest asset. We empower you with the insights to stay ahead, always.",
+    "This report is more than findings; it's a blueprint for digital peace of mind. Let's build a future where your data is unequivocally safe.",
+    "Security is not a cost, but an investment in your future. This audit validates that investment, ensuring every byte is protected.",
+    "Navigating the cybersecurity landscape requires precision and foresight. This report offers both, charting a clear course to enhanced protection.",
+    "Every vulnerability discovered is an opportunity for stronger defense. This audit transforms potential risks into pathways for robust security.",
+    "Your trust is our mission. This comprehensive report is a testament to our dedication to securing your digital world, one audit at a time"
+];
+
+/**
+ * Escapes HTML to prevent XSS vulnerabilities.
+ * @param {string} str - The string to escape.
+ * @returns {string} The escaped string.
+ */
+const escapeHtml = (str) => {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;')
+             .replace(/</g, '&lt;')
+             .replace(/>/g, '&gt;')
+             .replace(/"/g, '&quot;')
+             .replace(/'/g, '&#039;');
+};
 
 /**
  * Generates the HTML content for the audit report.
@@ -9,74 +35,70 @@ const LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAFwCAYAA
  * @returns {string} The full HTML string for the PDF report.
  */
 const generateReportHtml = (auditInstance) => {
-    const company = auditInstance.company;
-    const template = auditInstance.template;
-    const responses = auditInstance.responses;
-    const templateStructure = auditInstance.templateStructureSnapshot;
-    const overallScore = auditInstance.overallScore;
-    const createdBy = auditInstance.createdBy;
+    const company = auditInstance.company || {};
+    const template = auditInstance.template || {};
+    const responses = auditInstance.responses || [];
+    const templateStructure = auditInstance.templateStructureSnapshot || [];
+    const overallScore = auditInstance.overallScore || 0;
+    const createdBy = auditInstance.createdBy || {};
+    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
     const completionDate = auditInstance.actualCompletionDate ?
-        new Date(auditInstance.actualCompletionDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) :
+        new Date(auditInstance.actualCompletionDate).toLocaleDateString('en-US', dateOptions) :
         'N/A';
+    const reportDate = new Date().toLocaleDateString('en-US', dateOptions);
+
+    // Select a random motivation
+    const randomMotivation = MOTIVATIONS[Math.floor(Math.random() * MOTIVATIONS.length)];
 
     let tableOfContentsHtml = '';
     let mainContentHtml = '';
-    let sectionCounter = 0;
-    let subsectionCounter = 0;
 
     // Build Table of Contents and Main Content
-    templateStructure.forEach((section, secIndex) => {
-        sectionCounter++;
-        subsectionCounter = 0; // Reset subsection counter for each new section
-
-        const sectionId = `section-${section._id}`;
-        tableOfContentsHtml += `<li><a href="#${sectionId}">${sectionCounter}. ${section.name}</a></li><ul>`;
-        mainContentHtml += `<h2 id="${sectionId}" class="section-title">${sectionCounter}. ${section.name}</h2>`;
+    templateStructure.forEach((section) => {
+        const sectionId = `section-${section._id || 'unknown'}`;
+        tableOfContentsHtml += `<li><a href="#${sectionId}">${escapeHtml(section.name || 'Unnamed Section')}</a></li><ul>`;
+        mainContentHtml += `<h2 id="${sectionId}" class="section-title">${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
         if (section.description) {
-            mainContentHtml += `<p class="section-description">${section.description}</p>`;
+            mainContentHtml += `<p class="section-description">${escapeHtml(section.description)}</p>`;
         }
 
-        section.subSections.forEach((subSection, subSecIndex) => {
-            subsectionCounter++;
-            const subSectionId = `subsection-${subSection._id}`;
-            tableOfContentsHtml += `<li><a href="#${subSectionId}">${sectionCounter}.${subsectionCounter}. ${subSection.name}</a></li>`;
-            mainContentHtml += `<h3 id="${subSectionId}" class="subsection-title">${sectionCounter}.${subsectionCounter}. ${subSection.name}</h3>`;
+        (section.subSections || []).forEach((subSection) => {
+            const subSectionId = `subsection-${subSection._id || 'unknown'}`;
+            tableOfContentsHtml += `<li><a href="#${subSectionId}">${escapeHtml(subSection.name || 'Unnamed Subsection')}</a></li>`;
+            mainContentHtml += `<h3 id="${subSectionId}" class="subsection-title">${escapeHtml(subSection.name || 'Unnamed Subsection')}</h3>`;
             if (subSection.description) {
-                mainContentHtml += `<p class="subsection-description">${subSection.description}</p>`;
+                mainContentHtml += `<p class="subsection-description">${escapeHtml(subSection.description)}</p>`;
             }
 
-            subSection.questions.forEach((question, qIndex) => {
-                const response = responses.find(r => r.questionId.toString() === question._id.toString());
-                const selectedValue = response ? response.selectedValue : 'N/A';
-                const answerDescription = response && response.answerOptionsSnapshot ?
-                    response.answerOptionsSnapshot.find(opt => opt.value === selectedValue)?.description || 'No description provided.' :
+            (subSection.questions || []).forEach((question, qIndex) => {
+                const response = responses.find(r => r.questionId?.toString() === question._id?.toString()) || {};
+                const selectedValue = response.selectedValue || 'N/A';
+                const answerDescription = response.answerOptionsSnapshot ?
+                    (response.answerOptionsSnapshot.find(opt => opt.value === selectedValue)?.description || 'No description provided.') :
                     'N/A';
-                const comment = response && response.comment ? response.comment : '';
-                const includeComment = response ? response.includeCommentInReport : false;
-                const evidenceUrls = response && response.evidenceUrls ? response.evidenceUrls : [];
+                const comment = response.comment || '';
+                const includeComment = response.includeCommentInReport || false;
+                const evidenceUrls = response.evidenceUrls || [];
 
                 mainContentHtml += `
                     <div class="question-block">
-                        <p class="question-text"><strong>Q${qIndex + 1}:</strong> ${question.text}</p>
-                        <p class="answer"><strong>Answer:</strong> <span class="answer-value">${selectedValue}</span></p>
-                        <p class="answer-description">${answerDescription}</p>
+                        <p class="question-text"><strong>Q${qIndex + 1}:</strong> ${escapeHtml(question.text || 'No question text')}</p>
+                        <p class="answer"><strong>Answer:</strong> <span class="answer-value">${escapeHtml(selectedValue)}</span></p>
+                        <p class="answer-description">${escapeHtml(answerDescription)}</p>
                 `;
 
                 if (question.type === 'numeric' && selectedValue !== 'N/A') {
-                    mainContentHtml += `<p class="numeric-value"><strong>Value:</strong> ${selectedValue}</p>`;
+                    mainContentHtml += `<p class="numeric-value"><strong>Value:</strong> ${escapeHtml(selectedValue)}</p>`;
                 }
 
                 if (comment && includeComment) {
-                    mainContentHtml += `<div class="comment-section"><strong>Comment:</strong> <p>${comment}</p></div>`;
-                } else if (comment && !includeComment) {
-                    // Optionally, you could add a note here that comment was not included if desired for debugging
-                    // mainContentHtml += `<div class="comment-section not-included"><strong>Comment (Not included in report):</strong> <p>${comment}</p></div>`;
+                    mainContentHtml += `<div class="comment-section"><strong>Comment:</strong> <p>${escapeHtml(comment)}</p></div>`;
                 }
 
                 if (evidenceUrls.length > 0) {
                     mainContentHtml += `<div class="evidence-section"><strong>Evidence:</strong><ul>`;
                     evidenceUrls.forEach(url => {
-                        mainContentHtml += `<li><a href="${url}" target="_blank">${url}</a></li>`;
+                        mainContentHtml += `<li><a href="${escapeHtml(url)}" target="_blank">${escapeHtml(url)}</a></li>`;
                     });
                     mainContentHtml += `</ul></div>`;
                 }
@@ -86,14 +108,13 @@ const generateReportHtml = (auditInstance) => {
         tableOfContentsHtml += `</ul>`; // Close subsection list
     });
 
-
     return `
         <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Cybersecurity Audit Report - ${company.name}</title>
+            <title>Cybersecurity Audit Report - ${escapeHtml(company.name || 'Unknown Company')}</title>
             <style>
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
 
@@ -103,13 +124,13 @@ const generateReportHtml = (auditInstance) => {
                     padding: 0;
                     color: #333;
                     line-height: 1.6;
-                    font-size: 11pt; /* Base font size for readability */
+                    font-size: 11pt;
                 }
 
                 .page {
-                    padding: 1in; /* Standard margins */
+                    padding: 1in;
                     box-sizing: border-box;
-                    page-break-after: always; /* Ensure each major section starts on a new page */
+                    page-break-after: always;
                 }
 
                 /* Cover Page Styling */
@@ -119,13 +140,14 @@ const generateReportHtml = (auditInstance) => {
                     justify-content: center;
                     align-items: center;
                     text-align: center;
-                    height: 100vh; /* Full viewport height */
+                    height: 100vh;
                     background-color: #f8f8f8;
                     padding: 2in 1in;
                 }
                 .cover-page img {
                     max-width: 250px;
-                    height: auto;
+                    max-height: 150px;
+                    object-fit: contain;
                     margin-bottom: 30px;
                 }
                 .cover-page h1 {
@@ -203,7 +225,7 @@ const generateReportHtml = (auditInstance) => {
                     margin-bottom: 15px;
                     padding-bottom: 5px;
                     border-bottom: 2px solid #008175;
-                    page-break-before: always; /* New section starts on new page */
+                    page-break-before: always;
                 }
                 .subsection-title {
                     font-size: 1.4em;
@@ -253,7 +275,7 @@ const generateReportHtml = (auditInstance) => {
                     color: #444;
                 }
                 .comment-section {
-                    background-color: #e6f7f6; /* Light teal background */
+                    background-color: #e6f7f6;
                     border-left: 3px solid #008175;
                     padding: 10px;
                     margin-top: 15px;
@@ -281,6 +303,44 @@ const generateReportHtml = (auditInstance) => {
                     text-decoration: underline;
                 }
 
+                /* Final Page Styling */
+                .final-page {
+                    page-break-before: always;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    text-align: center;
+                    height: 100vh;
+                    background: linear-gradient(135deg, #e6f7f6 0%, #d1e8e6 100%);
+                    color: #231f20;
+                    padding: 2in 1in;
+                }
+                .final-page h2 {
+                }
+                .final-page p {
+                    font-size: 1.2em;
+                    max-width: 800px;
+                    margin-bottom: 20px;
+                }
+                .final-page .contact-info {
+                    margin-top: 40px;
+                    font-size: 1.1em;
+                    color: #444;
+                }
+                .final-page .contact-info a {
+                    color: #007bff;
+                    text-decoration: none;
+                    font-weight: 600;
+                }
+                .final-page .slogan {
+                    margin-top: 60px;
+                    font-size: 1.5em;
+                    font-style: italic;
+                    color: #005f56;
+                    font-weight: 600;
+                }
+
                 /* Footer for page numbers (Puppeteer handles this) */
                 .footer {
                     font-size: 9pt;
@@ -294,27 +354,37 @@ const generateReportHtml = (auditInstance) => {
                     margin: 1in;
                 }
                 body {
-                    -webkit-print-color-adjust: exact; /* Ensures background colors are printed */
+                    -webkit-print-color-adjust: exact;
+                }
+                @media print {
+                    .evidence-section a:after {
+                        content: " (" attr(href) ")";
+                        font-size: 0.8em;
+                        color: #555;
+                    }
+                    .contact-info a:after {
+                        content: " (" attr(href) ")";
+                        font-size: 0.8em;
+                        color: #555;
+                    }
                 }
             </style>
         </head>
         <body>
             <!-- Cover Page -->
             <div class="page cover-page">
-                <img src="${LOGO_BASE64}" alt="CyberSecurity Logo">
+                <img src="${LOGO_URL}" alt="CyberSecurity Audit 360 Logo">
                 <h1>Cybersecurity Audit 360</h1>
                 <h2>Comprehensive Audit Report</h2>
-                <p>For: <strong>${company.name}</strong></p>
-                <p>Audit Template: <strong>${template.name} (v${template.version})</strong></p>
-                <p>Report Date: <strong>${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</strong></p>
+                <p>For: <strong>${escapeHtml(company.name || 'Unknown Company')}</strong></p>
+                <p>Audit Template: <strong>${escapeHtml(template.name || 'Unknown Template')} (v${escapeHtml(template.version || 'N/A')})</strong></p>
+                <p>Report Date: <strong>${reportDate}</strong></p>
                 <p>Completion Date: <strong>${completionDate}</strong></p>
                 <div class="audit-meta">
-                    <p>Prepared by: ${createdBy.firstName} ${createdBy.lastName} (${createdBy.email})</p>
+                    <p>Prepared by: ${escapeHtml(createdBy.firstName || 'Unknown')} ${escapeHtml(createdBy.lastName || 'User')} (${escapeHtml(createdBy.email || 'N/A')})</p>
                 </div>
                 <p class="motivation">
-                    "In the digital age, security is not just a feature, it's the foundation of trust.
-                    This report reflects our commitment to empowering your organization with clarity and actionable insights,
-                    transforming vulnerabilities into strengths and ensuring a resilient future."
+                    "${escapeHtml(randomMotivation)}"
                 </p>
             </div>
 
@@ -326,10 +396,10 @@ const generateReportHtml = (auditInstance) => {
                 </ul>
             </div>
 
-            <!-- Overall Summary (Optional, can be expanded) -->
+            <!-- Overall Summary -->
             <div class="page report-content">
                 <h2 class="section-title">Executive Summary</h2>
-                <p>This report provides a comprehensive overview of the cybersecurity posture for <strong>${company.name}</strong> based on the <strong>"${template.name}"</strong> audit template (version ${template.version}).</p>
+                <p>This report provides a comprehensive overview of the cybersecurity posture for <strong>${escapeHtml(company.name || 'Unknown Company')}</strong> based on the <strong>"${escapeHtml(template.name || 'Unknown Template')}"</strong> audit template (version ${escapeHtml(template.version || 'N/A')}).</p>
                 <p>The audit covered key areas including Information Security Policies, Access Control, and other critical domains as defined in the selected template.</p>
                 <p>Overall, the assessment indicates a compliance score of <strong>${overallScore.toFixed(2)}%</strong>. Detailed findings and observations are provided in the subsequent sections, along with specific recommendations for improvement.</p>
                 <p>It is crucial to address identified areas of non-compliance and implement recommended remediation actions to strengthen the overall security framework and ensure continuous adherence to best practices.</p>
@@ -338,6 +408,19 @@ const generateReportHtml = (auditInstance) => {
             <!-- Main Report Content -->
             <div class="report-content">
                 ${mainContentHtml}
+            </div>
+
+            <!-- Final Page -->
+            <div class="page final-page">
+                <h2>Thank You for Choosing Cybersecurity Audit 360</h2>
+                <p>We are committed to enhancing your organization's security posture and ensuring compliance in an ever-evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
+                <p>Our team is dedicated to supporting your journey beyond this audit. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
+                <div class="contact-info">
+                    <p>For further discussions or to schedule a follow-up consultation, please contact us:</p>
+                    <p>Email: <a href="mailto:taudit098@gmail.com">info@cybersecurityaudit360.com</a></p>
+                    <p>Website: <a href="https://www.cybersecurityaudit360.com" target="_blank">www.cybersecurityaudit360.com</a></p>
+                </div>
+                <p class="slogan">"Securing Your Digital Horizon, Together."</p>
             </div>
         </body>
         </html>
