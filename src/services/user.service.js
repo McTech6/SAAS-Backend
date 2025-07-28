@@ -1,7 +1,7 @@
 // src/services/user.service.js
 
 import User from '../models/user.model.js';
-import { hashPassword } from '../utils/helpers.js'; // For password updates
+import { hashPassword, comparePassword } from '../utils/helpers.js'; // Using your helper functions
 
 /**
  * Service for managing user accounts (beyond authentication).
@@ -24,6 +24,20 @@ class UserService {
      */
     async getUserById(userId) {
         const user = await User.findById(userId).select('-password -otp -otpExpires -inviteToken -inviteTokenExpires -passwordResetToken -passwordResetExpires');
+        if (!user) {
+            throw new Error('User not found.');
+        }
+        return user;
+    }
+
+    /**
+     * Retrieves a user's first name and email by ID for profile display.
+     * @param {string} userId - The ID of the user to retrieve.
+     * @returns {Promise<object>} An object containing the user's firstName and email.
+     * @throws {Error} If user not found.
+     */
+    async getUserProfileById(userId) {
+        const user = await User.findById(userId).select('firstName email'); // Select only these fields
         if (!user) {
             throw new Error('User not found.');
         }

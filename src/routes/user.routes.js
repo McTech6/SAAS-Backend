@@ -6,27 +6,36 @@ import { protect, authorize } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
-// All user management routes require authentication
+// Apply protect middleware to all user routes
 router.use(protect);
 
-// GET /api/v1/users - Get all users (Super Admin, Admin)
-router.get('/', authorize('super_admin', 'admin'), userController.getAllUsers);
+// GET /api/v1/users/profile - Get authenticated user's profile (firstName, email)
+// Accessible by any authenticated user
+router.get('/profile', userController.getProfile);
 
-// GET /api/v1/users/:id - Get a single user by ID (Super Admin, Admin)
-router.get('/:id', authorize('super_admin', 'admin'), userController.getUserById);
+// POST /api/v1/users - Create a new user (Super Admin only)
+// Note: User creation might also be handled by auth.controller.js (e.g., registration, invitation)
+router.post('/', authorize('super_admin'), userController.createUser);
 
-// PATCH /api/v1/users/:id - Update a user (Super Admin, Admin)
-// Super Admin can update any user's profile and role.
-// Admin can update auditor profiles (not roles).
-router.patch('/:id', authorize('super_admin', 'admin'), userController.updateUser);
+// GET /api/v1/users - Get all users (Super Admin only)
+router.get('/', authorize('super_admin'), userController.getAllUsers);
 
-// PATCH /api/v1/users/:id/deactivate - Deactivate a user (Super Admin, Admin)
-router.patch('/:id/deactivate', authorize('super_admin', 'admin'), userController.deactivateUser);
+// GET /api/v1/users/:id - Get a single user by ID (Super Admin, Admin for managed auditors, or user themselves)
+// The controller will handle authorization based on user role and ID
+router.get('/:id', userController.getUserById);
 
-// PATCH /api/v1/users/:id/reactivate - Reactivate a user (Super Admin, Admin)
-router.patch('/:id/reactivate', authorize('super_admin', 'admin'), userController.reactivateUser);
+// PATCH /api/v1/users/:id - Update a user (Super Admin or user themselves)
+// The controller will handle authorization based on user role and ID
+router.patch('/:id', userController.updateUser);
 
-// DELETE /api/v1/users/:id - Delete a user permanently (Super Admin only)
+// PATCH /api/v1/users/:id/deactivate - Deactivate a user (Super Admin only)
+router.patch('/:id/deactivate', authorize('super_admin'), userController.deactivateUser);
+
+// PATCH /api/v1/users/:id/reactivate - Reactivate a user (Super Admin only)
+router.patch('/:id/reactivate', authorize('super_admin'), userController.reactivateUser);
+
+// DELETE /api/v1/users/:id - Delete a user (Super Admin only)
 router.delete('/:id', authorize('super_admin'), userController.deleteUser);
+
 
 export default router;
