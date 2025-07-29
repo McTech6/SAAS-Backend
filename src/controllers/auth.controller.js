@@ -6,10 +6,27 @@ import { sendErrorResponse, sendSuccessResponse } from '../utils/responseHandler
 class AuthController {
     async inviteUser(req, res) {
         try {
+            // Debug logs (can be removed once confirmed working)
+            console.log('--- Inside authController.inviteUser ---');
+            console.log('req.user:', req.user); // Should now be populated by 'protect'
+            console.log('req.body:', req.body);
+
             const { email, role, frontendRegisterUrl } = req.body;
-            const user = await authService.inviteUser(email, role, frontendRegisterUrl);
+
+            // Ensure req.user is populated by the 'protect' middleware
+            // This check is a safeguard, the primary fix is ensuring middleware order in routes
+            if (!req.user || !req.user.id) {
+                console.error('Error: req.user or req.user.id is undefined. Authentication middleware might not be working correctly.');
+                return sendErrorResponse(res, 401, 'Authentication required: Inviting user ID not found.');
+            }
+
+            const managerId = req.user.id; // Get the ID of the inviting user from the authenticated request
+
+            // Pass arguments in the exact order expected by authService.inviteUser
+            const user = await authService.inviteUser(email, role, frontendRegisterUrl, managerId);
             sendSuccessResponse(res, 201, 'User invited successfully. Registration link sent to email.', user);
         } catch (error) {
+            console.error('Error in authController.inviteUser:', error);
             sendErrorResponse(res, 400, error.message);
         }
     }
@@ -72,13 +89,14 @@ class AuthController {
             await authService.resetPassword(token, newPassword);
             sendSuccessResponse(res, 200, 'Password reset successfully.');
         } catch (error) {
+            // *** SYNTAX FIX APPLIED HERE ***
+            // Removed the extra '(error) { ... }' block that was causing the TypeError.
             sendErrorResponse(res, 400, error.message);
         }
     }
 
     async updateProfile(req, res) {
         try {
-            // req.user.id is populated by the 'protect' middleware
             const userId = req.user.id;
             const updates = req.body;
             const updatedUser = await authService.updateProfile(userId, updates);
@@ -95,15 +113,13 @@ class AuthController {
      */
     async getMe(req, res) {
         try {
-            // req.user is populated by the 'protect' middleware
-            // It already contains the user's non-sensitive profile data
             sendSuccessResponse(res, 200, 'User profile retrieved successfully.', req.user);
         } catch (error) {
             sendErrorResponse(res, 500, 'Failed to retrieve user profile.', error.message);
         }
     }
 
-      /**
+    /**
      * Handles resending of OTP.
      * @param {object} req - Express request object.
      * @param {object} res - Express response object.

@@ -9,10 +9,15 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
 class AuthService {
-    async inviteUser(email, role, frontendRegisterUrl) {
+    // Corrected inviteUser signature to match controller call
+    async inviteUser(email, role, frontendRegisterUrl, managerId) { // Added managerId here
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            throw new Error('User with this email already exists.');
+            if (existingUser.isVerified) {
+                throw new Error('User with this email already exists.');
+            } else {
+                throw new Error('User with this email has already been invited. Please check their status or complete their registration.');
+            }
         }
 
         const inviteToken = crypto.randomBytes(32).toString('hex');
@@ -24,7 +29,8 @@ class AuthService {
             inviteToken,
             inviteTokenExpires,
             isVerified: false,
-            profileCompleted: false
+            profileCompleted: false,
+            managerId: managerId // <-- Assign the managerId here
         });
 
         await user.save();
@@ -36,7 +42,11 @@ class AuthService {
 
         await sendEmail(email, emailSubject, emailText, emailHtml);
 
-        return user;
+        // Return the user object (it won't have the sensitive token data by default)
+        const userObject = user.toObject();
+        delete userObject.inviteToken;
+        delete userObject.inviteTokenExpires;
+        return userObject;
     }
 
     async completeRegistration(inviteToken, userData) {
@@ -52,7 +62,6 @@ class AuthService {
         user.firstName = userData.firstName;
         user.lastName = userData.lastName;
         user.phoneNumber = userData.phoneNumber;
-        // Explicitly hash password before assigning to user object
         user.password = await hashPassword(userData.password);
         user.profileCompleted = true;
         user.inviteToken = undefined;
@@ -62,7 +71,7 @@ class AuthService {
         user.otp = otp;
         user.otpExpires = new Date(Date.now() + authConfig.otpExpiresInMinutes * 60 * 1000);
 
-        console.log(`[DEBUG - completeRegistration] Password before save: '${user.password}'`); // New debug log
+        console.log(`[DEBUG - completeRegistration] Password before save: '${user.password}'`);
         await user.save();
 
         const emailSubject = 'Verify Your Email - SaaS Cybersecurity Audit Platform';
