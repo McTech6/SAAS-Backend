@@ -17,8 +17,9 @@ router.get('/profile', userController.getProfile);
 // Note: User creation might also be handled by auth.controller.js (e.g., registration, invitation)
 router.post('/', authorize('super_admin'), userController.createUser);
 
-// GET /api/v1/users - Get all users (Super Admin only)
-router.get('/', authorize('super_admin'), userController.getAllUsers);
+// GET /api/v1/users - Get all users (Super Admin and Admin only)
+// The actual filtering will happen in the service based on role
+router.get('/', authorize('super_admin', 'admin'), userController.getAllUsers); // <-- MODIFIED THIS LINE
 
 // GET /api/v1/users/:id - Get a single user by ID (Super Admin, Admin for managed auditors, or user themselves)
 // The controller will handle authorization based on user role and ID

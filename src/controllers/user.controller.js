@@ -25,14 +25,15 @@ class UserController {
     }
 
     /**
-     * Retrieves all users.
-     * Accessible by Super Admin.
-     * @param {object} req - Express request object.
+     * Retrieves all users based on the requesting user's role.
+     * Accessible by Super Admin (sees all) and Admin (sees users they manage).
+     * @param {object} req - Express request object (req.user populated by auth middleware).
      * @param {object} res - Express response object.
      */
     async getAllUsers(req, res) {
         try {
-            const users = await userService.getAllUsers();
+            // Pass the authenticated user object to the service for role-based filtering
+            const users = await userService.getAllUsers(req.user); // <-- MODIFIED THIS LINE
             sendSuccessResponse(res, 200, 'Users retrieved successfully.', users);
         } catch (error) {
             sendErrorResponse(res, 500, error.message);

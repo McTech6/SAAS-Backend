@@ -1,19 +1,35 @@
 // src/services/user.service.js
 
 import User from '../models/user.model.js';
-import { hashPassword, comparePassword } from '../utils/helpers.js'; // Using your helper functions
+import { hashPassword, comparePassword } from '../utils/helpers.js'; // Assuming these are your helpers
 
 /**
  * Service for managing user accounts (beyond authentication).
  */
 class UserService {
     /**
-     * Retrieves all users from the database.
-     * @returns {Promise<Array<User>>} A list of all users, excluding sensitive fields.
+     * Retrieves all users from the database based on the requesting user's role.
+     * Super Admins see all users. Admins see users they manage (where managerId matches their ID).
+     * @param {object} requestingUser - The authenticated user object ({ id, role }).
+     * @returns {Promise<Array<User>>} A list of users, excluding sensitive fields.
+     * @throws {Error} If the requesting user's role is not authorized to view users.
      */
-    async getAllUsers() {
+    async getAllUsers(requestingUser) { // <-- MODIFIED SIGNATURE
+        let query = {};
+
+        if (requestingUser.role === 'super_admin') {
+            // Super Admin sees all users
+            query = {};
+        } else if (requestingUser.role === 'admin') {
+            // Admin sees users they are the manager of
+            query = { managerId: requestingUser.id }; // <-- FILTER BY managerId
+        } else {
+            // Other roles (e.g., 'auditor') are not authorized to view all users
+            throw new Error('You are not authorized to view other user accounts.');
+        }
+
         // Exclude sensitive fields like password, OTPs, tokens by default
-        return User.find().select('-password -otp -otpExpires -inviteToken -inviteTokenExpires -passwordResetToken -passwordResetExpires');
+        return User.find(query).select('-password -otp -otpExpires -inviteToken -inviteTokenExpires -passwordResetToken -passwordResetExpires');
     }
 
     /**
@@ -68,7 +84,6 @@ class UserService {
         if (updates.role && requestingUserRole === 'super_admin' && (user.role === 'super_admin' && user._id.toString() !== targetUserId)) {
              // A super_admin cannot change another super_admin's role (or their own) via this endpoint,
              // this is more for security to prevent accidental demotion of the last super_admin.
-             // If changing another super_admin's role is intended, this logic needs adjustment.
              // For simplicity, we'll prevent a super_admin from changing another super_admin's role here.
              if (updates.role === 'super_admin' && user.role === 'super_admin') {
                 throw new Error('Cannot change another Super Admin\'s role via this endpoint.');
