@@ -114,14 +114,13 @@ class CompanyService {
      * @throws {Error} If company not found or user unauthorized.
      */
     async updateCompany(companyId, updates, requestingUserId, requestingUserRole) {
+        // --- Access control block (no changes needed here) ---
         const company = await Company.findById(companyId);
 
         if (!company) {
             throw new Error('Company not found.');
         }
 
-        // Access control for update: Only Super Admin and Admin can update companies.
-        // Admins can only update companies they created or those created by their managed auditors.
         if (requestingUserRole === 'admin') {
             const managedAuditors = await User.find({ managerId: requestingUserId }).select('_id');
             const managedAuditorIds = managedAuditors.map(auditor => auditor._id.toString());
@@ -131,24 +130,21 @@ class CompanyService {
         } else if (requestingUserRole !== 'super_admin') {
             throw new Error('Unauthorized role to update companies.');
         }
+        // --- End of access control block ---
 
-        // Apply updates
-        Object.keys(updates).forEach(key => {
-            if (companyDataFields.includes(key)) { // Only allow updates to defined fields
-                if (typeof updates[key] === 'object' && updates[key] !== null && !Array.isArray(updates[key])) {
-                    // Handle nested objects like contactPerson or address
-                    Object.assign(company[key], updates[key]);
-                } else {
-                    company[key] = updates[key];
-                }
-            }
-        });
+        // Fix starts here: Use findByIdAndUpdate and chain populate calls
+        const updatedCompany = await Company.findByIdAndUpdate(
+            companyId,
+            { ...updates, lastModifiedBy: requestingUserId }, // Apply updates and set lastModifiedBy
+            { new: true, runValidators: true } // `new: true` returns the updated document
+        ).populate('createdBy', 'firstName lastName email')
+         .populate('lastModifiedBy', 'firstName lastName email');
 
-        company.lastModifiedBy = requestingUserId; // Update last modified user
+        if (!updatedCompany) {
+            throw new Error('Company not found after update.');
+        }
 
-        await company.save();
-        return company.populate('createdBy', 'firstName lastName email')
-                      .populate('lastModifiedBy', 'firstName lastName email');
+        return updatedCompany;
     }
 
     /**
