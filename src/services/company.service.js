@@ -113,39 +113,59 @@ class CompanyService {
      * @returns {Promise<Company>} The updated company object.
      * @throws {Error} If company not found or user unauthorized.
      */
-    async updateCompany(companyId, updates, requestingUserId, requestingUserRole) {
-        // --- Access control block (no changes needed here) ---
-        const company = await Company.findById(companyId);
+   
+async updateCompany(companyId, updates, requestingUserId, requestingUserRole) {
+    const company = await Company.findById(companyId);
 
-        if (!company) {
-            throw new Error('Company not found.');
-        }
-
-        if (requestingUserRole === 'admin') {
-            const managedAuditors = await User.find({ managerId: requestingUserId }).select('_id');
-            const managedAuditorIds = managedAuditors.map(auditor => auditor._id.toString());
-            if (company.createdBy.toString() !== requestingUserId && !managedAuditorIds.includes(company.createdBy.toString())) {
-                throw new Error('You are not authorized to update this company.');
-            }
-        } else if (requestingUserRole !== 'super_admin') {
-            throw new Error('Unauthorized role to update companies.');
-        }
-        // --- End of access control block ---
-
-        // Fix starts here: Use findByIdAndUpdate and chain populate calls
-        const updatedCompany = await Company.findByIdAndUpdate(
-            companyId,
-            { ...updates, lastModifiedBy: requestingUserId }, // Apply updates and set lastModifiedBy
-            { new: true, runValidators: true } // `new: true` returns the updated document
-        ).populate('createdBy', 'firstName lastName email')
-         .populate('lastModifiedBy', 'firstName lastName email');
-
-        if (!updatedCompany) {
-            throw new Error('Company not found after update.');
-        }
-
-        return updatedCompany;
+    if (!company) {
+        throw new Error('Company not found.');
     }
+
+    // --- REFACTORED AUTHORIZATION LOGIC ---
+    // Convert IDs to strings for a reliable comparison
+    const createdByIdString = company.createdBy.toString();
+    const requestingUserIdString = requestingUserId.toString();
+
+    // Check if the requesting user created this company
+    const didCreateCompany = createdByIdString === requestingUserIdString;
+    
+    // Authorization flags
+    let isAuthorized = false;
+
+    // A super admin or admin is authorized if they created the company
+    if ((requestingUserRole === 'super_admin' || requestingUserRole === 'admin') && didCreateCompany) {
+        isAuthorized = true;
+    }
+    
+    // Special case: An admin can also update companies created by their managed auditors
+    if (requestingUserRole === 'admin' && !didCreateCompany) {
+        const managedAuditors = await User.find({ managerId: requestingUserId }).select('_id');
+        const managedAuditorIds = managedAuditors.map(auditor => auditor._id.toString());
+        if (managedAuditorIds.includes(createdByIdString)) {
+            isAuthorized = true;
+        }
+    }
+    
+    // If none of the above conditions were met, the user is not authorized
+    if (!isAuthorized) {
+        throw new Error('You are not authorized to update this company.');
+    }
+
+    // ... (the rest of the function remains the same)
+    const updatedCompany = await Company.findByIdAndUpdate(
+        companyId,
+        { ...updates, lastModifiedBy: requestingUserId },
+        { new: true, runValidators: true }
+    ).populate('createdBy', 'firstName lastName email')
+     .populate('lastModifiedBy', 'firstName lastName email');
+
+    if (!updatedCompany) {
+        throw new Error('Company not found after update.');
+    }
+
+    return updatedCompany;
+}
+
 
     /**
      * Deletes a company permanently.
