@@ -1,144 +1,116 @@
 // src/services/company.service.js
-
 import Company from '../models/company.model.js';
-import User from '../models/user.model.js'; // Needed to check manager hierarchy for Admins
+import AuditInstance from '../models/auditInstance.model.js';
 
-/**
- * Service for managing client companies.
- */
 class CompanyService {
-    /**
-     * Creates a new company.
-     * @param {object} companyData - Data for the new company.
-     * @param {string} createdByUserId - The ID of the user creating the company.
-     * @returns {Promise<Company>} The newly created company object.
-     */
-    async createCompany(companyData, createdByUserId) {
-        const newCompany = new Company({
-            ...companyData,
-            createdBy: createdByUserId,
-            lastModifiedBy: createdByUserId // Initial creator is also the last modifier
-        });
-        await newCompany.save();
-        return newCompany;
+  /**
+   * Creates a new company.
+   */
+  async createCompany(companyData, createdByUserId) {
+    const newCompany = new Company({
+      ...companyData,
+      createdBy: createdByUserId,
+      lastModifiedBy: createdByUserId
+    });
+    await newCompany.save();
+    return newCompany;
+  }
+
+  /**
+   * List companies:
+   * – super_admin / admin → only the ones they created
+   * – auditor → the ones they created OR companies with audits assigned to them
+   */
+  async getAllCompanies(requestingUserId, requestingUserRole) {
+    let query = {};
+
+    if (requestingUserRole === 'super_admin' || requestingUserRole === 'admin') {
+      query = { createdBy: requestingUserId };
+    } else if (requestingUserRole === 'auditor') {
+      // Auditors: created by me OR any company that has an audit in which I’m assigned
+      const companyIdsWithAssignedAudit = await AuditInstance.find(
+        { assignedAuditors: requestingUserId }
+      ).distinct('company');
+
+      query = {
+        $or: [
+          { createdBy: requestingUserId },
+          { _id: { $in: companyIdsWithAssignedAudit } }
+        ]
+      };
+    } else {
+      throw new Error('Unauthorized role to view companies.');
     }
 
-    /**
-     * Retrieves all companies based on the requesting user's role and hierarchy.
-     * @param {string} requestingUserId - The ID of the user making the request.
-     * @param {string} requestingUserRole - The role of the user making the request.
-     * @returns {Promise<Array<Company>>} A list of companies accessible to the user.
-     */
-    async getAllCompanies(requestingUserId, requestingUserRole) {
-        let query = {};
+    return Company.find(query)
+      .populate('createdBy', 'firstName lastName email')
+      .populate('lastModifiedBy', 'firstName lastName email');
+  }
 
-        // All users (super_admin, admin, auditor) can only see companies they created
-        if (requestingUserRole === 'super_admin' || requestingUserRole === 'admin' || requestingUserRole === 'auditor') {
-            query = { createdBy: requestingUserId };
-        } else {
-            // Should not happen if authorize middleware is correctly applied
-            throw new Error('Unauthorized role to view companies.');
-        }
+  /**
+   * Single company view:
+   * – super_admin / admin → must be the creator
+   * – auditor → must be the creator OR must have at least one assigned audit for this company
+   */
+  async getCompanyById(companyId, requestingUserId, requestingUserRole) {
+    const company = await Company.findById(companyId)
+      .populate('createdBy', 'firstName lastName email')
+      .populate('lastModifiedBy', 'firstName lastName email');
 
-        // Populate createdBy and lastModifiedBy fields to show user names if needed in future
-        return Company.find(query)
-                      .populate('createdBy', 'firstName lastName email')
-                      .populate('lastModifiedBy', 'firstName lastName email');
+    if (!company) throw new Error('Company not found.');
+
+    if (requestingUserRole === 'super_admin' || requestingUserRole === 'admin') {
+      if (company.createdBy.toString() !== requestingUserId) {
+        throw new Error('You are not authorized to view this company.');
+      }
+    } else if (requestingUserRole === 'auditor') {
+      const isCreator = company.createdBy.toString() === requestingUserId;
+      const hasAssignedAudit = await AuditInstance.countDocuments({
+        company: companyId,
+        assignedAuditors: requestingUserId
+      });
+      if (!isCreator && hasAssignedAudit === 0) {
+        throw new Error('You are not authorized to view this company.');
+      }
+    } else {
+      throw new Error('Unauthorized role to view this company.');
     }
 
-    /**
-     * Retrieves a single company by ID, with access control.
-     * @param {string} companyId - The ID of the company to retrieve.
-     * @param {string} requestingUserId - The ID of the user making the request.
-     * @param {string} requestingUserRole - The role of the user making the request.
-     * @returns {Promise<Company>} The company object.
-     * @throws {Error} If company not found or user unauthorized.
-     */
-    async getCompanyById(companyId, requestingUserId, requestingUserRole) {
-        const company = await Company.findById(companyId)
-                                     .populate('createdBy', 'firstName lastName email')
-                                     .populate('lastModifiedBy', 'firstName lastName email');
+    return company;
+  }
 
-        if (!company) {
-            throw new Error('Company not found.');
-        }
-
-        // All users can only see companies they created
-        if (requestingUserRole === 'super_admin' || requestingUserRole === 'admin' || requestingUserRole === 'auditor') {
-            if (company.createdBy.toString() === requestingUserId) {
-                return company;
-            } else {
-                throw new Error('You are not authorized to view this company.');
-            }
-        } else {
-            throw new Error('Unauthorized role to view this company.');
-        }
+  /**
+   * Update company → only the creator may update
+   */
+  async updateCompany(companyId, updates, requestingUserId) {
+    const company = await Company.findById(companyId);
+    if (!company) throw new Error('Company not found.');
+    if (company.createdBy.toString() !== requestingUserId) {
+      throw new Error('You are not authorized to update this company.');
     }
 
-    /**
-     * Updates an existing company.
-     * @param {string} companyId - The ID of the company to update.
-     * @param {object} updates - Fields to update.
-     * @param {string} requestingUserId - The ID of the user making the request.
-     * @param {string} requestingUserRole - The role of the user making the request.
-     * @returns {Promise<Company>} The updated company object.
-     * @throws {Error} If company not found or user unauthorized.
-     */
-    async updateCompany(companyId, updates, requestingUserId, requestingUserRole) {
-        const company = await Company.findById(companyId);
+    const updated = await Company.findByIdAndUpdate(
+      companyId,
+      { ...updates, lastModifiedBy: requestingUserId },
+      { new: true, runValidators: true }
+    )
+      .populate('createdBy', 'firstName lastName email')
+      .populate('lastModifiedBy', 'firstName lastName email');
 
-        if (!company) {
-            throw new Error('Company not found.');
-        }
+    return updated;
+  }
 
-        // --- SIMPLIFIED AUTHORIZATION LOGIC ---
-        // All users can only update companies they created
-        const createdByIdString = company.createdBy.toString();
-        const requestingUserIdString = requestingUserId.toString();
-
-        if (createdByIdString !== requestingUserIdString) {
-            throw new Error('You are not authorized to update this company.');
-        }
-
-        // Update the company
-        const updatedCompany = await Company.findByIdAndUpdate(
-            companyId,
-            { ...updates, lastModifiedBy: requestingUserId },
-            { new: true, runValidators: true }
-        ).populate('createdBy', 'firstName lastName email')
-         .populate('lastModifiedBy', 'firstName lastName email');
-
-        if (!updatedCompany) {
-            throw new Error('Company not found after update.');
-        }
-
-        return updatedCompany;
+  /**
+   * Delete company → only the creator may delete
+   */
+  async deleteCompany(companyId, requestingUserId) {
+    const company = await Company.findById(companyId);
+    if (!company) throw new Error('Company not found.');
+    if (company.createdBy.toString() !== requestingUserId) {
+      throw new Error('You are not authorized to delete this company.');
     }
-
-    /**
-     * Deletes a company permanently.
-     * @param {string} companyId - The ID of the company to delete.
-     * @param {string} requestingUserId - The ID of the user making the request.
-     * @param {string} requestingUserRole - The role of the user making the request.
-     * @returns {Promise<void>}
-     * @throws {Error} If company not found or user unauthorized.
-     */
-    async deleteCompany(companyId, requestingUserId, requestingUserRole) {
-        const company = await Company.findById(companyId);
-        if (!company) {
-            throw new Error('Company not found.');
-        }
-
-        // All users can only delete companies they created
-        if (company.createdBy.toString() !== requestingUserId) {
-            throw new Error('You are not authorized to delete this company.');
-        }
-
-        await Company.findByIdAndDelete(companyId);
-    }
+    await Company.findByIdAndDelete(companyId);
+  }
 }
-
-// Helper array to ensure only valid fields are updated
-const companyDataFields = ['name', 'industry', 'contactPerson', 'address', 'website', 'status'];
 
 export default new CompanyService();
