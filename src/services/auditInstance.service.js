@@ -1,6 +1,5 @@
 // src/services/auditInstance.service.js
 import AuditInstance from '../models/auditInstance.model.js';
-import AuditTemplate from '../models/auditTemplate.model.js';
 import Company from '../models/company.model.js';
 import User from '../models/user.model.js';
 import companyService from './company.service.js';
@@ -75,21 +74,24 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /*  GET ALL (unchanged)                               */
+  /*  GET ALL AUDIT INSTANCES                           */
   /* -------------------------------------------------- */
   async getAllAuditInstances(requestingUser) {
     let query = {};
+
     if (requestingUser.role === 'super_admin' || requestingUser.role === 'admin') {
+      // Super Admins and Admins can see audits they created or assigned
       const managedAuditors = await User.find({ managerId: requestingUser.id }).select('_id');
       const managedAuditorIds = managedAuditors.map(a => a._id);
+
       query = {
         $or: [
           { createdBy: requestingUser.id },
-          { createdBy: { $in: managedAuditorIds } },
-          { assignedAuditors: requestingUser.id }
+          { assignedAuditors: { $in: [requestingUser.id, ...managedAuditorIds] } }
         ]
       };
     } else if (requestingUser.role === 'auditor') {
+      // Auditors can see audits they created or were assigned to
       query = {
         $or: [
           { createdBy: requestingUser.id },
@@ -109,7 +111,7 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /*  GET SINGLE (unchanged)                            */
+  /*  GET SINGLE AUDIT INSTANCE                         */
   /* -------------------------------------------------- */
   async getAuditInstanceById(auditInstanceId, requestingUser) {
     const audit = await AuditInstance.findById(auditInstanceId)
@@ -246,63 +248,55 @@ class AuditInstanceService {
   }
 
   /**
- * Generates a PDF report for an audit instance.
- * Allows the creator (Admin / Super-Admin) or any assigned auditor.
- * Audit must be Completed.
- */
-async generateReport(auditInstanceId, requestingUser) {
-  const audit = await AuditInstance.findById(auditInstanceId)
-    .populate('company')
-    .populate('createdBy', 'firstName lastName email') // populating is okay
-    .populate('template', 'name version');
+   * Generates a PDF report for an audit instance.
+   * Allows the creator (Admin / Super-Admin) or any assigned auditor.
+   * Audit must be Completed.
+   */
+  async generateReport(auditInstanceId, requestingUser) {
+    const audit = await AuditInstance.findById(auditInstanceId)
+      .populate('company')
+      .populate('createdBy', 'firstName lastName email') // populating is okay
+      .populate('template', 'name version');
 
-  if (!audit) throw new Error('Audit Instance not found.');
-  if (audit.status !== 'Completed') throw new Error('Report can only be generated for completed audits.');
+    if (!audit) throw new Error('Audit Instance not found.');
+    if (audit.status !== 'Completed') throw new Error('Report can only be generated for completed audits.');
 
-  // DEBUG LOGGING
-  console.log("DEBUG: requestingUser.id =", requestingUser.id);
-  console.log("DEBUG: audit.createdBy =", audit.createdBy);
-  console.log("DEBUG: audit.assignedAuditors =", audit.assignedAuditors);
+    // Convert IDs to string for comparison
+    const creatorId = audit.createdBy?._id ? audit.createdBy._id.toString() : audit.createdBy.toString();
+    const requestingUserIdStr = requestingUser.id.toString();
 
-  // Convert IDs to string for comparison
-  const creatorId = audit.createdBy?._id ? audit.createdBy._id.toString() : audit.createdBy.toString();
-  const requestingUserIdStr = requestingUser.id.toString();
+    const isCreator = creatorId === requestingUserIdStr;
+    const isAssignedAuditor = audit.assignedAuditors.some(auditorId =>
+      auditorId.toString() === requestingUserIdStr
+    );
 
-  const isCreator = creatorId === requestingUserIdStr;
-  const isAssignedAuditor = audit.assignedAuditors.some(auditorId =>
-    auditorId.toString() === requestingUserIdStr
-  );
+    if (!isCreator && !isAssignedAuditor) {
+      throw new Error('You are not authorized to generate a report for this audit instance.');
+    }
 
-  console.log("DEBUG: isCreator =", isCreator);
-  console.log("DEBUG: isAssignedAuditor =", isAssignedAuditor);
+    // Generate HTML and PDF
+    const html = generateReportHtml(audit);
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '1in', right: '1in', bottom: '1in', left: '1in' },
+      displayHeaderFooter: true,
+      headerTemplate: '<div></div>',
+      footerTemplate: `
+        <div style="font-size:9pt;text-align:center;width:100%">
+          <span class="pageNumber"></span> / <span class="totalPages"></span>
+        </div>`
+    });
+    await browser.close();
 
-  if (!isCreator && !isAssignedAuditor) {
-    throw new Error('You are not authorized to generate a report for this audit instance.');
+    return pdfBuffer;
   }
-
-  // Generate HTML and PDF
-  const html = generateReportHtml(audit);
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
-  const pdfBuffer = await page.pdf({
-    format: 'A4',
-    printBackground: true,
-    margin: { top: '1in', right: '1in', bottom: '1in', left: '1in' },
-    displayHeaderFooter: true,
-    headerTemplate: '<div></div>',
-    footerTemplate: `
-      <div style="font-size:9pt;text-align:center;width:100%">
-        <span class="pageNumber"></span> / <span class="totalPages"></span>
-      </div>`
-  });
-  await browser.close();
-
-  return pdfBuffer;
-}
 
   /* -------------- internal helpers ------------------ */
   _calcScore(question, value) {
