@@ -1,143 +1,127 @@
 // src/controllers/auditInstance.controller.js
-
 import auditInstanceService from '../services/auditInstance.service.js';
 import { sendSuccessResponse, sendErrorResponse } from '../utils/responseHandler.js';
 
-/**
- * Controller for Audit Instance management operations.
- * These routes will be protected by authentication and authorization middleware.
- */
 class AuditInstanceController {
-    /**
-     * Creates a new audit instance.
-     * Accessible by Super Admin, Admin, and Auditor.
-     * @param {object} req - Express request object.
-     * @param {object} res - Express response object.
-     */
-    async createAuditInstance(req, res) {
-        try {
-            const auditData = req.body;
-            const requestingUser = req.user; // Authenticated user
-            const newAuditInstance = await auditInstanceService.createAuditInstance(auditData, requestingUser);
-            sendSuccessResponse(res, 201, 'Audit Instance created successfully.', newAuditInstance);
-        } catch (error) {
-            sendErrorResponse(res, 400, error.message);
-        }
+  async createAuditInstance(req, res) {
+    try {
+      const auditData = req.body;
+      const requestingUser = req.user;
+      const newAuditInstance = await auditInstanceService.createAuditInstance(auditData, requestingUser);
+      sendSuccessResponse(res, 201, 'Audit Instance created successfully.', newAuditInstance);
+    } catch (error) {
+      sendErrorResponse(res, 400, error.message);
     }
+  }
 
-    /**
-     * Retrieves all audit instances accessible to the requesting user.
-     * Accessible by Super Admin, Admin, and Auditor.
-     * @param {object} req - Express request object.
-     * @param {object} res - Express response object.
-     */
-    async getAllAuditInstances(req, res) {
-        try {
-            const requestingUser = req.user;
-            const auditInstances = await auditInstanceService.getAllAuditInstances(requestingUser);
-            sendSuccessResponse(res, 200, 'Audit Instances retrieved successfully.', auditInstances);
-        } catch (error) {
-            sendErrorResponse(res, 500, error.message);
-        }
+  async getAllAuditInstances(req, res) {
+    try {
+      const requestingUser = req.user;
+      const auditInstances = await auditInstanceService.getAllAuditInstances(requestingUser);
+      sendSuccessResponse(res, 200, 'Audit Instances retrieved successfully.', auditInstances);
+    } catch (error) {
+      sendErrorResponse(res, 500, error.message);
     }
+  }
 
-    /**
-     * Retrieves a single audit instance by ID, with access control.
-     * Accessible by Super Admin, Admin, and Auditor.
-     * @param {object} req - Express request object.
-     * @param {object} res - Express response object.
-     */
-    async getAuditInstanceById(req, res) {
-        try {
-            const { id } = req.params;
-            const requestingUser = req.user;
-            const auditInstance = await auditInstanceService.getAuditInstanceById(id, requestingUser);
-            sendSuccessResponse(res, 200, 'Audit Instance retrieved successfully.', auditInstance);
-        } catch (error) {
-            sendErrorResponse(res, 404, error.message);
-        }
+  async getAuditInstanceById(req, res) {
+    try {
+      const { id } = req.params;
+      const requestingUser = req.user;
+      const auditInstance = await auditInstanceService.getAuditInstanceById(id, requestingUser);
+      sendSuccessResponse(res, 200, 'Audit Instance retrieved successfully.', auditInstance);
+    } catch (error) {
+      sendErrorResponse(res, 404, error.message);
     }
+  }
 
-    /**
-     * Submits or updates responses for specific questions within an audit instance.
-     * Accessible by Super Admin, Admin, and Auditor.
-     * @param {object} req - Express request object.
-     * @param {object} res - Express response object.
-     */
-    async submitResponses(req, res) {
-        try {
-            const { id } = req.params; // Audit Instance ID
-            const responsesData = req.body.responses; // Array of response objects
-            const requestingUser = req.user;
+  async submitResponses(req, res) {
+    try {
+      const { id } = req.params;
+      const responsesData = req.body.responses;
+      const requestingUser = req.user;
 
-            if (!Array.isArray(responsesData)) {
-                return sendErrorResponse(res, 400, 'Responses must be an array.');
-            }
+      if (!Array.isArray(responsesData)) {
+        return sendErrorResponse(res, 400, 'Responses must be an array.');
+      }
 
-            const updatedAuditInstance = await auditInstanceService.submitResponses(id, responsesData, requestingUser);
-            sendSuccessResponse(res, 200, 'Audit responses submitted successfully.', updatedAuditInstance);
-        } catch (error) {
-            sendErrorResponse(res, 400, error.message);
-        }
+      const updatedAuditInstance = await auditInstanceService.submitResponses(id, responsesData, requestingUser);
+      sendSuccessResponse(res, 200, 'Audit responses submitted successfully.', updatedAuditInstance);
+    } catch (error) {
+      sendErrorResponse(res, 400, error.message);
     }
+  }
 
-    /**
-     * Updates the status of an audit instance.
-     * Accessible by Super Admin, Admin, and Auditor (with restrictions).
-     * @param {object} req - Express request object.
-     * @param {object} res - Express response object.
-     */
-    async updateAuditStatus(req, res) {
-        try {
-            const { id } = req.params; // Audit Instance ID
-            const { status } = req.body; // New status
-            const requestingUser = req.user;
-
-            const updatedAuditInstance = await auditInstanceService.updateAuditStatus(id, status, requestingUser);
-            sendSuccessResponse(res, 200, `Audit status updated to ${status}.`, updatedAuditInstance);
-        } catch (error) {
-            sendErrorResponse(res, 400, error.message);
-        }
+  async updateAuditStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const requestingUser = req.user;
+      const updatedAuditInstance = await auditInstanceService.updateAuditStatus(id, status, requestingUser);
+      sendSuccessResponse(res, 200, `Audit status updated to ${status}.`, updatedAuditInstance);
+    } catch (error) {
+      sendErrorResponse(res, 400, error.message);
     }
+  }
 
-    /**
-     * Deletes an audit instance permanently.
-     * Accessible by Super Admin and Admin (with restrictions).
-     * @param {object} req - Express request object.
-     * @param {object} res - Express response object.
-     */
-    async deleteAuditInstance(req, res) {
-        try {
-            const { id } = req.params;
-            const requestingUser = req.user;
-            await auditInstanceService.deleteAuditInstance(id, requestingUser);
-            sendSuccessResponse(res, 200, 'Audit Instance deleted successfully.');
-        } catch (error) {
-            sendErrorResponse(res, 400, error.message);
-        }
+  async assignAuditors(req, res) {
+    try {
+      const { id } = req.params;
+      const { auditorIds } = req.body;
+      const requestingUser = req.user;
+
+      if (!Array.isArray(auditorIds) || auditorIds.length === 0) {
+        return sendErrorResponse(res, 400, 'auditorIds must be a non-empty array.');
+      }
+
+      const updated = await auditInstanceService.assignAuditors(
+        id,
+        auditorIds,
+        requestingUser.id,
+        requestingUser.role
+      );
+      sendSuccessResponse(res, 200, 'Auditors assigned successfully.', updated);
+    } catch (err) {
+      sendErrorResponse(res, 400, err.message);
     }
+  }
 
-    /**
-     * Generates a PDF report for an audit instance.
-     * Accessible by Super Admin, Admin, and Auditor.
-     * @param {object} req - Express request object.
-     * @param {object} res - Express response object.
-     */
-    async generateReport(req, res) {
-        try {
-            const { id } = req.params;
-            const requestingUser = req.user;
-            const pdfBuffer = await auditInstanceService.generateReport(id, requestingUser);
-
-            // Set headers for PDF viewing in browser
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `inline; filename=audit_report_${id}.pdf`); // 'inline' for viewing in browser
-
-            res.send(pdfBuffer);
-        } catch (error) {
-            sendErrorResponse(res, 400, error.message);
-        }
+  async deleteAuditInstance(req, res) {
+    try {
+      const { id } = req.params;
+      const requestingUser = req.user;
+      await auditInstanceService.deleteAuditInstance(id, requestingUser);
+      sendSuccessResponse(res, 200, 'Audit Instance deleted successfully.');
+    } catch (error) {
+      sendErrorResponse(res, 400, error.message);
     }
+  }
+
+ /**
+ * Generates & streams a PDF report for an audit instance.
+ * Query param ?download=true forces download instead of inline preview.
+ * Accessible by Super-Admin, Admin, or any assigned auditor if audit is Completed.
+ * @param {object} req - Express request object.
+ * @param {object} res - Express response object.
+ */
+async generateReport(req, res) {
+  try {
+    const { id } = req.params;
+    const { download } = req.query;               // optional
+    const requestingUser = req.user;
+
+    const pdfBuffer = await auditInstanceService.generateReport(id, requestingUser);
+
+    const filename = `audit_report_${id}.pdf`;
+    const disposition = download === 'true' ? 'attachment' : 'inline';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    sendErrorResponse(res, 400, error.message);
+  }
+}
 }
 
 export default new AuditInstanceController();
