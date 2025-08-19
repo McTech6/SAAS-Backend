@@ -123,7 +123,8 @@ async deleteCompany(companyId, requestingUserId, requestingUserRole) {
 
   console.log(`[DELETE COMPANY] FOUND → company.createdBy=${company.createdBy}`);
 
-  if (company.createdBy.toString() !== requestingUserId) {
+  // Use the equals() method for a reliable comparison of ObjectId types
+  if (!company.createdBy.equals(requestingUserId)) {
     console.warn(`[DELETE COMPANY] 403 → User ${requestingUserId} is NOT the creator`);
     throw new Error('You can only delete companies you created.');
   }
