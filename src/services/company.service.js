@@ -113,15 +113,25 @@ class CompanyService {
  * @throws {Error} If company not found or user is not the creator.
  */
 async deleteCompany(companyId, requestingUserId, requestingUserRole) {
-  const company = await Company.findById(companyId);
-  if (!company) throw new Error('Company not found.');
+  console.log(`[DELETE COMPANY] START → companyId=${companyId} | userId=${requestingUserId} | role=${requestingUserRole}`);
 
-  // Allow ONLY the creator regardless of role
+  const company = await Company.findById(companyId);
+  if (!company) {
+    console.error(`[DELETE COMPANY] 404 → Company not found`);
+    throw new Error('Company not found.');
+  }
+
+  console.log(`[DELETE COMPANY] FOUND → company.createdBy=${company.createdBy}`);
+
   if (company.createdBy.toString() !== requestingUserId) {
+    console.warn(`[DELETE COMPANY] 403 → User ${requestingUserId} is NOT the creator`);
     throw new Error('You can only delete companies you created.');
   }
 
+  console.log(`[DELETE COMPANY] ALLOWED → User ${requestingUserId} is creator`);
+
   await Company.findByIdAndDelete(companyId);
+  console.log(`[DELETE COMPANY] SUCCESS → Company ${companyId} deleted`);
 }
 }
 
