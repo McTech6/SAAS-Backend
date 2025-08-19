@@ -103,14 +103,26 @@ class CompanyService {
   /**
    * Delete company → only the creator may delete
    */
-  async deleteCompany(companyId, requestingUserId) {
-    const company = await Company.findById(companyId);
-    if (!company) throw new Error('Company not found.');
-    if (company.createdBy.toString() !== requestingUserId) {
-      throw new Error('You are not authorized to delete this company.');
-    }
-    await Company.findByIdAndDelete(companyId);
+/**
+ * Deletes a company permanently.
+ * Only the user who created the company (creator) can delete it.
+ * @param {string} companyId - The ID of the company to delete.
+ * @param {string} requestingUserId - The ID of the user making the request.
+ * @param {string} requestingUserRole - The role of the user making the request.
+ * @returns {Promise<void>}
+ * @throws {Error} If company not found or user is not the creator.
+ */
+async deleteCompany(companyId, requestingUserId, requestingUserRole) {
+  const company = await Company.findById(companyId);
+  if (!company) throw new Error('Company not found.');
+
+  // Allow ONLY the creator regardless of role
+  if (company.createdBy.toString() !== requestingUserId) {
+    throw new Error('You can only delete companies you created.');
   }
+
+  await Company.findByIdAndDelete(companyId);
+}
 }
 
 export default new CompanyService();
