@@ -1,17 +1,20 @@
 // src/services/auditInstance.service.js
 import AuditInstance from '../models/auditInstance.model.js';
 import Company from '../models/company.model.js';
-import User from '../models/user.model.js'; // <- Ensure this is imported
+import User from '../models/user.model.js'; // ✅ Make sure User is imported
+import AuditTemplate from '../models/auditTemplate.model.js';
 import companyService from './company.service.js';
 import puppeteer from 'puppeteer';
 import generateReportHtml from '../utils/reportGenerator.js';
-import AuditTemplate from '../models/auditTemplate.model.js'; // <- Make sure your template model is imported
 
 class AuditInstanceService {
   /* -------------------------------------------------- */
   /*  CREATE AUDIT INSTANCE                             */
   /* -------------------------------------------------- */
   async createAuditInstance(data, requestingUser) {
+    console.log('[createAuditInstance] Data received:', data);
+    console.log('[createAuditInstance] Requesting user:', requestingUser);
+
     const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate } = data;
 
     let companyId;
@@ -50,32 +53,13 @@ class AuditInstanceService {
       });
     });
 
-    // -------------------------------
-    // Validate assigned auditors
-    // Only auditors managed by the requesting user can be assigned
-    let finalAssignedAuditors = [];
-    if (assignedAuditorIds && assignedAuditorIds.length > 0) {
-      const auditors = await User.find({
-        _id: { $in: assignedAuditorIds },
-        role: 'auditor',
-        managerId: requestingUser.id
-      });
-
-      if (auditors.length !== assignedAuditorIds.length) {
-        throw new Error('One or more provided auditor IDs are invalid or not under your management.');
-      }
-
-      finalAssignedAuditors = assignedAuditorIds;
-    }
-    // -------------------------------
-
     const newAuditInstance = new AuditInstance({
       company: companyId,
       template: auditTemplateId,
       templateNameSnapshot: auditTemplate.name,
       templateVersionSnapshot: auditTemplate.version,
       templateStructureSnapshot,
-      assignedAuditors: finalAssignedAuditors,
+      assignedAuditors: assignedAuditorIds || [],
       startDate: startDate || new Date(),
       endDate,
       status: 'Draft',
@@ -85,6 +69,8 @@ class AuditInstanceService {
     });
 
     await newAuditInstance.save();
+    console.log('[createAuditInstance] Audit instance created:', newAuditInstance._id);
+
     return newAuditInstance.populate([
       { path: 'company', select: 'name industry contactPerson' },
       { path: 'template', select: 'name version' },
@@ -144,8 +130,7 @@ class AuditInstanceService {
     const isCreator = audit.createdBy.toString() === requestingUser.id;
     const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id);
 
-    if (requestingUser.role === 'super_admin' && isCreator) return audit;
-    if (requestingUser.role === 'admin' && isCreator) return audit;
+    if ((requestingUser.role === 'super_admin' || requestingUser.role === 'admin') && isCreator) return audit;
     if (requestingUser.role === 'auditor' && (isCreator || isAssigned)) return audit;
 
     throw new Error('You are not authorized to view this audit instance.');
@@ -225,37 +210,45 @@ class AuditInstanceService {
   /*  DELETE AUDIT                                      */
   /* -------------------------------------------------- */
   async deleteAuditInstance(auditInstanceId, requestingUser) {
+    console.log('[deleteAuditInstance] Requesting user:', requestingUser);
     const audit = await AuditInstance.findById(auditInstanceId);
     if (!audit) throw new Error('Audit Instance not found.');
-
-    const isCreator = audit.createdBy.toString() === requestingUser.id;
-
-    if (requestingUser.role === 'auditor') throw new Error('Auditors cannot delete audits.');
-    if (requestingUser.role === 'admin' && (!isCreator || ['Completed', 'Archived'].includes(audit.status))) {
-      throw new Error('Admins can only delete their own non-completed audits.');
+    if (requestingUser.role !== 'super_admin' && requestingUser.role !== 'admin' && audit.createdBy.toString() !== requestingUser.id) {
+      throw new Error('You are not authorized to delete this audit.');
     }
-
     await AuditInstance.findByIdAndDelete(auditInstanceId);
+    console.log('[deleteAuditInstance] Audit deleted successfully.');
   }
 
   /* -------------------------------------------------- */
-  /*  ASSIGN AUDITORS  (single call, multiple ids)      */
+  /*  ASSIGN AUDITORS                                   */
   /* -------------------------------------------------- */
   async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
-    const audit = await AuditInstance.findById(auditInstanceId);
-    if (!audit) throw new Error('Audit instance not found.');
+    console.log('[assignAuditors] auditInstanceId:', auditInstanceId, 'auditorIds:', auditorIds);
 
-    // Ensure all ids are valid auditors created by the requester
-    const filter = { _id: { $in: auditorIds }, role: 'auditor', managerId: requestingUserId };
-    const auditors = await User.find(filter);
+    const audit = await AuditInstance.findById(auditInstanceId);
+    if (!audit) throw new Error('Audit Instance not found.');
+
+    if (requestingUserRole !== 'super_admin' && requestingUserRole !== 'admin') {
+      throw new Error('You are not authorized to assign auditors.');
+    }
+
+    const auditors = await User.find({
+      _id: { $in: auditorIds },
+      role: 'auditor',
+      managerId: requestingUserId
+    });
+
+    console.log('[assignAuditors] Auditors found:', auditors.map(a => a._id));
     if (auditors.length !== auditorIds.length) {
-      throw new Error('One or more provided auditor IDs are invalid or not under your management.');
+      throw new Error('One or more auditors are invalid or not under your management.');
     }
 
     audit.assignedAuditors = auditorIds;
     audit.lastModifiedBy = requestingUserId;
     await audit.save();
 
+    console.log('[assignAuditors] Auditors assigned successfully.');
     return audit.populate([
       { path: 'company', select: 'name' },
       { path: 'template', select: 'name version' },
@@ -265,30 +258,14 @@ class AuditInstanceService {
     ]);
   }
 
-  /**
-   * Generates a PDF report for an audit instance.
-   */
+  /* -------------------------------------------------- */
+  /*  GENERATE PDF REPORT                                */
+  /* -------------------------------------------------- */
   async generateReport(auditInstanceId, requestingUser) {
-    const audit = await AuditInstance.findById(auditInstanceId)
-      .populate('company')
-      .populate('createdBy', 'firstName lastName email')
-      .populate('template', 'name version');
-
-    if (!audit) throw new Error('Audit Instance not found.');
-    if (audit.status !== 'Completed') throw new Error('Report can only be generated for completed audits.');
-
-    const creatorId = audit.createdBy?._id ? audit.createdBy._id.toString() : audit.createdBy.toString();
-    const requestingUserIdStr = requestingUser.id.toString();
-    const isCreator = creatorId === requestingUserIdStr;
-    const isAssignedAuditor = audit.assignedAuditors.some(auditorId =>
-      auditorId.toString() === requestingUserIdStr
-    );
-
-    if (!isCreator && !isAssignedAuditor) {
-      throw new Error('You are not authorized to generate a report for this audit instance.');
-    }
-
+    console.log('[generateReport] auditInstanceId:', auditInstanceId);
+    const audit = await this.getAuditInstanceById(auditInstanceId, requestingUser);
     const html = generateReportHtml(audit);
+
     const browser = await puppeteer.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -301,13 +278,11 @@ class AuditInstanceService {
       margin: { top: '1in', right: '1in', bottom: '1in', left: '1in' },
       displayHeaderFooter: true,
       headerTemplate: '<div></div>',
-      footerTemplate: `
-        <div style="font-size:9pt;text-align:center;width:100%">
-          <span class="pageNumber"></span> / <span class="totalPages"></span>
-        </div>`
+      footerTemplate: `<div style="font-size:9pt;text-align:center;width:100%">
+                         <span class="pageNumber"></span> / <span class="totalPages"></span>
+                       </div>`
     });
     await browser.close();
-
     return pdfBuffer;
   }
 
