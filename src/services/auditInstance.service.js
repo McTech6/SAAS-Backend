@@ -3,23 +3,28 @@
 import AuditInstance from '../models/auditInstance.model.js';
 import Company from '../models/company.model.js';
 import AuditTemplate from '../models/auditTemplate.model.js';
-import User from '../models/user.model.js';
+import User from '../models/user.model.js'; // The User model import
 import companyService from './company.service.js';
 import puppeteer from 'puppeteer';
 import generateReportHtml from '../utils/reportGenerator.js';
 
-console.log('[AUDIT_SERVICE] User model imported:', User);
-console.log('[AUDIT_SERVICE] User model type:', typeof User);
-console.log('[AUDIT_SERVICE] User model constructor name:', User?.constructor?.name);
+// Add logs immediately after imports to confirm User model's initial state
+console.log('[AUDIT_SERVICE_INIT] User model imported:', User);
+console.log('[AUDIT_SERVICE_INIT] User model type:', typeof User);
+console.log('[AUDIT_SERVICE_INIT] User model constructor name:', User?.constructor?.name);
+console.log('[AUDIT_SERVICE_INIT] User model has find method:', typeof User?.find === 'function');
+
 
 class AuditInstanceService {
   /* -------------------------------------------------- */
-  /* CREATE AUDIT INSTANCE                             */
+  /* CREATE AUDIT INSTANCE                              */
   /* -------------------------------------------------- */
   async createAuditInstance(data, requestingUser) {
     console.log('[createAuditInstance] START - Data received:', data);
     console.log('[createAuditInstance] START - Requesting user:', requestingUser);
-    console.log('[createAuditInstance] START - User model available:', !!User);
+    console.log('[createAuditInstance] START - User model available (at func start):', !!User);
+    console.log('[createAuditInstance] START - User model type (at func start):', typeof User);
+    console.log('[createAuditInstance] START - User model has find method (at func start):', typeof User?.find === 'function');
 
     try {
       const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate } = data;
@@ -125,12 +130,13 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /* GET ALL AUDIT INSTANCES                           */
+  /* GET ALL AUDIT INSTANCES                            */
   /* -------------------------------------------------- */
   async getAllAuditInstances(requestingUser) {
     console.log('[getAllAuditInstances] START - Requesting user:', requestingUser);
-    console.log('[getAllAuditInstances] START - User model available:', !!User);
-    console.log('[getAllAuditInstances] START - User model type:', typeof User);
+    console.log('[getAllAuditInstances] User model available (at func start):', !!User);
+    console.log('[getAllAuditInstances] User model type (at func start):', typeof User);
+    console.log('[getAllAuditInstances] User model has find method (at func start):', typeof User?.find === 'function');
 
     let query = {};
 
@@ -144,12 +150,13 @@ class AuditInstanceService {
           console.log('[getAllAuditInstances] User model find method:', typeof User.find);
           
           if (!User || typeof User.find !== 'function') {
-            throw new Error(`User model is not properly imported. User: ${User}, User.find: ${typeof User.find}`);
+            console.error('[getAllAuditInstances] User model check failed before find. User:', User, 'typeof User.find:', typeof User.find);
+            throw new Error(`User model is not properly imported or its find method is missing. User: ${User}, User.find: ${typeof User.find}`);
           }
 
           const managedAuditors = await User.find({ managerId: requestingUser.id }).select('_id');
           console.log('[getAllAuditInstances] Managed auditors found:', managedAuditors.length);
-          console.log('[getAllAuditInstances] Managed auditors:', managedAuditors);
+          console.log('[getAllAuditInstances] Managed auditors IDs:', managedAuditors.map(a => a._id));
           
           const managedAuditorIds = managedAuditors.map(a => a._id);
           console.log('[getAllAuditInstances] Managed auditor IDs:', managedAuditorIds);
@@ -160,11 +167,11 @@ class AuditInstanceService {
               { assignedAuditors: { $in: [requestingUser.id, ...managedAuditorIds] } }
             ]
           };
-          console.log('[getAllAuditInstances] Query created with managed auditors:', query);
+          console.log('[getAllAuditInstances] Query created with managed auditors:', JSON.stringify(query));
         } catch (userError) {
-          console.error('[getAllAuditInstances] Error querying User model:', userError.message);
-          console.error('[getAllAuditInstances] User model error stack:', userError.stack);
-          console.error('[getAllAuditInstances] User model at error time:', User);
+          console.error('[getAllAuditInstances] Error querying User model (inner catch):', userError.message);
+          console.error('[getAllAuditInstances] User model error stack (inner catch):', userError.stack);
+          console.error('[getAllAuditInstances] User model state at inner error time:', User);
           
           // Fallback query without managed auditors
           query = {
@@ -173,7 +180,7 @@ class AuditInstanceService {
               { assignedAuditors: requestingUser.id }
             ]
           };
-          console.log('[getAllAuditInstances] Fallback query created:', query);
+          console.log('[getAllAuditInstances] Fallback query created:', JSON.stringify(query));
         }
       } else if (requestingUser.role === 'auditor') {
         console.log('[getAllAuditInstances] Processing auditor role');
@@ -183,7 +190,7 @@ class AuditInstanceService {
             { assignedAuditors: requestingUser.id }
           ]
         };
-        console.log('[getAllAuditInstances] Auditor query created:', query);
+        console.log('[getAllAuditInstances] Auditor query created:', JSON.stringify(query));
       } else {
         throw new Error('Unauthorized role to view audit instances.');
       }
@@ -199,18 +206,21 @@ class AuditInstanceService {
       console.log('[getAllAuditInstances] Query executed successfully, results count:', result.length);
       return result;
     } catch (error) {
-      console.error('[getAllAuditInstances] ERROR:', error.message);
-      console.error('[getAllAuditInstances] ERROR STACK:', error.stack);
+      console.error('[getAllAuditInstances] FINAL ERROR CATCH:', error.message);
+      console.error('[getAllAuditInstances] FINAL ERROR STACK:', error.stack);
+      console.error('[getAllAuditInstances] User model state at final error:', User);
       throw error;
     }
   }
 
   /* -------------------------------------------------- */
-  /* GET SINGLE AUDIT INSTANCE                         */
+  /* GET SINGLE AUDIT INSTANCE                          */
   /* -------------------------------------------------- */
   async getAuditInstanceById(auditInstanceId, requestingUser) {
     console.log('[getAuditInstanceById] START - auditInstanceId:', auditInstanceId);
     console.log('[getAuditInstanceById] START - requestingUser:', requestingUser);
+    console.log('[getAuditInstanceById] User model available (at func start):', !!User);
+    console.log('[getAuditInstanceById] User model type (at func start):', typeof User);
 
     try {
       const audit = await AuditInstance.findById(auditInstanceId)
@@ -234,15 +244,17 @@ class AuditInstanceService {
       throw new Error('You are not authorized to view this audit instance.');
     } catch (error) {
       console.error('[getAuditInstanceById] ERROR:', error.message);
+      console.error('[getAuditInstanceById] ERROR STACK:', error.stack);
       throw error;
     }
   }
 
   /* -------------------------------------------------- */
-  /* EDIT-PERMISSION HELPER                            */
+  /* EDIT-PERMISSION HELPER                             */
   /* -------------------------------------------------- */
   _canEdit(audit, user) {
     console.log('[_canEdit] Checking edit permissions...');
+    console.log('[_canEdit] User model available (in helper):', !!User);
     const isCreator = audit.createdBy.toString() === user.id;
     const isAssigned = audit.assignedAuditors.some(a => a.toString() === user.id);
     console.log('[_canEdit] isCreator:', isCreator, 'isAssigned:', isAssigned);
@@ -250,15 +262,17 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /* ASSIGN AUDITORS                                   */
+  /* ASSIGN AUDITORS                                    */
   /* -------------------------------------------------- */
   async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
     console.log('[assignAuditors] START - auditInstanceId:', auditInstanceId);
     console.log('[assignAuditors] START - auditorIds:', auditorIds);
     console.log('[assignAuditors] START - requestingUserId:', requestingUserId);
     console.log('[assignAuditors] START - requestingUserRole:', requestingUserRole);
-    console.log('[assignAuditors] START - User model available:', !!User);
-    console.log('[assignAuditors] START - User model type:', typeof User);
+    console.log('[assignAuditors] User model available (at func start):', !!User);
+    console.log('[assignAuditors] User model type (at func start):', typeof User);
+    console.log('[assignAuditors] User model has find method (at func start):', typeof User?.find === 'function');
+
 
     try {
       console.log('[assignAuditors] Finding audit instance...');
@@ -271,27 +285,29 @@ class AuditInstanceService {
       }
       console.log('[assignAuditors] Authorization check passed');
 
-      console.log('[assignAuditors] About to query User model...');
-      console.log('[assignAuditors] User model before query:', User);
-      console.log('[assignAuditors] User model find method:', typeof User.find);
+      console.log('[assignAuditors] About to query User model for validation...');
+      console.log('[assignAuditors] Before User.find - User object:', User);
+      console.log('[assignAuditors] Before User.find - typeof User.find:', typeof User.find);
 
       if (!User) {
+        console.error('[assignAuditors] User model is null or undefined before find operation.');
         throw new Error('User model is null or undefined');
       }
 
       if (typeof User.find !== 'function') {
+        console.error(`[assignAuditors] User.find is not a function before find operation. Type: ${typeof User.find}`);
         throw new Error(`User.find is not a function. Type: ${typeof User.find}`);
       }
 
-      console.log('[assignAuditors] Executing User.find query...');
+      console.log('[assignAuditors] Executing User.find query for auditor validation...');
       const auditors = await User.find({
         _id: { $in: auditorIds },
         role: 'auditor'
       }).select('_id firstName lastName email managerId');
 
-      console.log('[assignAuditors] User query completed successfully');
-      console.log('[assignAuditors] Auditors found:', auditors.length);
-      console.log('[assignAuditors] Auditors details:', auditors.map(a => ({
+      console.log('[assignAuditors] User query for auditor validation completed successfully');
+      console.log('[assignAuditors] Auditors found (after find):', auditors.length);
+      console.log('[assignAuditors] Auditors details (after find):', auditors.map(a => ({
         id: a._id,
         name: `${a.firstName} ${a.lastName}`,
         managerId: a.managerId
@@ -336,19 +352,20 @@ class AuditInstanceService {
       console.log('[assignAuditors] SUCCESS - Auditors assigned and populated');
       return populatedAudit;
     } catch (error) {
-      console.error('[assignAuditors] ERROR:', error.message);
-      console.error('[assignAuditors] ERROR STACK:', error.stack);
-      console.error('[assignAuditors] User model at error time:', User);
-      console.error('[assignAuditors] User model type at error time:', typeof User);
+      console.error('[assignAuditors] FINAL ERROR CATCH:', error.message);
+      console.error('[assignAuditors] FINAL ERROR STACK:', error.stack);
+      console.error('[assignAuditors] User model state at final error:', User);
+      console.error('[assignAuditors] User model type at final error:', typeof User);
       throw error;
     }
   }
 
   /* -------------------------------------------------- */
-  /* SUBMIT RESPONSES                                  */
+  /* SUBMIT RESPONSES                                   */
   /* -------------------------------------------------- */
   async submitResponses(auditInstanceId, responsesData, requestingUser) {
     console.log('[submitResponses] START');
+    console.log('[submitResponses] User model available (at func start):', !!User);
     const audit = await AuditInstance.findById(auditInstanceId);
     if (!audit) throw new Error('Audit Instance not found.');
     if (!this._canEdit(audit, requestingUser)) throw new Error('You are not authorized to edit this audit.');
@@ -388,10 +405,11 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /* UPDATE STATUS                                     */
+  /* UPDATE STATUS                                      */
   /* -------------------------------------------------- */
   async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
     console.log('[updateAuditStatus] START');
+    console.log('[updateAuditStatus] User model available (at func start):', !!User);
     const audit = await AuditInstance.findById(auditInstanceId);
     if (!audit) throw new Error('Audit Instance not found.');
     if (!this._canEdit(audit, requestingUser)) throw new Error('You are not authorized to edit this audit.');
@@ -408,10 +426,11 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /* DELETE AUDIT                                      */
+  /* DELETE AUDIT                                       */
   /* -------------------------------------------------- */
   async deleteAuditInstance(auditInstanceId, requestingUser) {
     console.log('[deleteAuditInstance] START - Requesting user:', requestingUser);
+    console.log('[deleteAuditInstance] User model available (at func start):', !!User);
     const audit = await AuditInstance.findById(auditInstanceId);
     if (!audit) throw new Error('Audit Instance not found.');
     if (requestingUser.role !== 'super_admin' && requestingUser.role !== 'admin' && audit.createdBy.toString() !== requestingUser.id) {
@@ -422,10 +441,11 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /* GENERATE PDF REPORT                               */
+  /* GENERATE PDF REPORT                                */
   /* -------------------------------------------------- */
   async generateReport(auditInstanceId, requestingUser) {
     console.log('[generateReport] START - auditInstanceId:', auditInstanceId);
+    console.log('[generateReport] User model available (at func start):', !!User);
     const audit = await this.getAuditInstanceById(auditInstanceId, requestingUser);
     const html = generateReportHtml(audit);
 
@@ -474,6 +494,8 @@ class AuditInstanceService {
   }
 }
 
-console.log('[AUDIT_SERVICE] Service class created, User model still available:', !!User);
+console.log('[AUDIT_SERVICE_END] Service class created, User model still available:', !!User);
+console.log('[AUDIT_SERVICE_END] User model type at end:', typeof User);
+console.log('[AUDIT_SERVICE_END] User model has find method at end:', typeof User?.find === 'function');
 
 export default new AuditInstanceService();
