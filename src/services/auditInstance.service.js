@@ -13,14 +13,18 @@ class AuditInstanceService {
   /* CREATE AUDIT INSTANCE                              */
   /* -------------------------------------------------- */
   async createAuditInstance(data, requestingUser) {
+    console.log('[createAuditInstance] START - Data received:', data);
+    console.log('[createAuditInstance] START - Requesting user:', requestingUser);
     try {
       const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate } = data;
 
       let companyId;
       if (companyDetails) {
+        console.log('[createAuditInstance] Creating new company...');
         const newCompany = await companyService.createCompany(companyDetails, requestingUser.id);
         companyId = newCompany._id;
       } else if (existingCompanyId) {
+        console.log('[createAuditInstance] Using existing company ID:', existingCompanyId);
         const existingCompany = await companyService.getCompanyById(existingCompanyId, requestingUser.id, requestingUser.role);
         if (!existingCompany) throw new Error('Existing company not found or you do not have access to it.');
         companyId = existingCompany._id;
@@ -28,10 +32,12 @@ class AuditInstanceService {
         throw new Error('Either companyDetails or existingCompanyId must be provided.');
       }
 
+      console.log('[createAuditInstance] Finding audit template:', auditTemplateId);
       const auditTemplate = await AuditTemplate.findById(auditTemplateId);
       if (!auditTemplate) throw new Error('Audit Template not found.');
 
       const templateStructureSnapshot = JSON.parse(JSON.stringify(auditTemplate.sections.toObject()));
+
       const initialResponses = [];
       templateStructureSnapshot.forEach(section => {
         section.subSections.forEach(subSection => {
@@ -75,6 +81,7 @@ class AuditInstanceService {
           { path: 'assignedAuditors', select: 'firstName lastName email' },
           { path: 'createdBy', select: 'firstName lastName email' }
         ]);
+        console.log('[createAuditInstance] SUCCESS - Audit instance created and populated');
         return populatedAudit;
       } catch (populateError) {
         console.error('[createAuditInstance] Population error:', populateError.message);
@@ -90,6 +97,7 @@ class AuditInstanceService {
   /* GET ALL AUDIT INSTANCES                            */
   /* -------------------------------------------------- */
   async getAllAuditInstances(requestingUser) {
+    console.log('[getAllAuditInstances] START - Requesting user:', requestingUser);
     let query = {};
 
     try {
@@ -121,6 +129,7 @@ class AuditInstanceService {
         .populate('createdBy', 'firstName lastName email')
         .populate('lastModifiedBy', 'firstName lastName email');
 
+      console.log('[getAllAuditInstances] Query executed successfully, results count:', result.length);
       return result;
     } catch (error) {
       console.error('[getAllAuditInstances] FINAL ERROR CATCH:', error.message);
@@ -132,6 +141,8 @@ class AuditInstanceService {
   /* GET SINGLE AUDIT INSTANCE                          */
   /* -------------------------------------------------- */
   async getAuditInstanceById(auditInstanceId, requestingUser) {
+    console.log('[getAuditInstanceById] START - auditInstanceId:', auditInstanceId);
+    console.log('[getAuditInstanceById] START - requestingUser:', requestingUser);
     try {
       const audit = await AuditInstance.findById(auditInstanceId)
         .populate('company', 'name industry contactPerson address website')
@@ -140,17 +151,24 @@ class AuditInstanceService {
         .populate('createdBy', 'firstName lastName email')
         .populate('lastModifiedBy', 'firstName lastName email');
 
-      if (!audit) throw new Error('Audit Instance not found.');
+      if (!audit) {
+        console.log('[getAuditInstanceById] Audit not found.');
+        throw new Error('Audit Instance not found.');
+      }
 
-      const isCreator = audit.createdBy._id.toString() === requestingUser.id;
-      const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id);
+      const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
+      const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
       const isAdminOrSuperAdmin = requestingUser.role === 'super_admin' || requestingUser.role === 'admin';
 
-      // If the user is an admin, super_admin, the creator, or an assigned auditor, they can view it.
-      // The original code's check for admin/super_admin was too restrictive.
+      console.log('[getAuditInstanceById] Authorization check - isCreator:', isCreator, 'isAssigned:', isAssigned, 'isAdminOrSuperAdmin:', isAdminOrSuperAdmin);
+      console.log('Stored createdBy ID:', audit.createdBy._id.toString());
+      console.log('Requesting user ID:', requestingUser.id.toString());
+
       if (isAdminOrSuperAdmin || isCreator || isAssigned) {
+        console.log('[getAuditInstanceById] Authorization passed.');
         return audit;
       }
+      console.log('[getAuditInstanceById] Authorization failed.');
       throw new Error('You are not authorized to view this audit instance.');
     } catch (error) {
       console.error('[getAuditInstanceById] ERROR:', error.message);
@@ -162,8 +180,12 @@ class AuditInstanceService {
   /* EDIT-PERMISSION HELPER                             */
   /* -------------------------------------------------- */
   _canEdit(audit, user) {
-    const isCreator = audit.createdBy.toString() === user.id;
-    const isAssigned = audit.assignedAuditors.some(a => a.toString() === user.id);
+    console.log('[_canEdit] Checking edit permissions...');
+    console.log('[_canEdit] Stored createdBy ID:', audit.createdBy?.toString());
+    console.log('[_canEdit] Requesting User ID:', user.id?.toString());
+    const isCreator = audit.createdBy?.toString() === user.id?.toString();
+    const isAssigned = audit.assignedAuditors.some(a => a.toString() === user.id?.toString());
+    console.log('[_canEdit] isCreator:', isCreator, 'isAssigned:', isAssigned);
     return isCreator || isAssigned;
   }
 
@@ -171,6 +193,7 @@ class AuditInstanceService {
   /* ASSIGN AUDITORS                                    */
   /* -------------------------------------------------- */
   async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
+    console.log('[assignAuditors] START');
     try {
       const audit = await AuditInstance.findById(auditInstanceId);
       if (!audit) throw new Error('Audit Instance not found.');
@@ -210,6 +233,7 @@ class AuditInstanceService {
         { path: 'lastModifiedBy', select: 'firstName lastName email' }
       ]);
 
+      console.log('[assignAuditors] SUCCESS');
       return populatedAudit;
     } catch (error) {
       console.error('[assignAuditors] FINAL ERROR CATCH:', error.message);
@@ -221,9 +245,17 @@ class AuditInstanceService {
   /* SUBMIT RESPONSES                                   */
   /* -------------------------------------------------- */
   async submitResponses(auditInstanceId, responsesData, requestingUser) {
-    const audit = await AuditInstance.findById(auditInstanceId);
+    console.log('[submitResponses] START');
+    // Get the audit and populate the createdBy field for the _canEdit check
+    const audit = await AuditInstance.findById(auditInstanceId).populate('createdBy');
     if (!audit) throw new Error('Audit Instance not found.');
-    if (!this._canEdit(audit, requestingUser)) throw new Error('You are not authorized to edit this audit.');
+
+    // Use the _canEdit helper function for authorization
+    if (!this._canEdit(audit, requestingUser)) {
+      console.log('[submitResponses] Authorization failed. Not creator or assigned.');
+      throw new Error('You are not authorized to edit this audit.');
+    }
+    console.log('[submitResponses] Authorization passed.');
 
     if (audit.status === 'Completed' || audit.status === 'Archived') {
       throw new Error(`Cannot submit responses. Audit is already ${audit.status}.`);
@@ -256,6 +288,7 @@ class AuditInstanceService {
     audit.overallScore = this._calculateOverallScore(audit);
     audit.lastModifiedBy = requestingUser.id;
     await audit.save();
+    console.log('[submitResponses] SUCCESS');
     return audit;
   }
 
@@ -263,9 +296,16 @@ class AuditInstanceService {
   /* UPDATE STATUS                                      */
   /* -------------------------------------------------- */
   async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
-    const audit = await AuditInstance.findById(auditInstanceId);
+    console.log('[updateAuditStatus] START');
+    const audit = await AuditInstance.findById(auditInstanceId).populate('createdBy');
     if (!audit) throw new Error('Audit Instance not found.');
-    if (!this._canEdit(audit, requestingUser)) throw new Error('You are not authorized to edit this audit.');
+
+    // Use the _canEdit helper function for authorization
+    if (!this._canEdit(audit, requestingUser)) {
+      console.log('[updateAuditStatus] Authorization failed. Not creator or assigned.');
+      throw new Error('You are not authorized to edit this audit.');
+    }
+    console.log('[updateAuditStatus] Authorization passed.');
 
     const allowed = ['Draft', 'In Progress', 'In Review', 'Completed', 'Archived'];
     if (!allowed.includes(newStatus)) throw new Error('Invalid status provided.');
@@ -275,6 +315,7 @@ class AuditInstanceService {
     else if (newStatus !== 'Completed') audit.actualCompletionDate = undefined;
     audit.lastModifiedBy = requestingUser.id;
     await audit.save();
+    console.log('[updateAuditStatus] SUCCESS');
     return audit;
   }
 
@@ -282,20 +323,28 @@ class AuditInstanceService {
   /* DELETE AUDIT                                       */
   /* -------------------------------------------------- */
   async deleteAuditInstance(auditInstanceId, requestingUser) {
+    console.log('[deleteAuditInstance] START - Requesting user:', requestingUser);
     const audit = await AuditInstance.findById(auditInstanceId);
     if (!audit) throw new Error('Audit Instance not found.');
+    
+    // Authorization: Only the creator can delete this audit.
+    const isCreator = audit.createdBy.toString() === requestingUser.id.toString();
+    console.log('[deleteAuditInstance] Creator ID:', audit.createdBy.toString());
+    console.log('[deleteAuditInstance] Requesting User ID:', requestingUser.id.toString());
+    console.log('[deleteAuditInstance] Is creator:', isCreator);
 
-    // Only the creator should be able to delete the audit
-    if (audit.createdBy.toString() !== requestingUser.id.toString()) {
+    if (!isCreator) {
       throw new Error('You are not authorized to delete this audit.');
     }
     await AuditInstance.findByIdAndDelete(auditInstanceId);
+    console.log('[deleteAuditInstance] Audit deleted successfully.');
   }
 
   /* -------------------------------------------------- */
   /* GENERATE PDF REPORT                                */
   /* -------------------------------------------------- */
   async generateReport(auditInstanceId, requestingUser) {
+    console.log('[generateReport] START - auditInstanceId:', auditInstanceId);
     const audit = await this.getAuditInstanceById(auditInstanceId, requestingUser);
     const html = generateReportHtml(audit);
 
