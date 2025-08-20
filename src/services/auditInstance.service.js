@@ -180,13 +180,23 @@ class AuditInstanceService {
   /* EDIT-PERMISSION HELPER                             */
   /* -------------------------------------------------- */
   _canEdit(audit, user) {
+    if (!user || !user.id) {
+        console.error('[_canEdit] ERROR: Requesting user object is missing or invalid.');
+        return false;
+    }
+    if (!audit || !audit.createdBy) {
+        console.error('[_canEdit] ERROR: Audit object or createdBy field is missing.');
+        return false;
+    }
+    
     console.log('[_canEdit] Checking edit permissions...');
     console.log('[_canEdit] Stored createdBy ID:', audit.createdBy?.toString());
     console.log('[_canEdit] Requesting User ID:', user.id?.toString());
-    const isCreator = audit.createdBy?.toString() === user.id?.toString();
-    const isAssigned = audit.assignedAuditors.some(a => a.toString() === user.id?.toString());
-    console.log('[_canEdit] isCreator:', isCreator, 'isAssigned:', isAssigned);
-    return isCreator || isAssigned;
+    const isCreator = audit.createdBy.toString() === user.id.toString();
+    const isAssigned = audit.assignedAuditors.some(a => a.toString() === user.id.toString());
+    
+    console.log('[_canEdit] isCreator:', isCreator, 'isAssigned:', isAssigned);
+    return isCreator || isAssigned;
   }
 
   /* -------------------------------------------------- */
