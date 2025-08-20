@@ -1,10 +1,11 @@
 // src/services/auditInstance.service.js
 import AuditInstance from '../models/auditInstance.model.js';
 import Company from '../models/company.model.js';
-import User from '../models/user.model.js';
+import User from '../models/user.model.js'; // <- Ensure this is imported
 import companyService from './company.service.js';
 import puppeteer from 'puppeteer';
 import generateReportHtml from '../utils/reportGenerator.js';
+import AuditTemplate from '../models/auditTemplate.model.js'; // <- Make sure your template model is imported
 
 class AuditInstanceService {
   /* -------------------------------------------------- */
@@ -49,13 +50,32 @@ class AuditInstanceService {
       });
     });
 
+    // -------------------------------
+    // Validate assigned auditors
+    // Only auditors managed by the requesting user can be assigned
+    let finalAssignedAuditors = [];
+    if (assignedAuditorIds && assignedAuditorIds.length > 0) {
+      const auditors = await User.find({
+        _id: { $in: assignedAuditorIds },
+        role: 'auditor',
+        managerId: requestingUser.id
+      });
+
+      if (auditors.length !== assignedAuditorIds.length) {
+        throw new Error('One or more provided auditor IDs are invalid or not under your management.');
+      }
+
+      finalAssignedAuditors = assignedAuditorIds;
+    }
+    // -------------------------------
+
     const newAuditInstance = new AuditInstance({
       company: companyId,
       template: auditTemplateId,
       templateNameSnapshot: auditTemplate.name,
       templateVersionSnapshot: auditTemplate.version,
       templateStructureSnapshot,
-      assignedAuditors: assignedAuditorIds || [],
+      assignedAuditors: finalAssignedAuditors,
       startDate: startDate || new Date(),
       endDate,
       status: 'Draft',
@@ -80,7 +100,6 @@ class AuditInstanceService {
     let query = {};
 
     if (requestingUser.role === 'super_admin' || requestingUser.role === 'admin') {
-      // Super Admins and Admins can see audits they created or assigned
       const managedAuditors = await User.find({ managerId: requestingUser.id }).select('_id');
       const managedAuditorIds = managedAuditors.map(a => a._id);
 
@@ -91,7 +110,6 @@ class AuditInstanceService {
         ]
       };
     } else if (requestingUser.role === 'auditor') {
-      // Auditors can see audits they created or were assigned to
       query = {
         $or: [
           { createdBy: requestingUser.id },
@@ -128,7 +146,7 @@ class AuditInstanceService {
 
     if (requestingUser.role === 'super_admin' && isCreator) return audit;
     if (requestingUser.role === 'admin' && isCreator) return audit;
-    if ((requestingUser.role === 'auditor') && (isCreator || isAssigned)) return audit;
+    if (requestingUser.role === 'auditor' && (isCreator || isAssigned)) return audit;
 
     throw new Error('You are not authorized to view this audit instance.');
   }
@@ -249,22 +267,18 @@ class AuditInstanceService {
 
   /**
    * Generates a PDF report for an audit instance.
-   * Allows the creator (Admin / Super-Admin) or any assigned auditor.
-   * Audit must be Completed.
    */
   async generateReport(auditInstanceId, requestingUser) {
     const audit = await AuditInstance.findById(auditInstanceId)
       .populate('company')
-      .populate('createdBy', 'firstName lastName email') // populating is okay
+      .populate('createdBy', 'firstName lastName email')
       .populate('template', 'name version');
 
     if (!audit) throw new Error('Audit Instance not found.');
     if (audit.status !== 'Completed') throw new Error('Report can only be generated for completed audits.');
 
-    // Convert IDs to string for comparison
     const creatorId = audit.createdBy?._id ? audit.createdBy._id.toString() : audit.createdBy.toString();
     const requestingUserIdStr = requestingUser.id.toString();
-
     const isCreator = creatorId === requestingUserIdStr;
     const isAssignedAuditor = audit.assignedAuditors.some(auditorId =>
       auditorId.toString() === requestingUserIdStr
@@ -274,7 +288,6 @@ class AuditInstanceService {
       throw new Error('You are not authorized to generate a report for this audit instance.');
     }
 
-    // Generate HTML and PDF
     const html = generateReportHtml(audit);
     const browser = await puppeteer.launch({
       headless: true,
