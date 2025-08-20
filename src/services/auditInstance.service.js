@@ -1,25 +1,16 @@
 // src/services/auditInstance.service.js
+
 import AuditInstance from '../models/auditInstance.model.js';
 import Company from '../models/company.model.js';
 import AuditTemplate from '../models/auditTemplate.model.js';
+import User from '../models/user.model.js'; // Corrected: Use static import
 import companyService from './company.service.js';
 import puppeteer from 'puppeteer';
 import generateReportHtml from '../utils/reportGenerator.js';
 
-// Helper function to import User model when needed
-async function getUserModel() {
-  try {
-    const { default: User } = await import('../models/user.model.js');
-    return User;
-  } catch (error) {
-    console.error('Failed to import User model:', error.message);
-    throw new Error(`User model not available: ${error.message}`);
-  }
-}
-
 class AuditInstanceService {
   /* -------------------------------------------------- */
-  /*  CREATE AUDIT INSTANCE                             */
+  /* CREATE AUDIT INSTANCE                             */
   /* -------------------------------------------------- */
   async createAuditInstance(data, requestingUser) {
     console.log('[createAuditInstance] Data received:', data);
@@ -90,20 +81,18 @@ class AuditInstanceService {
       ]);
     } catch (populateError) {
       console.error('[createAuditInstance] Population error:', populateError.message);
-      // Return the audit instance without population if there's an issue
       return newAuditInstance;
     }
   }
 
   /* -------------------------------------------------- */
-  /*  GET ALL AUDIT INSTANCES                           */
+  /* GET ALL AUDIT INSTANCES                           */
   /* -------------------------------------------------- */
   async getAllAuditInstances(requestingUser) {
     let query = {};
 
     if (requestingUser.role === 'super_admin' || requestingUser.role === 'admin') {
       try {
-        const User = await getUserModel();
         const managedAuditors = await User.find({ managerId: requestingUser.id }).select('_id');
         const managedAuditorIds = managedAuditors.map(a => a._id);
 
@@ -115,7 +104,6 @@ class AuditInstanceService {
         };
       } catch (error) {
         console.error('Error in getAllAuditInstances with User model:', error.message);
-        // Fallback query without managed auditors
         query = {
           $or: [
             { createdBy: requestingUser.id },
@@ -143,7 +131,7 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /*  GET SINGLE AUDIT INSTANCE                         */
+  /* GET SINGLE AUDIT INSTANCE                         */
   /* -------------------------------------------------- */
   async getAuditInstanceById(auditInstanceId, requestingUser) {
     const audit = await AuditInstance.findById(auditInstanceId)
@@ -165,7 +153,7 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /*  EDIT-PERMISSION HELPER                            */
+  /* EDIT-PERMISSION HELPER                            */
   /* -------------------------------------------------- */
   _canEdit(audit, user) {
     const isCreator = audit.createdBy.toString() === user.id;
@@ -174,7 +162,7 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /*  SUBMIT RESPONSES                                  */
+  /* SUBMIT RESPONSES                                  */
   /* -------------------------------------------------- */
   async submitResponses(auditInstanceId, responsesData, requestingUser) {
     const audit = await AuditInstance.findById(auditInstanceId);
@@ -216,7 +204,7 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /*  UPDATE STATUS                                     */
+  /* UPDATE STATUS                                     */
   /* -------------------------------------------------- */
   async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
     const audit = await AuditInstance.findById(auditInstanceId);
@@ -235,7 +223,7 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /*  DELETE AUDIT                                      */
+  /* DELETE AUDIT                                      */
   /* -------------------------------------------------- */
   async deleteAuditInstance(auditInstanceId, requestingUser) {
     console.log('[deleteAuditInstance] Requesting user:', requestingUser);
@@ -249,15 +237,11 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /*  ASSIGN AUDITORS                                   */
+  /* ASSIGN AUDITORS                                   */
   /* -------------------------------------------------- */
   async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
     try {
       console.log('[assignAuditors] auditInstanceId:', auditInstanceId, 'auditorIds:', auditorIds);
-      
-      const User = await getUserModel();
-      console.log('[assignAuditors] User model loaded successfully');
-
       const audit = await AuditInstance.findById(auditInstanceId);
       if (!audit) throw new Error('Audit Instance not found.');
 
@@ -265,17 +249,16 @@ class AuditInstanceService {
         throw new Error('You are not authorized to assign auditors.');
       }
 
-      // Validate that all auditor IDs are valid users with auditor role
       const auditors = await User.find({
         _id: { $in: auditorIds },
         role: 'auditor'
       }).select('_id firstName lastName email managerId');
 
       console.log('[assignAuditors] Auditors found:', auditors.length);
-      console.log('[assignAuditors] Auditors details:', auditors.map(a => ({ 
-        id: a._id, 
+      console.log('[assignAuditors] Auditors details:', auditors.map(a => ({
+        id: a._id,
         name: `${a.firstName} ${a.lastName}`,
-        managerId: a.managerId 
+        managerId: a.managerId
       })));
 
       if (auditors.length === 0) {
@@ -286,12 +269,11 @@ class AuditInstanceService {
         throw new Error('Some of the provided auditor IDs are invalid or do not have auditor role.');
       }
 
-      // For non-super_admin, check if all auditors are under their management
       if (requestingUserRole !== 'super_admin') {
-        const unauthorizedAuditors = auditors.filter(auditor => 
+        const unauthorizedAuditors = auditors.filter(auditor =>
           auditor.managerId?.toString() !== requestingUserId.toString()
         );
-        
+
         if (unauthorizedAuditors.length > 0) {
           console.log('[assignAuditors] Unauthorized auditors:', unauthorizedAuditors.map(a => a._id));
           throw new Error('One or more auditors are not under your management.');
@@ -317,7 +299,7 @@ class AuditInstanceService {
   }
 
   /* -------------------------------------------------- */
-  /*  GENERATE PDF REPORT                                */
+  /* GENERATE PDF REPORT                               */
   /* -------------------------------------------------- */
   async generateReport(auditInstanceId, requestingUser) {
     console.log('[generateReport] auditInstanceId:', auditInstanceId);
@@ -337,8 +319,8 @@ class AuditInstanceService {
       displayHeaderFooter: true,
       headerTemplate: '<div></div>',
       footerTemplate: `<div style="font-size:9pt;text-align:center;width:100%">
-                         <span class="pageNumber"></span> / <span class="totalPages"></span>
-                       </div>`
+                          <span class="pageNumber"></span> / <span class="totalPages"></span>
+                        </div>`
     });
     await browser.close();
     return pdfBuffer;
