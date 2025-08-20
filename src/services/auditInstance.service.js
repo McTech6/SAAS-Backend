@@ -1,11 +1,21 @@
 // src/services/auditInstance.service.js
 import AuditInstance from '../models/auditInstance.model.js';
 import Company from '../models/company.model.js';
-import User from '../models/user.model.js'; // ✅ User import
 import AuditTemplate from '../models/auditTemplate.model.js';
 import companyService from './company.service.js';
 import puppeteer from 'puppeteer';
 import generateReportHtml from '../utils/reportGenerator.js';
+
+// Helper function to import User model when needed
+async function getUserModel() {
+  try {
+    const { default: User } = await import('../models/user.model.js');
+    return User;
+  } catch (error) {
+    console.error('Failed to import User model:', error.message);
+    throw new Error(`User model not available: ${error.message}`);
+  }
+}
 
 class AuditInstanceService {
   /* -------------------------------------------------- */
@@ -71,12 +81,18 @@ class AuditInstanceService {
     await newAuditInstance.save();
     console.log('[createAuditInstance] Audit instance created:', newAuditInstance._id);
 
-    return newAuditInstance.populate([
-      { path: 'company', select: 'name industry contactPerson' },
-      { path: 'template', select: 'name version' },
-      { path: 'assignedAuditors', select: 'firstName lastName email' },
-      { path: 'createdBy', select: 'firstName lastName email' }
-    ]);
+    try {
+      return await newAuditInstance.populate([
+        { path: 'company', select: 'name industry contactPerson' },
+        { path: 'template', select: 'name version' },
+        { path: 'assignedAuditors', select: 'firstName lastName email' },
+        { path: 'createdBy', select: 'firstName lastName email' }
+      ]);
+    } catch (populateError) {
+      console.error('[createAuditInstance] Population error:', populateError.message);
+      // Return the audit instance without population if there's an issue
+      return newAuditInstance;
+    }
   }
 
   /* -------------------------------------------------- */
@@ -86,15 +102,27 @@ class AuditInstanceService {
     let query = {};
 
     if (requestingUser.role === 'super_admin' || requestingUser.role === 'admin') {
-      const managedAuditors = await User.find({ managerId: requestingUser.id }).select('_id');
-      const managedAuditorIds = managedAuditors.map(a => a._id);
+      try {
+        const User = await getUserModel();
+        const managedAuditors = await User.find({ managerId: requestingUser.id }).select('_id');
+        const managedAuditorIds = managedAuditors.map(a => a._id);
 
-      query = {
-        $or: [
-          { createdBy: requestingUser.id },
-          { assignedAuditors: { $in: [requestingUser.id, ...managedAuditorIds] } }
-        ]
-      };
+        query = {
+          $or: [
+            { createdBy: requestingUser.id },
+            { assignedAuditors: { $in: [requestingUser.id, ...managedAuditorIds] } }
+          ]
+        };
+      } catch (error) {
+        console.error('Error in getAllAuditInstances with User model:', error.message);
+        // Fallback query without managed auditors
+        query = {
+          $or: [
+            { createdBy: requestingUser.id },
+            { assignedAuditors: requestingUser.id }
+          ]
+        };
+      }
     } else if (requestingUser.role === 'auditor') {
       query = {
         $or: [
@@ -226,7 +254,9 @@ class AuditInstanceService {
   async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
     try {
       console.log('[assignAuditors] auditInstanceId:', auditInstanceId, 'auditorIds:', auditorIds);
-      console.log('[assignAuditors] User model available:', !!User);
+      
+      const User = await getUserModel();
+      console.log('[assignAuditors] User model loaded successfully');
 
       const audit = await AuditInstance.findById(auditInstanceId);
       if (!audit) throw new Error('Audit Instance not found.');
