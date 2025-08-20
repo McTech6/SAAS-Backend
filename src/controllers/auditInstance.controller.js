@@ -104,24 +104,24 @@ class AuditInstanceController {
  * @param {object} req - Express request object.
  * @param {object} res - Express response object.
  */
-async generateReport(req, res) {
-  try {
-    const { id } = req.params;
-    const { download } = req.query;               // optional
-    const requestingUser = req.user;
+ async generateReport(req, res) {
+    try {
+      const { id } = req.params;
+      const { download } = req.query; 
+      const requestingUser = req.user;
 
-    const pdfBuffer = await auditInstanceService.generateReport(id, requestingUser);
+      const pdfBuffer = await auditInstanceService.generateReport(id, requestingUser);
 
-    const filename = `audit_report_${id}.pdf`;
-    const disposition = download === 'true' ? 'attachment' : 'inline';
+      const filename = `audit_report_${id}.pdf`;
+      const disposition = download === 'true' ? 'attachment' : 'inline';
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
-    res.send(pdfBuffer);
-  } catch (error) {
-    sendErrorResponse(res, 400, error.message);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      sendErrorResponse(res, 400, error.message);
+    }
   }
-}
 }
 
 export default new AuditInstanceController();

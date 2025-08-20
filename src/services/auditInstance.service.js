@@ -1,7 +1,7 @@
 // src/services/auditInstance.service.js
 import AuditInstance from '../models/auditInstance.model.js';
 import Company from '../models/company.model.js';
-import User from '../models/user.model.js'; // ✅ Make sure User is imported
+import User from '../models/user.model.js'; // ✅ User import
 import AuditTemplate from '../models/auditTemplate.model.js';
 import companyService from './company.service.js';
 import puppeteer from 'puppeteer';
@@ -224,38 +224,66 @@ class AuditInstanceService {
   /*  ASSIGN AUDITORS                                   */
   /* -------------------------------------------------- */
   async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
-    console.log('[assignAuditors] auditInstanceId:', auditInstanceId, 'auditorIds:', auditorIds);
+    try {
+      console.log('[assignAuditors] auditInstanceId:', auditInstanceId, 'auditorIds:', auditorIds);
+      console.log('[assignAuditors] User model available:', !!User);
 
-    const audit = await AuditInstance.findById(auditInstanceId);
-    if (!audit) throw new Error('Audit Instance not found.');
+      const audit = await AuditInstance.findById(auditInstanceId);
+      if (!audit) throw new Error('Audit Instance not found.');
 
-    if (requestingUserRole !== 'super_admin' && requestingUserRole !== 'admin') {
-      throw new Error('You are not authorized to assign auditors.');
+      if (requestingUserRole !== 'super_admin' && requestingUserRole !== 'admin') {
+        throw new Error('You are not authorized to assign auditors.');
+      }
+
+      // Validate that all auditor IDs are valid users with auditor role
+      const auditors = await User.find({
+        _id: { $in: auditorIds },
+        role: 'auditor'
+      }).select('_id firstName lastName email managerId');
+
+      console.log('[assignAuditors] Auditors found:', auditors.length);
+      console.log('[assignAuditors] Auditors details:', auditors.map(a => ({ 
+        id: a._id, 
+        name: `${a.firstName} ${a.lastName}`,
+        managerId: a.managerId 
+      })));
+
+      if (auditors.length === 0) {
+        throw new Error('No valid auditors found with the provided IDs.');
+      }
+
+      if (auditors.length !== auditorIds.length) {
+        throw new Error('Some of the provided auditor IDs are invalid or do not have auditor role.');
+      }
+
+      // For non-super_admin, check if all auditors are under their management
+      if (requestingUserRole !== 'super_admin') {
+        const unauthorizedAuditors = auditors.filter(auditor => 
+          auditor.managerId?.toString() !== requestingUserId.toString()
+        );
+        
+        if (unauthorizedAuditors.length > 0) {
+          console.log('[assignAuditors] Unauthorized auditors:', unauthorizedAuditors.map(a => a._id));
+          throw new Error('One or more auditors are not under your management.');
+        }
+      }
+
+      audit.assignedAuditors = auditorIds;
+      audit.lastModifiedBy = requestingUserId;
+      await audit.save();
+
+      console.log('[assignAuditors] Auditors assigned successfully.');
+      return audit.populate([
+        { path: 'company', select: 'name' },
+        { path: 'template', select: 'name version' },
+        { path: 'assignedAuditors', select: 'firstName lastName email' },
+        { path: 'createdBy', select: 'firstName lastName email' },
+        { path: 'lastModifiedBy', select: 'firstName lastName email' }
+      ]);
+    } catch (error) {
+      console.error('[assignAuditors] Error:', error.message);
+      throw error;
     }
-
-    const auditors = await User.find({
-      _id: { $in: auditorIds },
-      role: 'auditor',
-      managerId: requestingUserId
-    });
-
-    console.log('[assignAuditors] Auditors found:', auditors.map(a => a._id));
-    if (auditors.length !== auditorIds.length) {
-      throw new Error('One or more auditors are invalid or not under your management.');
-    }
-
-    audit.assignedAuditors = auditorIds;
-    audit.lastModifiedBy = requestingUserId;
-    await audit.save();
-
-    console.log('[assignAuditors] Auditors assigned successfully.');
-    return audit.populate([
-      { path: 'company', select: 'name' },
-      { path: 'template', select: 'name version' },
-      { path: 'assignedAuditors', select: 'firstName lastName email' },
-      { path: 'createdBy', select: 'firstName lastName email' },
-      { path: 'lastModifiedBy', select: 'firstName lastName email' }
-    ]);
   }
 
   /* -------------------------------------------------- */
