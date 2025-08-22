@@ -11,21 +11,28 @@ import { sendErrorResponse } from '../utils/responseHandler.js';
  */
 const protect = async (req, res, next) => {
     let token;
+    
+    // Log the received authorization header
+    console.log('--- Auth Middleware: Checking for token ---');
+    console.log('Received Authorization Header:', req.headers.authorization);
 
     // Check if Authorization header exists and starts with 'Bearer'
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         try {
             // Extract the token from the 'Bearer <token>' string
             token = req.headers.authorization.split(' ')[1];
+            console.log('Extracted Token:', token);
 
             // Verify the token using the JWT secret
+            console.log('JWT Secret:', authConfig.jwtSecret);
             const decoded = jwt.verify(token, authConfig.jwtSecret);
+            console.log('Decoded JWT Payload:', decoded);
 
             // Find the user by ID from the decoded token payload
-            // Select only necessary fields (id, role) and exclude password
             const user = await User.findById(decoded.id).select('-password -otp -otpExpires -inviteToken -inviteTokenExpires -passwordResetToken -passwordResetExpires');
 
             if (!user) {
+                console.warn('User not found in database for ID:', decoded.id);
                 return sendErrorResponse(res, 401, 'Not authorized, user not found.');
             }
 
@@ -40,19 +47,22 @@ const protect = async (req, res, next) => {
                 lastName: user.lastName,
                 phoneNumber: user.phoneNumber
             };
+            console.log('User object attached to request:', req.user);
 
             next(); // Proceed to the next middleware/route handler
         } catch (error) {
+            // Log the specific error name and message
+            console.error('JWT Verification Failed:', error.name, ' - ', error.message);
+            
             // Handle various JWT errors (e.g., TokenExpiredError, JsonWebTokenError)
             if (error.name === 'TokenExpiredError') {
                 return sendErrorResponse(res, 401, 'Not authorized, token expired.');
             }
             return sendErrorResponse(res, 401, 'Not authorized, token failed.');
         }
-    }
-
-    // If no token is provided in the header
-    if (!token) {
+    } else {
+        // This block handles the case where the header is missing or doesn't start with 'Bearer'
+        console.warn('Authorization header missing or invalid format.');
         return sendErrorResponse(res, 401, 'Not authorized, no token.');
     }
 };
@@ -63,6 +73,9 @@ const protect = async (req, res, next) => {
  */
 const authorize = (...roles) => {
     return (req, res, next) => {
+        console.log('--- Authorization Middleware: Checking role ---');
+        console.log('User\'s role:', req.user ? req.user.role : 'none');
+
         // Check if req.user exists (meaning protect middleware ran successfully)
         if (!req.user || !req.user.role) {
             return sendErrorResponse(res, 403, 'Access denied, no user role found.');
@@ -72,6 +85,7 @@ const authorize = (...roles) => {
         if (!roles.includes(req.user.role)) {
             return sendErrorResponse(res, 403, `Access denied, role '${req.user.role}' is not authorized for this action.`);
         }
+        console.log('Authorization check passed. Proceeding...');
         next(); // User is authorized, proceed
     };
 };
