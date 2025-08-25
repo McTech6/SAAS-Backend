@@ -259,68 +259,102 @@ _canEdit(audit, user) {
 //     }
 //   }
 
-  async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
-    console.log('[assignAuditors] START');
-    try {
-      const audit = await AuditInstance.findById(auditInstanceId);
-      if (!audit) throw new Error('Audit Instance not found.');
+ /* -------------------------------------------------- */
+/* ASSIGN AUDITORS                                    */
+/* -------------------------------------------------- */
+async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
+  console.log('[assignAuditors] START - Audit ID:', auditInstanceId);
+  console.log('[assignAuditors] Requesting User ID:', requestingUserId, 'Role:', requestingUserRole);
+  console.log('[assignAuditors] User IDs to assign:', auditorIds);
+  
+  try {
+    const audit = await AuditInstance.findById(auditInstanceId);
+    if (!audit) {
+      console.log('[assignAuditors] ERROR - Audit not found:', auditInstanceId);
+      throw new Error('Audit Instance not found.');
+    }
+    console.log('[assignAuditors] Audit found successfully');
 
-      // Authorization: Only Super-Admin or Admin can assign.
-      if (requestingUserRole !== 'super_admin' && requestingUserRole !== 'admin') {
-        throw new Error('You are not authorized to assign users.');
-      }
+    // Check if requesting user has permission to assign auditors
+    if (requestingUserRole !== 'super_admin' && requestingUserRole !== 'admin') {
+      console.log('[assignAuditors] ERROR - Unauthorized role:', requestingUserRole);
+      throw new Error('Access denied. Only administrators can assign users to audits.');
+    }
+    console.log('[assignAuditors] Authorization check passed');
 
-      // Find all users that the requesting user is trying to assign.
-      const usersToAssign = await User.find({
-        _id: { $in: auditorIds },
-        role: { $in: ['auditor', 'admin'] } // Find both auditors and admins
-      }).select('_id firstName lastName email role managerId');
+    // Find users with the provided IDs (both auditors and admins are allowed)
+    console.log('[assignAuditors] Searching for users in database...');
+    const users = await User.find({
+      _id: { $in: auditorIds },
+      role: { $in: ['auditor', 'admin'] }, // Allow both auditors and admins
+      isActive: true // Only active users
+    }).select('_id firstName lastName email role managerId');
+    
+    console.log('[assignAuditors] Found', users.length, 'users out of', auditorIds.length, 'requested');
+    console.log('[assignAuditors] Found users:', users.map(u => `${u.firstName} ${u.lastName} (${u.role})`));
 
-      // Validation 1: Check if all provided IDs are valid and have the correct role
-      if (usersToAssign.length === 0 || usersToAssign.length !== auditorIds.length) {
-        throw new Error('One or more user IDs are invalid or do not have the required role (Auditor/Admin).');
-      }
-      // Validation 2: Prevent a user from assigning themselves
-      if (usersToAssign.some(user => user._id.toString() === requestingUserId.toString())) {
-        throw new Error('You cannot assign yourself to an audit.');
-      }
+    // Check if all provided IDs are valid
+    if (users.length === 0) {
+      console.log('[assignAuditors] ERROR - No valid users found');
+      throw new Error('No valid users found. Please ensure the selected users are active auditors or administrators.');
+    }
 
-      // Permission Check for Admins
-      if (requestingUserRole !== 'super_admin') {
-        console.log('[assignAuditors] Performing admin permission check...');
-        const unauthorizedUsers = usersToAssign.filter(user => {
-          console.log(`[assignAuditors] Checking user ${user._id}:`);
-          console.log(`[assignAuditors] User's managerId: ${user.managerId?.toString()}`);
-          console.log(`[assignAuditors] Requesting admin's ID: ${requestingUserId.toString()}`);
-          const match = user.managerId?.toString() === requestingUserId.toString();
-          console.log(`[assignAuditors] Do they match? ${match}`);
-          return !match;
-        });
+    if (users.length !== auditorIds.length) {
+      const foundIds = users.map(u => u._id.toString());
+      const missingIds = auditorIds.filter(id => !foundIds.includes(id.toString()));
+      console.log('[assignAuditors] ERROR - Missing user IDs:', missingIds);
+      throw new Error(`Some users could not be found or are inactive. Please verify that all selected users are active auditors or administrators. Missing IDs: ${missingIds.join(', ')}`);
+    }
 
-        if (unauthorizedUsers.length > 0) {
-          throw new Error('One or more users are not under your management.');
-        }
-      }
+    // Both super admin and admin can only assign users they manage
+    console.log('[assignAuditors] Checking management permissions...');
+    const unauthorizedUsers = users.filter(user => 
+      user.managerId?.toString() !== requestingUserId.toString()
+    );
 
-      audit.assignedAuditors = auditorIds;
-      audit.lastModifiedBy = requestingUserId;
-      await audit.save();
+    if (unauthorizedUsers.length > 0) {
+      const unauthorizedNames = unauthorizedUsers.map(u => `${u.firstName} ${u.lastName} (${u.role})`);
+      console.log('[assignAuditors] ERROR - Unauthorized users found:', unauthorizedNames);
+      throw new Error(`You can only assign users that are under your direct management. The following users are not managed by you: ${unauthorizedNames.join(', ')}. Please contact your administrator if you need to assign users from other teams.`);
+    }
+    
+    console.log('[assignAuditors] Management permissions validated - all users are under requesting user management');
 
-      const populatedAudit = await audit.populate([
-        { path: 'company', select: 'name' },
-        { path: 'template', select: 'name version' },
-        { path: 'assignedAuditors', select: 'firstName lastName email' },
-        { path: 'createdBy', select: 'firstName lastName email' },
-        { path: 'lastModifiedBy', select: 'firstName lastName email' }
-      ]);
+    // Update the audit instance
+    console.log('[assignAuditors] Updating audit instance with new assignments...');
+    audit.assignedAuditors = auditorIds;
+    audit.lastModifiedBy = requestingUserId;
+    await audit.save();
+    console.log('[assignAuditors] Audit instance updated successfully');
 
-      console.log('[assignAuditors] SUCCESS - Auditors and Admins assigned successfully.');
-      return populatedAudit;
-    } catch (error) {
-      console.error('[assignAuditors] FINAL ERROR CATCH:', error.message);
-      throw error;
-    }
-  }
+    // Populate and return the updated audit
+    console.log('[assignAuditors] Populating audit data for response...');
+    const populatedAudit = await audit.populate([
+      { path: 'company', select: 'name' },
+      { path: 'template', select: 'name version' },
+      { path: 'assignedAuditors', select: 'firstName lastName email role' }, // Include role in response
+      { path: 'createdBy', select: 'firstName lastName email' },
+      { path: 'lastModifiedBy', select: 'firstName lastName email' }
+    ]);
+
+    const assignedUsersList = users.map(u => `${u.firstName} ${u.lastName} (${u.role})`);
+    console.log('[assignAuditors] SUCCESS - Successfully assigned the following users to audit:', assignedUsersList);
+    console.log('[assignAuditors] Total users assigned:', users.length);
+    
+    return populatedAudit;
+  } catch (error) {
+    console.error('[assignAuditors] OPERATION FAILED');
+    console.error('[assignAuditors] Error details:', {
+      auditId: auditInstanceId,
+      requestingUserId,
+      requestingUserRole,
+      attemptedAssignments: auditorIds,
+      errorMessage: error.message,
+      timestamp: new Date().toISOString()
+    });
+    throw error;
+  }
+}
 
 
   /* -------------------------------------------------- */
