@@ -459,30 +459,111 @@ async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUs
   /* -------------------------------------------------- */
   /* GENERATE PDF REPORT                                */
   /* -------------------------------------------------- */
-  async generateReport(auditInstanceId, requestingUser) {
-    console.log('[generateReport] START - auditInstanceId:', auditInstanceId);
-    const audit = await this.getAuditInstanceById(auditInstanceId, requestingUser);
-    const html = generateReportHtml(audit);
+//   async generateReport(auditInstanceId, requestingUser) {
+//     console.log('[generateReport] START - auditInstanceId:', auditInstanceId);
+//     const audit = await this.getAuditInstanceById(auditInstanceId, requestingUser);
+//     const html = generateReportHtml(audit);
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '1in', right: '1in', bottom: '1in', left: '1in' },
-      displayHeaderFooter: true,
-      headerTemplate: '<div></div>',
-      footerTemplate: `<div style="font-size:9pt;text-align:center;width:100%">
-                          <span class="pageNumber"></span> / <span class="totalPages"></span>
-                        </div>`
-    });
-    await browser.close();
-    return pdfBuffer;
-  }
+//     const browser = await puppeteer.launch({
+//       headless: true,
+//       args: ['--no-sandbox', '--disable-setuid-sandbox']
+//     });
+//     const page = await browser.newPage();
+//     await page.setContent(html, { waitUntil: 'networkidle0' });
+//     const pdfBuffer = await page.pdf({
+//       format: 'A4',
+//       printBackground: true,
+//       margin: { top: '1in', right: '1in', bottom: '1in', left: '1in' },
+//       displayHeaderFooter: true,
+//       headerTemplate: '<div></div>',
+//       footerTemplate: `<div style="font-size:9pt;text-align:center;width:100%">
+//                           <span class="pageNumber"></span> / <span class="totalPages"></span>
+//                         </div>`
+//     });
+//     await browser.close();
+//     return pdfBuffer;
+//   }
+
+/* -------------------------------------------------- */
+/* GENERATE PDF REPORT                                */
+/* -------------------------------------------------- */
+async generateReport(auditInstanceId, requestingUser) {
+  console.log('[generateReport] START - auditInstanceId:', auditInstanceId);
+  
+  try {
+    const audit = await this.getAuditInstanceById(auditInstanceId, requestingUser);
+    console.log('[generateReport] Audit data retrieved successfully');
+    
+    const html = generateReportHtml(audit);
+    console.log('[generateReport] HTML report generated');
+
+    // Optimized Puppeteer configuration for Render
+    const puppeteerOptions = {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
+      ]
+    };
+
+    console.log('[generateReport] Launching browser...');
+    const browser = await puppeteer.launch(puppeteerOptions);
+    
+    const page = await browser.newPage();
+    console.log('[generateReport] Browser page created');
+    
+    // Set content and wait for it to load
+    await page.setContent(html, { 
+      waitUntil: 'networkidle0',
+      timeout: 30000 // 30 second timeout
+    });
+    console.log('[generateReport] HTML content set on page');
+    
+    // Generate PDF with optimized settings
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '1in', right: '1in', bottom: '1in', left: '1in' },
+      displayHeaderFooter: true,
+      headerTemplate: '<div></div>',
+      footerTemplate: `<div style="font-size:9pt;text-align:center;width:100%">
+                          <span class="pageNumber"></span> / <span class="totalPages"></span>
+                        </div>`,
+      timeout: 30000 // 30 second timeout for PDF generation
+    });
+    
+    console.log('[generateReport] PDF generated successfully, size:', pdfBuffer.length, 'bytes');
+    
+    await browser.close();
+    console.log('[generateReport] Browser closed successfully');
+    
+    return pdfBuffer;
+    
+  } catch (error) {
+    console.error('[generateReport] ERROR occurred:', {
+      auditId: auditInstanceId,
+      userId: requestingUser.id,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Provide more specific error messages
+    if (error.message.includes('Chrome') || error.message.includes('browser')) {
+      throw new Error('PDF generation service is temporarily unavailable. Please try again later or contact support.');
+    } else if (error.message.includes('timeout')) {
+      throw new Error('PDF generation timed out. The report might be too large. Please try again.');
+    } else {
+      throw new Error(`Failed to generate PDF report: ${error.message}`);
+    }
+  }
+}
 
   /* -------------- internal helpers ------------------ */
   _calcScore(question, value) {
