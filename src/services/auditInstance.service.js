@@ -497,7 +497,24 @@ async generateReport(auditInstanceId, requestingUser) {
     const html = generateReportHtml(audit);
     console.log('[generateReport] HTML report generated');
 
-    // Optimized Puppeteer configuration for Render
+    // First, try to install Chrome if it's missing
+    try {
+      console.log('[generateReport] Checking Chrome installation...');
+      const { execSync } = await import('child_process');
+      
+      // Try to install Chrome if not found
+      console.log('[generateReport] Attempting to install Chrome...');
+      execSync('npx puppeteer browsers install chrome', { 
+        stdio: 'inherit',
+        timeout: 120000 // 2 minutes timeout
+      });
+      console.log('[generateReport] Chrome installation completed');
+    } catch (installError) {
+      console.log('[generateReport] Chrome installation warning:', installError.message);
+      // Continue anyway, might already be installed
+    }
+
+    // Enhanced Puppeteer configuration for Render
     const puppeteerOptions = {
       headless: true,
       args: [
@@ -509,11 +526,55 @@ async generateReport(auditInstanceId, requestingUser) {
         '--no-zygote',
         '--disable-gpu',
         '--disable-web-security',
-        '--disable-features=VizDisplayCompositor'
+        '--disable-features=VizDisplayCompositor',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding'
       ]
     };
 
-    console.log('[generateReport] Launching browser...');
+    // Try to find Chrome executable
+    if (process.env.NODE_ENV === 'production') {
+      const chromePaths = [
+        '/opt/render/.cache/puppeteer/chrome/*/chrome-linux64/chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        process.env.CHROME_BIN,
+        process.env.PUPPETEER_EXECUTABLE_PATH
+      ].filter(Boolean);
+
+      // Use glob to find Chrome in cache directory
+      try {
+        const glob = await import('glob');
+        const chromeInCache = glob.globSync('/opt/render/.cache/puppeteer/chrome/*/chrome-linux*/chrome');
+        if (chromeInCache.length > 0) {
+          puppeteerOptions.executablePath = chromeInCache[0];
+          console.log('[generateReport] Found Chrome in cache:', chromeInCache[0]);
+        }
+      } catch (globError) {
+        console.log('[generateReport] Glob search failed:', globError.message);
+      }
+
+      // If not found in cache, try system paths
+      if (!puppeteerOptions.executablePath) {
+        const fs = await import('fs');
+        for (const chromePath of chromePaths) {
+          if (fs.existsSync && fs.existsSync(chromePath)) {
+            puppeteerOptions.executablePath = chromePath;
+            console.log('[generateReport] Using Chrome at:', chromePath);
+            break;
+          }
+        }
+      }
+    }
+
+    console.log('[generateReport] Launching browser with config:', {
+      executablePath: puppeteerOptions.executablePath || 'default',
+      headless: puppeteerOptions.headless
+    });
+    
     const browser = await puppeteer.launch(puppeteerOptions);
     
     const page = await browser.newPage();
@@ -551,12 +612,13 @@ async generateReport(auditInstanceId, requestingUser) {
       auditId: auditInstanceId,
       userId: requestingUser.id,
       error: error.message,
+      stack: error.stack,
       timestamp: new Date().toISOString()
     });
     
     // Provide more specific error messages
     if (error.message.includes('Chrome') || error.message.includes('browser')) {
-      throw new Error('PDF generation service is temporarily unavailable. Please try again later or contact support.');
+      throw new Error('PDF generation service is temporarily unavailable. Chrome browser could not be found or started. Please contact support.');
     } else if (error.message.includes('timeout')) {
       throw new Error('PDF generation timed out. The report might be too large. Please try again.');
     } else {
@@ -564,7 +626,6 @@ async generateReport(auditInstanceId, requestingUser) {
     }
   }
 }
-
   /* -------------- internal helpers ------------------ */
   _calcScore(question, value) {
     if (!question) return 0;
