@@ -19,7 +19,11 @@ router.post('/', authorize('super_admin'), userController.createUser);
 
 // GET /api/v1/users - Get all users (Super Admin and Admin only)
 // The actual filtering will happen in the service based on role
-router.get('/', authorize('super_admin', 'admin'), userController.getAllUsers); // <-- MODIFIED THIS LINE
+router.get('/', authorize('super_admin', 'admin'), userController.getAllUsers); 
+
+// /api/v1/users/managed
+
+router.get('/managed', authorize('super_admin', 'admin'), userController.getManagedUsers);
 
 // GET /api/v1/users/:id - Get a single user by ID (Super Admin, Admin for managed auditors, or user themselves)
 // The controller will handle authorization based on user role and ID
@@ -37,6 +41,8 @@ router.patch('/:id/reactivate', authorize('super_admin'), userController.reactiv
 
 // DELETE /api/v1/users/:id - Delete a user (Super Admin only)
 router.delete('/:id', authorize('super_admin'), userController.deleteUser);
+
+
 
 
 export default router;

@@ -140,6 +140,20 @@ class UserController {
             sendErrorResponse(res, 400, error.message);
         }
     }
+
+      /**
+   * Returns all users whose managerId equals the logged-in user’s id.
+   * Accessible by Super-Admin and Admin only.
+   */
+  async getManagedUsers(req, res) {
+    try {
+      const requestingUser = req.user;   // { id, role }
+      const users = await userService.getManagedUsers(requestingUser.id);
+      sendSuccessResponse(res, 200, 'Managed users retrieved successfully.', users);
+    } catch (err) {
+      sendErrorResponse(res, 400, err.message);
+    }
+  }
 }
 
 export default new UserController();

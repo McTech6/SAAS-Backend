@@ -175,6 +175,18 @@ class UserService {
         }
         // Optionally, handle deletion of related data (e.g., audits created by this user)
     }
+
+
+      /**
+   * Returns all auditors whose managerId matches the requesting user id.
+   * @param {string} managerId – the requesting user’s id
+   * @returns {Promise<Array<User>>}
+   */
+  async getManagedUsers(managerId) {
+    return User.find({ managerId })
+      .select('-password -otp -otpExpires -inviteToken -inviteTokenExpires -passwordResetToken -passwordResetExpires')
+      .sort({ createdAt: -1 });
+  }
 }
 
 export default new UserService();
