@@ -1,5 +1,4 @@
-// 
-
+// src/controllers/auditInstance.controller.js
 import auditInstanceService from '../services/auditInstance.service.js';
 import { sendSuccessResponse, sendErrorResponse } from '../utils/responseHandler.js';
 
@@ -98,10 +97,17 @@ class AuditInstanceController {
     }
   }
 
-  async generateReport(req, res) {
+ /**
+ * Generates & streams a PDF report for an audit instance.
+ * Query param ?download=true forces download instead of inline preview.
+ * Accessible by Super-Admin, Admin, or any assigned auditor if audit is Completed.
+ * @param {object} req - Express request object.
+ * @param {object} res - Express response object.
+ */
+ async generateReport(req, res) {
     try {
       const { id } = req.params;
-      const { download } = req.query;
+      const { download } = req.query; 
       const requestingUser = req.user;
 
       const pdfBuffer = await auditInstanceService.generateReport(id, requestingUser);
