@@ -813,75 +813,93 @@ async getAllAuditInstances(requestingUser) {
     throw error;
   }
 }
+/* -------------------------------------------------- */
+/* GET SINGLE AUDIT INSTANCE                          */
+/* -------------------------------------------------- */
+async getAuditInstanceById(auditInstanceId, requestingUser) {
+  console.log('[getAuditInstanceById] START - auditInstanceId:', auditInstanceId);
+  console.log('[getAuditInstanceById] START - requestingUser:', requestingUser);
+  try {
+    const audit = await AuditInstance.findById(auditInstanceId)
+      .populate('company', 'name industry contactPerson address website')
+      .populate('template', 'name version')
+      .populate('assignedAuditors', 'firstName lastName email')
+      .populate('createdBy', 'firstName lastName email')
+      .populate('lastModifiedBy', 'firstName lastName email');
 
-  /* -------------------------------------------------- */
-  /* GET SINGLE AUDIT INSTANCE                          */
-  /* -------------------------------------------------- */
-  async getAuditInstanceById(auditInstanceId, requestingUser) {
-    console.log('[getAuditInstanceById] START - auditInstanceId:', auditInstanceId);
-    console.log('[getAuditInstanceById] START - requestingUser:', requestingUser);
-    try {
-      const audit = await AuditInstance.findById(auditInstanceId)
-        .populate('company', 'name industry contactPerson address website')
-        .populate('template', 'name version')
-        .populate('assignedAuditors', 'firstName lastName email')
-        .populate('createdBy', 'firstName lastName email')
-        .populate('lastModifiedBy', 'firstName lastName email');
-
-      if (!audit) {
-        console.log('[getAuditInstanceById] Audit not found.');
-        throw new Error('Audit Instance not found.');
-      }
-
-      const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
-      const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
-      const isAdminOrSuperAdmin = requestingUser.role === 'super_admin' || requestingUser.role === 'admin';
-
-      console.log('[getAuditInstanceById] Authorization check - isCreator:', isCreator, 'isAssigned:', isAssigned, 'isAdminOrSuperAdmin:', isAdminOrSuperAdmin);
-      console.log('Stored createdBy ID:', audit.createdBy._id.toString());
-      console.log('Requesting user ID:', requestingUser.id.toString());
-
-      if (isAdminOrSuperAdmin || isCreator || isAssigned) {
-        console.log('[getAuditInstanceById] Authorization passed.');
-        return audit;
-      }
-      console.log('[getAuditInstanceById] Authorization failed.');
-      throw new Error('You are not authorized to view this audit instance.');
-    } catch (error) {
-      console.error('[getAuditInstanceById] ERROR:', error.message);
-      throw error;
+    if (!audit) {
+      console.log('[getAuditInstanceById] Audit not found.');
+      throw new Error('Audit Instance not found.');
     }
+
+    const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
+    const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
+    const isAdminOrSuperAdmin = requestingUser.role === 'super_admin' || requestingUser.role === 'admin';
+
+    console.log('[getAuditInstanceById] Authorization check - isCreator:', isCreator, 'isAssigned:', isAssigned, 'isAdminOrSuperAdmin:', isAdminOrSuperAdmin);
+
+    // View permissions: Always allow view for creator, assigned auditors, and admins
+    if (isAdminOrSuperAdmin || isCreator || isAssigned) {
+      console.log('[getAuditInstanceById] Authorization passed.');
+      return audit;
+    }
+    console.log('[getAuditInstanceById] Authorization failed.');
+    throw new Error('You are not authorized to view this audit instance.');
+  } catch (error) {
+    console.error('[getAuditInstanceById] ERROR:', error.message);
+    throw error;
+  }
+}
+
+ /* -------------------------------------------------- */
+/* EDIT-PERMISSION HELPER                             */
+/* -------------------------------------------------- */
+_canEdit(audit, user) {
+  if (!user || !user.id) {
+    console.error('[_canEdit] ERROR: Requesting user object is missing or invalid.');
+    return false;
+  }
+  if (!audit || !audit.createdBy) {
+    console.error('[_canEdit] ERROR: Audit object or createdBy field is missing.');
+    return false;
   }
 
-  /* -------------------------------------------------- */
-  /* EDIT-PERMISSION HELPER                             */
-  /* -------------------------------------------------- */
-  _canEdit(audit, user) {
-    if (!user || !user.id) {
-      console.error('[_canEdit] ERROR: Requesting user object is missing or invalid.');
-      return false;
-    }
-    if (!audit || !audit.createdBy) {
-      console.error('[_canEdit] ERROR: Audit object or createdBy field is missing.');
-      return false;
-    }
+  console.log('[_canEdit] Checking edit permissions for status:', audit.status);
 
-    console.log('[_canEdit] Checking edit permissions...');
+  // Determine if createdBy is a populated object or a string ID
+  const creatorId = typeof audit.createdBy === 'object' && audit.createdBy !== null
+    ? audit.createdBy._id.toString()
+    : audit.createdBy.toString();
 
-    // Determine if createdBy is a populated object or a string ID
-    const creatorId = typeof audit.createdBy === 'object' && audit.createdBy !== null
-      ? audit.createdBy._id.toString()
-      : audit.createdBy.toString();
+  console.log('[_canEdit] Stored createdBy ID:', creatorId);
+  console.log('[_canEdit] Requesting User ID:', user.id.toString());
 
-    console.log('[_canEdit] Stored createdBy ID:', creatorId);
-    console.log('[_canEdit] Requesting User ID:', user.id.toString());
+  const isCreator = creatorId === user.id.toString();
+  const isAssigned = audit.assignedAuditors.some(a => a.toString() === user.id.toString());
+  const isAdminOrSuperAdmin = user.role === 'super_admin' || user.role === 'admin';
+  
+  console.log('[_canEdit] isCreator:', isCreator, 'isAssigned:', isAssigned, 'isAdminOrSuperAdmin:', isAdminOrSuperAdmin);
 
-    const isCreator = creatorId === user.id.toString();
-    const isAssigned = audit.assignedAuditors.some(a => a.toString() === user.id.toString());
+  // Editing rules based on audit status
+  switch (audit.status) {
+    case 'Draft':
+    case 'In Progress':
+      // Only assigned auditors can edit during these stages
+      return isAssigned;
     
-    console.log('[_canEdit] isCreator:', isCreator, 'isAssigned:', isAssigned);
-    return isCreator || isAssigned;
+    case 'In Review':
+      // Only admin/super_admin can edit during review
+      return isAdminOrSuperAdmin;
+    
+    case 'Completed':
+    case 'Archived':
+      // No one can edit completed or archived audits
+      return false;
+    
+    default:
+      return false;
   }
+}
 
 
   /* -------------------------------------------------- */
@@ -982,84 +1000,111 @@ async getAllAuditInstances(requestingUser) {
   }
 
  
+/* -------------------------------------------------- */
+/* SUBMIT RESPONSES                                   */
+/* -------------------------------------------------- */
+async submitResponses(auditInstanceId, responsesData, requestingUser) {
+  console.log('[submitResponses] START');
+  const audit = await AuditInstance.findById(auditInstanceId).populate('createdBy');
+  if (!audit) throw new Error('Audit Instance not found.');
 
-  /* -------------------------------------------------- */
-  /* SUBMIT RESPONSES                                   */
-  /* -------------------------------------------------- */
-  async submitResponses(auditInstanceId, responsesData, requestingUser) {
-    console.log('[submitResponses] START');
-    // Get the audit and populate the createdBy field for the _canEdit check
-    const audit = await AuditInstance.findById(auditInstanceId).populate('createdBy');
-    if (!audit) throw new Error('Audit Instance not found.');
+  // Use the updated _canEdit helper function for authorization
+  if (!this._canEdit(audit, requestingUser)) {
+    console.log('[submitResponses] Authorization failed. Not authorized to edit this audit.');
+    throw new Error('You are not authorized to edit this audit.');
+  }
+  console.log('[submitResponses] Authorization passed.');
 
-    // Use the _canEdit helper function for authorization
-    if (!this._canEdit(audit, requestingUser)) {
-      console.log('[submitResponses] Authorization failed. Not creator or assigned.');
-      throw new Error('You are not authorized to edit this audit.');
+  if (audit.status === 'Completed' || audit.status === 'Archived') {
+    throw new Error(`Cannot submit responses. Audit is already ${audit.status}.`);
+  }
+
+  // Process responses
+  for (const resp of responsesData) {
+    const { questionId, selectedValue, comment, includeCommentInReport, evidenceUrls } = resp;
+    let ex = audit.responses.find(r => r.questionId.toString() === questionId);
+    const q = audit.templateStructureSnapshot
+      .flatMap(s => s.subSections)
+      .flatMap(ss => ss.questions)
+      .find(q => q._id.toString() === questionId);
+
+    if (!q) continue;
+    const score = this._calcScore(q, selectedValue);
+
+    if (ex) {
+      Object.assign(ex, { selectedValue, comment, includeCommentInReport, evidenceUrls, auditorId: requestingUser.id, lastUpdated: new Date(), score });
+    } else {
+      audit.responses.push({
+        questionId, questionTextSnapshot: q.text, questionTypeSnapshot: q.type,
+        answerOptionsSnapshot: q.answerOptions, selectedValue, comment, includeCommentInReport,
+        evidenceUrls, score, auditorId: requestingUser.id, lastUpdated: new Date()
+      });
     }
-    console.log('[submitResponses] Authorization passed.');
+  }
 
-    if (audit.status === 'Completed' || audit.status === 'Archived') {
-      throw new Error(`Cannot submit responses. Audit is already ${audit.status}.`);
-    }
+  audit.overallScore = this._calculateOverallScore(audit);
+  audit.lastModifiedBy = requestingUser.id;
+  await audit.save();
+  console.log('[submitResponses] SUCCESS');
+  return audit;
+}
 
-    if (audit.status === 'Draft' && responsesData?.length) audit.status = 'In Progress';
+/* -------------------------------------------------- */
+/* UPDATE STATUS                                      */
+/* -------------------------------------------------- */
+async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
+  console.log('[updateAuditStatus] START');
+  const audit = await AuditInstance.findById(auditInstanceId).populate('createdBy');
+  if (!audit) throw new Error('Audit Instance not found.');
 
-    for (const resp of responsesData) {
-      const { questionId, selectedValue, comment, includeCommentInReport, evidenceUrls } = resp;
-      let ex = audit.responses.find(r => r.questionId.toString() === questionId);
-      const q = audit.templateStructureSnapshot
-        .flatMap(s => s.subSections)
-        .flatMap(ss => ss.questions)
-        .find(q => q._id.toString() === questionId);
+  const allowed = ['Draft', 'In Progress', 'In Review', 'Completed', 'Archived'];
+  if (!allowed.includes(newStatus)) throw new Error('Invalid status provided.');
 
-      if (!q) continue;
-      const score = this._calcScore(q, selectedValue);
-
-      if (ex) {
-        Object.assign(ex, { selectedValue, comment, includeCommentInReport, evidenceUrls, auditorId: requestingUser.id, lastUpdated: new Date(), score });
-      } else {
-        audit.responses.push({
-          questionId, questionTextSnapshot: q.text, questionTypeSnapshot: q.type,
-          answerOptionsSnapshot: q.answerOptions, selectedValue, comment, includeCommentInReport,
-          evidenceUrls, score, auditorId: requestingUser.id, lastUpdated: new Date()
-        });
+  // Check authorization based on current status and requested transition
+  let canChangeStatus = false;
+  
+  switch (audit.status) {
+    case 'Draft':
+    case 'In Progress':
+      // Only assigned auditors can move from Draft/In Progress to In Review
+      if (newStatus === 'In Review') {
+        const isAssigned = audit.assignedAuditors.some(a => a.toString() === requestingUser.id.toString());
+        canChangeStatus = isAssigned;
       }
-    }
-
-    audit.overallScore = this._calculateOverallScore(audit);
-    audit.lastModifiedBy = requestingUser.id;
-    await audit.save();
-    console.log('[submitResponses] SUCCESS');
-    return audit;
+      break;
+    
+    case 'In Review':
+      // Only admin/super_admin can move from In Review to Completed
+      if (newStatus === 'Completed') {
+        const isAdminOrSuperAdmin = requestingUser.role === 'super_admin' || requestingUser.role === 'admin';
+        canChangeStatus = isAdminOrSuperAdmin;
+      }
+      break;
+    
+    case 'Completed':
+      // Only admin/super_admin can archive completed audits
+      if (newStatus === 'Archived') {
+        const isAdminOrSuperAdmin = requestingUser.role === 'super_admin' || requestingUser.role === 'admin';
+        canChangeStatus = isAdminOrSuperAdmin;
+      }
+      break;
   }
 
-  /* -------------------------------------------------- */
-  /* UPDATE STATUS                                      */
-  /* -------------------------------------------------- */
-  async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
-    console.log('[updateAuditStatus] START');
-    const audit = await AuditInstance.findById(auditInstanceId).populate('createdBy');
-    if (!audit) throw new Error('Audit Instance not found.');
-
-    // Use the _canEdit helper function for authorization
-    if (!this._canEdit(audit, requestingUser)) {
-      console.log('[updateAuditStatus] Authorization failed. Not creator or assigned.');
-      throw new Error('You are not authorized to edit this audit.');
-    }
-    console.log('[updateAuditStatus] Authorization passed.');
-
-    const allowed = ['Draft', 'In Progress', 'In Review', 'Completed', 'Archived'];
-    if (!allowed.includes(newStatus)) throw new Error('Invalid status provided.');
-
-    audit.status = newStatus;
-    if (newStatus === 'Completed' && !audit.actualCompletionDate) audit.actualCompletionDate = new Date();
-    else if (newStatus !== 'Completed') audit.actualCompletionDate = undefined;
-    audit.lastModifiedBy = requestingUser.id;
-    await audit.save();
-    console.log('[updateAuditStatus] SUCCESS');
-    return audit;
+  if (!canChangeStatus) {
+    throw new Error(`You are not authorized to change status from ${audit.status} to ${newStatus}.`);
   }
+
+  audit.status = newStatus;
+  if (newStatus === 'Completed' && !audit.actualCompletionDate) {
+    audit.actualCompletionDate = new Date();
+  } else if (newStatus !== 'Completed') {
+    audit.actualCompletionDate = undefined;
+  }
+  audit.lastModifiedBy = requestingUser.id;
+  await audit.save();
+  console.log('[updateAuditStatus] SUCCESS');
+  return audit;
+}
 
   /* -------------------------------------------------- */
   /* DELETE AUDIT                                       */
