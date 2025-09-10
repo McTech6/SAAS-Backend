@@ -1130,34 +1130,208 @@ async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
   /* -------------------------------------------------- */
   /* GENERATE PDF REPORT                                */
   /* -------------------------------------------------- */
-  async generateReport(auditInstanceId, requestingUser) {
-    console.log('[generateReport] START - auditInstanceId:', auditInstanceId);
+//   async generateReport(auditInstanceId, requestingUser) {
+//     console.log('[generateReport] START - auditInstanceId:', auditInstanceId);
     
-    try {
-      const audit = await this.getAuditInstanceById(auditInstanceId, requestingUser);
-      console.log('[generateReport] Audit data retrieved successfully');
+//     try {
+//       const audit = await this.getAuditInstanceById(auditInstanceId, requestingUser);
+//       console.log('[generateReport] Audit data retrieved successfully');
       
-      const html = generateReportHtml(audit);
-      console.log('[generateReport] HTML report generated');
+//       const html = generateReportHtml(audit);
+//       console.log('[generateReport] HTML report generated');
 
-      // First, try to install Chrome if it's missing
-      try {
-        console.log('[generateReport] Checking Chrome installation...');
-        const { execSync } = await import('child_process');
+//       // First, try to install Chrome if it's missing
+//       try {
+//         console.log('[generateReport] Checking Chrome installation...');
+//         const { execSync } = await import('child_process');
         
-        // Try to install Chrome if not found
-        console.log('[generateReport] Attempting to install Chrome...');
-        execSync('npx puppeteer browsers install chrome', { 
-          stdio: 'inherit',
-          timeout: 120000 // 2 minutes timeout
-        });
-        console.log('[generateReport] Chrome installation completed');
-      } catch (installError) {
-        console.log('[generateReport] Chrome installation warning:', installError.message);
-        // Continue anyway, might already be installed
+//         // Try to install Chrome if not found
+//         console.log('[generateReport] Attempting to install Chrome...');
+//         execSync('npx puppeteer browsers install chrome', { 
+//           stdio: 'inherit',
+//           timeout: 120000 // 2 minutes timeout
+//         });
+//         console.log('[generateReport] Chrome installation completed');
+//       } catch (installError) {
+//         console.log('[generateReport] Chrome installation warning:', installError.message);
+//         // Continue anyway, might already be installed
+//       }
+
+//       // Enhanced Puppeteer configuration for Render
+//       const puppeteerOptions = {
+//         headless: true,
+//         args: [
+//           '--no-sandbox',
+//           '--disable-setuid-sandbox',
+//           '--disable-dev-shm-usage',
+//           '--disable-accelerated-2d-canvas',
+//           '--no-first-run',
+//           '--no-zygote',
+//           '--disable-gpu',
+//           '--disable-web-security',
+//           '--disable-features=VizDisplayCompositor',
+//           '--disable-background-timer-throttling',
+//           '--disable-backgrounding-occluded-windows',
+//           '--disable-renderer-backgrounding'
+//         ]
+//       };
+
+//       // Try to find Chrome executable
+//       if (process.env.NODE_ENV === 'production') {
+//         const chromePaths = [
+//           '/opt/render/.cache/puppeteer/chrome/*/chrome-linux64/chrome',
+//           '/usr/bin/google-chrome-stable',
+//           '/usr/bin/google-chrome',
+//           '/usr/bin/chromium-browser',
+//           '/usr/bin/chromium',
+//           process.env.CHROME_BIN,
+//           process.env.PUPPETEER_EXECUTABLE_PATH
+//         ].filter(Boolean);
+
+//         // Use glob to find Chrome in cache directory
+//         try {
+//           const glob = await import('glob');
+//           const chromeInCache = glob.globSync('/opt/render/.cache/puppeteer/chrome/*/chrome-linux*/chrome');
+//           if (chromeInCache.length > 0) {
+//             puppeteerOptions.executablePath = chromeInCache[0];
+//             console.log('[generateReport] Found Chrome in cache:', chromeInCache[0]);
+//           }
+//         } catch (globError) {
+//           console.log('[generateReport] Glob search failed:', globError.message);
+//         }
+
+//         // If not found in cache, try system paths
+//         if (!puppeteerOptions.executablePath) {
+//           const fs = await import('fs');
+//           for (const chromePath of chromePaths) {
+//             if (fs.existsSync && fs.existsSync(chromePath)) {
+//               puppeteerOptions.executablePath = chromePath;
+//               console.log('[generateReport] Using Chrome at:', chromePath);
+//               break;
+//             }
+//           }
+//         }
+//       }
+
+//       console.log('[generateReport] Launching browser with config:', {
+//         executablePath: puppeteerOptions.executablePath || 'default',
+//         headless: puppeteerOptions.headless
+//       });
+      
+//       const browser = await puppeteer.launch(puppeteerOptions);
+      
+//       const page = await browser.newPage();
+//       console.log('[generateReport] Browser page created');
+      
+//       // Set content and wait for it to load
+//       await page.setContent(html, { 
+//         waitUntil: 'networkidle0',
+//         timeout: 30000 // 30 second timeout
+//       });
+//       console.log('[generateReport] HTML content set on page');
+      
+//       // Generate PDF with optimized settings
+//       const pdfBuffer = await page.pdf({
+//         format: 'A4',
+//         printBackground: true,
+//         margin: { top: '1in', right: '1in', bottom: '1in', left: '1in' },
+//         displayHeaderFooter: true,
+//         headerTemplate: '<div></div>',
+//         footerTemplate: `<div style="font-size:9pt;text-align:center;width:100%">
+//                             <span class="pageNumber"></span> / <span class="totalPages"></span>
+//                           </div>`,
+//         timeout: 30000 // 30 second timeout for PDF generation
+//       });
+      
+//       console.log('[generateReport] PDF generated successfully, size:', pdfBuffer.length, 'bytes');
+      
+//       await browser.close();
+//       console.log('[generateReport] Browser closed successfully');
+      
+//       return pdfBuffer;
+      
+//     } catch (error) {
+//       console.error('[generateReport] ERROR occurred:', {
+//         auditId: auditInstanceId,
+//         userId: requestingUser.id,
+//         error: error.message,
+//         stack: error.stack,
+//         timestamp: new Date().toISOString()
+//       });
+      
+//       // Provide more specific error messages
+//       if (error.message.includes('Chrome') || error.message.includes('browser')) {
+//         throw new Error('PDF generation service is temporarily unavailable. Chrome browser could not be found or started. Please contact support.');
+//       } else if (error.message.includes('timeout')) {
+//         throw new Error('PDF generation timed out. The report might be too large. Please try again.');
+//       } else {
+//         throw new Error(`Failed to generate PDF report: ${error.message}`);
+//       }
+//     }
+//   }
+
+//   /* -------------- internal helpers ------------------ */
+//   _calcScore(question, value) {
+//     if (!question) return 0;
+//     if (question.type === 'single_choice' || question.type === 'multi_choice') {
+//       const opt = question.answerOptions.find(o => o.value === value);
+//       return opt ? opt.score : 0;
+//     }
+//     if (question.type === 'numeric' && typeof value === 'number') return value;
+//     return 0;
+//   }
+
+//   _calculateOverallScore(audit) {
+//     if (!audit.responses || !audit.responses.length) return 0;
+//     let total = 0, max = 0;
+//     audit.responses.forEach(r => {
+//       const q = audit.templateStructureSnapshot
+//         .flatMap(s => s.subSections)
+//         .flatMap(ss => ss.questions)
+//         .find(q => q._id.toString() === r.questionId.toString());
+//       if (q) { total += r.score; max += q.weight || 1; }
+//     });
+//     return max ? (total / max) * 100 : 0;
+//   }
+// }
+
+  async generateReport(auditInstanceId, requestingUser) {
+    try {
+      // Fetch the audit and populate required references for the report
+      const audit = await AuditInstance.findById(auditInstanceId)
+        .populate({ path: 'company', select: 'name industry contactPerson address website' })
+        .populate({ path: 'template' })
+        .populate({ path: 'assignedAuditors', select: 'firstName lastName email' })
+        .populate({ path: 'createdBy', select: 'firstName lastName email' })
+        .populate({ path: 'summaries.auditor', select: 'firstName lastName email' });
+
+      if (!audit) {
+        throw new Error('Audit Instance not found.');
       }
 
-      // Enhanced Puppeteer configuration for Render
+      // Authorization: keep same rule as getAuditInstanceById (reuse it if possible)
+      // We'll call getAuditInstanceById for the authorization check (it throws if unauthorized)
+      // If you rely on controller authorize middleware, you can skip here; otherwise:
+      // await this.getAuditInstanceById(auditInstanceId, requestingUser);
+
+      // Decide which auditors to display in the "Auditor" section:
+      // If assignedAuditors array has at least one item, show them; otherwise show createdBy
+      let auditorsToDisplay = [];
+      if (Array.isArray(audit.assignedAuditors) && audit.assignedAuditors.length > 0) {
+        auditorsToDisplay = audit.assignedAuditors;
+      } else if (audit.createdBy) {
+        auditorsToDisplay = [audit.createdBy];
+      }
+
+      const auditObj = audit.toObject({ getters: true });
+
+      // Attach auditorsToDisplay to the object we pass to report generator
+      auditObj.auditorsToDisplay = auditorsToDisplay;
+
+      // Build HTML from template + audit data
+      const html = generateReportHtml(auditObj);
+
+      // Puppeteer options tuned for typical cloud envs (no-sandbox, etc.)
       const puppeteerOptions = {
         headless: true,
         args: [
@@ -1167,115 +1341,70 @@ async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
           '--no-zygote',
-          '--disable-gpu',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding'
+          '--disable-gpu'
         ]
       };
 
-      // Try to find Chrome executable
-      if (process.env.NODE_ENV === 'production') {
-        const chromePaths = [
-          '/opt/render/.cache/puppeteer/chrome/*/chrome-linux64/chrome',
-          '/usr/bin/google-chrome-stable',
-          '/usr/bin/google-chrome',
-          '/usr/bin/chromium-browser',
-          '/usr/bin/chromium',
-          process.env.CHROME_BIN,
-          process.env.PUPPETEER_EXECUTABLE_PATH
-        ].filter(Boolean);
+      // Attempt to set executablePath from common env vars (if provided in your deployment)
+      const preferredPaths = [
+        process.env.PUPPETEER_EXECUTABLE_PATH,
+        process.env.CHROME_BIN,
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium'
+      ].filter(Boolean);
 
-        // Use glob to find Chrome in cache directory
+      // If a provided path exists, set it (safe-guard: only set if PATH exists)
+      if (preferredPaths.length > 0) {
         try {
-          const glob = await import('glob');
-          const chromeInCache = glob.globSync('/opt/render/.cache/puppeteer/chrome/*/chrome-linux*/chrome');
-          if (chromeInCache.length > 0) {
-            puppeteerOptions.executablePath = chromeInCache[0];
-            console.log('[generateReport] Found Chrome in cache:', chromeInCache[0]);
-          }
-        } catch (globError) {
-          console.log('[generateReport] Glob search failed:', globError.message);
-        }
-
-        // If not found in cache, try system paths
-        if (!puppeteerOptions.executablePath) {
           const fs = await import('fs');
-          for (const chromePath of chromePaths) {
-            if (fs.existsSync && fs.existsSync(chromePath)) {
-              puppeteerOptions.executablePath = chromePath;
-              console.log('[generateReport] Using Chrome at:', chromePath);
+          for (const p of preferredPaths) {
+            if (fs.existsSync && fs.existsSync(p)) {
+              puppeteerOptions.executablePath = p;
               break;
             }
           }
+        } catch (err) {
+          // ignore, fallback to bundled chromium
         }
       }
 
-      console.log('[generateReport] Launching browser with config:', {
-        executablePath: puppeteerOptions.executablePath || 'default',
-        headless: puppeteerOptions.headless
-      });
-      
+      // Launch, set content, generate PDF
       const browser = await puppeteer.launch(puppeteerOptions);
-      
       const page = await browser.newPage();
-      console.log('[generateReport] Browser page created');
-      
-      // Set content and wait for it to load
-      await page.setContent(html, { 
-        waitUntil: 'networkidle0',
-        timeout: 30000 // 30 second timeout
-      });
-      console.log('[generateReport] HTML content set on page');
-      
-      // Generate PDF with optimized settings
+      // set a reasonable viewport so page layout matches A4 width expectations
+      await page.setViewport({ width: 1200, height: 800 });
+      await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
-        margin: { top: '1in', right: '1in', bottom: '1in', left: '1in' },
-        displayHeaderFooter: true,
-        headerTemplate: '<div></div>',
-        footerTemplate: `<div style="font-size:9pt;text-align:center;width:100%">
-                            <span class="pageNumber"></span> / <span class="totalPages"></span>
-                          </div>`,
-        timeout: 30000 // 30 second timeout for PDF generation
+        margin: { top: '0.6in', right: '0.6in', bottom: '0.6in', left: '0.6in' }
       });
-      
-      console.log('[generateReport] PDF generated successfully, size:', pdfBuffer.length, 'bytes');
-      
+
       await browser.close();
-      console.log('[generateReport] Browser closed successfully');
-      
       return pdfBuffer;
-      
     } catch (error) {
-      console.error('[generateReport] ERROR occurred:', {
-        auditId: auditInstanceId,
-        userId: requestingUser.id,
-        error: error.message,
-        stack: error.stack,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Provide more specific error messages
-      if (error.message.includes('Chrome') || error.message.includes('browser')) {
-        throw new Error('PDF generation service is temporarily unavailable. Chrome browser could not be found or started. Please contact support.');
-      } else if (error.message.includes('timeout')) {
-        throw new Error('PDF generation timed out. The report might be too large. Please try again.');
-      } else {
-        throw new Error(`Failed to generate PDF report: ${error.message}`);
+      // Convert low-level puppeteer or fs errors into friendly error messages
+      const msg = error.message || String(error);
+      if (msg.toLowerCase().includes('timeout')) {
+        throw new Error('PDF generation timed out. Try again or generate a smaller report.');
       }
+      if (msg.toLowerCase().includes('chrome') || msg.toLowerCase().includes('executable')) {
+        throw new Error('PDF generation failed because a browser executable could not be found or started in the environment. Please ensure Chrome/Chromium is installed or set PUPPETEER_EXECUTABLE_PATH.');
+      }
+      throw new Error(`Failed to generate PDF report: ${msg}`);
     }
   }
 
-  /* -------------- internal helpers ------------------ */
+  /* -------------- internal helpers (score calc, etc.) ------------------ */
   _calcScore(question, value) {
+    // ... keep your existing implementation
     if (!question) return 0;
     if (question.type === 'single_choice' || question.type === 'multi_choice') {
-      const opt = question.answerOptions.find(o => o.value === value);
-      return opt ? opt.score : 0;
+      const opt = question.answerOptions?.find(o => o.value === value);
+      return opt ? opt.score || 0 : 0;
     }
     if (question.type === 'numeric' && typeof value === 'number') return value;
     return 0;
@@ -1285,14 +1414,16 @@ async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
     if (!audit.responses || !audit.responses.length) return 0;
     let total = 0, max = 0;
     audit.responses.forEach(r => {
-      const q = audit.templateStructureSnapshot
-        .flatMap(s => s.subSections)
-        .flatMap(ss => ss.questions)
-        .find(q => q._id.toString() === r.questionId.toString());
-      if (q) { total += r.score; max += q.weight || 1; }
+      const q = (audit.templateStructureSnapshot || [])
+        .flatMap(s => s.subSections || [])
+        .flatMap(ss => ss.questions || [])
+        .find(q => q._id?.toString() === r.questionId?.toString());
+      if (q) { total += r.score || 0; max += q.weight || 1; }
     });
     return max ? (total / max) * 100 : 0;
   }
 }
 
 export default new AuditInstanceService();
+
+ 
