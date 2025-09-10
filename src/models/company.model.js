@@ -1,4 +1,4 @@
-// src/models/company.model.js
+// 
 
 import mongoose from 'mongoose';
 
@@ -41,6 +41,40 @@ const companySchema = new mongoose.Schema({
         trim: true,
         match: [/^https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/, 'Please enter a valid website URL']
     },
+    infrastructure: {
+        servers: {
+            type: [String], // Array of server names/IPs
+            default: []
+        },
+        virtualEnvironments: {
+            type: [String], // Array of virtual environment names
+            default: []
+        },
+        substitutes: {
+            type: [String], // Array of substitute servers or backup systems
+            default: []
+        },
+        totalServers: {
+            type: Number, // Optional: Total number of servers
+            default: 0
+        },
+        totalVirtualEnvironments: {
+            type: Number, // Optional: Total number of virtual environments
+            default: 0
+        },
+        totalSubstitutes: {
+            type: Number, // Optional: Total number of substitute servers
+            default: 0
+        },
+        notes: {
+            type: String,
+            trim: true
+        },
+        generalInfo: { // General optional information about the company
+            type: String,
+            trim: true
+        }
+    },
     status: {
         type: String,
         enum: ['Active', 'Inactive', 'Onboarding', 'Archived'],
@@ -58,7 +92,7 @@ const companySchema = new mongoose.Schema({
         ref: 'User'
     }
 }, {
-    timestamps: true // Adds createdAt and updatedAt fields automatically
+    timestamps: true
 });
 
 const Company = mongoose.model('Company', companySchema);

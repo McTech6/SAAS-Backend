@@ -73,6 +73,18 @@ const auditInstanceSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    examinationEnvironment: {
+    type: Map,
+    of: String,   // example: { "Locations": "1", "Employees": "245" }
+    default: {}
+  },
+
+  /*  NEW  –  free-text summary written by auditor  */
+  auditorSummary: {
+    type: String,
+    trim: true,
+    default: ''
+  },
     // User who last modified this audit instance
     lastModifiedBy: {
         type: mongoose.Schema.ObjectId,
