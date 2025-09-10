@@ -1295,108 +1295,71 @@ async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
 //   }
 // }
 
-  async generateReport(auditInstanceId, requestingUser) {
-    try {
-      // Fetch the audit and populate required references for the report
-      const audit = await AuditInstance.findById(auditInstanceId)
-        .populate({ path: 'company', select: 'name industry contactPerson address website' })
-        .populate({ path: 'template' })
-        .populate({ path: 'assignedAuditors', select: 'firstName lastName email' })
-        .populate({ path: 'createdBy', select: 'firstName lastName email' })
-        .populate({ path: 'summaries.auditor', select: 'firstName lastName email' });
+ 
 
-      if (!audit) {
-        throw new Error('Audit Instance not found.');
-      }
+async generateReport(auditInstanceId, requestingUser) {
+  try {
+    // Fetch audit instance with required references
+    const audit = await AuditInstance.findById(auditInstanceId)
+      .populate({ path: "company", select: "name industry contactPerson address website" })
+      .populate({ path: "template" })
+      .populate({ path: "assignedAuditors", select: "firstName lastName email" })
+      .populate({ path: "createdBy", select: "firstName lastName email" })
+      .populate({ path: "summaries.auditor", select: "firstName lastName email" });
 
-      // Authorization: keep same rule as getAuditInstanceById (reuse it if possible)
-      // We'll call getAuditInstanceById for the authorization check (it throws if unauthorized)
-      // If you rely on controller authorize middleware, you can skip here; otherwise:
-      // await this.getAuditInstanceById(auditInstanceId, requestingUser);
-
-      // Decide which auditors to display in the "Auditor" section:
-      // If assignedAuditors array has at least one item, show them; otherwise show createdBy
-      let auditorsToDisplay = [];
-      if (Array.isArray(audit.assignedAuditors) && audit.assignedAuditors.length > 0) {
-        auditorsToDisplay = audit.assignedAuditors;
-      } else if (audit.createdBy) {
-        auditorsToDisplay = [audit.createdBy];
-      }
-
-      const auditObj = audit.toObject({ getters: true });
-
-      // Attach auditorsToDisplay to the object we pass to report generator
-      auditObj.auditorsToDisplay = auditorsToDisplay;
-
-      // Build HTML from template + audit data
-      const html = generateReportHtml(auditObj);
-
-      // Puppeteer options tuned for typical cloud envs (no-sandbox, etc.)
-      const puppeteerOptions = {
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu'
-        ]
-      };
-
-      // Attempt to set executablePath from common env vars (if provided in your deployment)
-      const preferredPaths = [
-        process.env.PUPPETEER_EXECUTABLE_PATH,
-        process.env.CHROME_BIN,
-        '/usr/bin/google-chrome-stable',
-        '/usr/bin/google-chrome',
-        '/usr/bin/chromium-browser',
-        '/usr/bin/chromium'
-      ].filter(Boolean);
-
-      // If a provided path exists, set it (safe-guard: only set if PATH exists)
-      if (preferredPaths.length > 0) {
-        try {
-          const fs = await import('fs');
-          for (const p of preferredPaths) {
-            if (fs.existsSync && fs.existsSync(p)) {
-              puppeteerOptions.executablePath = p;
-              break;
-            }
-          }
-        } catch (err) {
-          // ignore, fallback to bundled chromium
-        }
-      }
-
-      // Launch, set content, generate PDF
-      const browser = await puppeteer.launch(puppeteerOptions);
-      const page = await browser.newPage();
-      // set a reasonable viewport so page layout matches A4 width expectations
-      await page.setViewport({ width: 1200, height: 800 });
-      await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
-
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '0.6in', right: '0.6in', bottom: '0.6in', left: '0.6in' }
-      });
-
-      await browser.close();
-      return pdfBuffer;
-    } catch (error) {
-      // Convert low-level puppeteer or fs errors into friendly error messages
-      const msg = error.message || String(error);
-      if (msg.toLowerCase().includes('timeout')) {
-        throw new Error('PDF generation timed out. Try again or generate a smaller report.');
-      }
-      if (msg.toLowerCase().includes('chrome') || msg.toLowerCase().includes('executable')) {
-        throw new Error('PDF generation failed because a browser executable could not be found or started in the environment. Please ensure Chrome/Chromium is installed or set PUPPETEER_EXECUTABLE_PATH.');
-      }
-      throw new Error(`Failed to generate PDF report: ${msg}`);
+    if (!audit) {
+      throw new Error("Audit Instance not found.");
     }
+
+    // Choose auditors to display
+    let auditorsToDisplay = [];
+    if (Array.isArray(audit.assignedAuditors) && audit.assignedAuditors.length > 0) {
+      auditorsToDisplay = audit.assignedAuditors;
+    } else if (audit.createdBy) {
+      auditorsToDisplay = [audit.createdBy];
+    }
+
+    const auditObj = audit.toObject({ getters: true });
+    auditObj.auditorsToDisplay = auditorsToDisplay;
+
+    // Generate HTML for report
+    const html = generateReportHtml(auditObj);
+
+    // Puppeteer launch (uses bundled Chromium automatically)
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1200, height: 800 });
+    await page.setContent(html, { waitUntil: "networkidle0", timeout: 60000 });
+
+    // Export PDF
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: { top: "0.6in", right: "0.6in", bottom: "0.6in", left: "0.6in" },
+      displayHeaderFooter: true,
+      headerTemplate: "<div></div>",
+      footerTemplate: `<div style="font-size:9pt;text-align:center;width:100%">
+                         <span class="pageNumber"></span> / <span class="totalPages"></span>
+                       </div>`,
+    });
+
+    await browser.close();
+    return pdfBuffer;
+  } catch (error) {
+    console.error("[generateReport] ERROR:", error);
+    const msg = error.message || String(error);
+
+    if (msg.toLowerCase().includes("timeout")) {
+      throw new Error("PDF generation timed out. Try again or generate a smaller report.");
+    }
+    throw new Error(`Failed to generate PDF report: ${msg}`);
   }
+}
+
 
   /* -------------- internal helpers (score calc, etc.) ------------------ */
   _calcScore(question, value) {
