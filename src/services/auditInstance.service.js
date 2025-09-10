@@ -1300,67 +1300,55 @@ async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
  
 
 async generateReport(auditInstanceId, requestingUser) {
-  try {
-    // 1. Fetch audit instance and populate data
-    const audit = await AuditInstance.findById(auditInstanceId)
-      .populate({ path: "company", select: "name industry contactPerson address website" })
-      .populate({ path: "template" })
-      .populate({ path: "assignedAuditors", select: "firstName lastName email" })
-      .populate({ path: "createdBy", select: "firstName lastName email" })
-      .populate({ path: "summaries.auditor", select: "firstName lastName email" });
+    try {
+      // Fetch audit with all necessary data
+      const audit = await AuditInstance.findById(auditInstanceId)
+        .populate({ path: 'company', select: 'name industry contactPerson address website' })
+        .populate({ path: 'template' })
+        .populate({ path: 'assignedAuditors', select: 'firstName lastName email' })
+        .populate({ path: 'createdBy', select: 'firstName lastName email' });
 
-    if (!audit) throw new Error("Audit Instance not found.");
+      if (!audit) {
+        throw new Error('Audit Instance not found.');
+      }
 
-    // 2. Choose auditors (assigned or creator fallback)
-    let auditorsToDisplay = [];
-    if (audit.assignedAuditors?.length > 0) {
-      auditorsToDisplay = audit.assignedAuditors;
-    } else if (audit.createdBy) {
-      auditorsToDisplay = [audit.createdBy];
-    }
+      // Decide who to display as auditors
+      let auditorsToDisplay = [];
+      if (audit.assignedAuditors?.length > 0) {
+        auditorsToDisplay = audit.assignedAuditors;
+      } else if (audit.createdBy) {
+        auditorsToDisplay = [audit.createdBy];
+      }
 
-    const auditObj = audit.toObject({ getters: true });
-    auditObj.auditorsToDisplay = auditorsToDisplay;
+      const auditObj = audit.toObject();
+      auditObj.auditorsToDisplay = auditorsToDisplay;
 
-    // 3. Generate HTML for report
-    const html = generateReportHtml(auditObj);
+      // Build HTML
+      const html = generateReportHtml(auditObj);
 
-    // 4. Puppeteer launch (force bundled Chromium)
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      channel: "chrome", // fallback if Chrome installed
-    }).catch(async () => {
-      // fallback to bundled Chromium if "chrome" fails
-      return puppeteer.launch({
+      // Launch Puppeteer (uses bundled Chromium)
+      const browser = await puppeteer.launch({
         headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
-    });
+      const page = await browser.newPage();
 
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1200, height: 800 });
-    await page.setContent(html, { waitUntil: "networkidle0", timeout: 60000 });
+      await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
 
-    // 5. Export PDF
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "0.6in", right: "0.6in", bottom: "0.6in", left: "0.6in" },
-      displayHeaderFooter: true,
-      headerTemplate: "<div></div>",
-      footerTemplate: `<div style="font-size:9pt;text-align:center;width:100%">
-                         <span class="pageNumber"></span> / <span class="totalPages"></span>
-                       </div>`,
-    });
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '0.6in', right: '0.6in', bottom: '0.6in', left: '0.6in' }
+      });
 
-    await browser.close();
-    return pdfBuffer;
-  } catch (error) {
-    console.error("[generateReport] ERROR:", error);
-    throw new Error(`Failed to generate PDF report: ${error.message}`);
+      await browser.close();
+      return pdfBuffer;
+    } catch (error) {
+      console.error('[generateReport] ERROR:', error.message);
+      throw new Error(`Failed to generate PDF report: ${error.message}`);
+    }
   }
-}
+
 
 
   /* -------------- internal helpers (score calc, etc.) ------------------ */
