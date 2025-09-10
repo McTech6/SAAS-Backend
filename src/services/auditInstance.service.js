@@ -1297,9 +1297,11 @@ async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
 
  
 
+ 
+
 async generateReport(auditInstanceId, requestingUser) {
   try {
-    // Fetch audit instance with required references
+    // 1. Fetch audit instance and populate data
     const audit = await AuditInstance.findById(auditInstanceId)
       .populate({ path: "company", select: "name industry contactPerson address website" })
       .populate({ path: "template" })
@@ -1307,13 +1309,11 @@ async generateReport(auditInstanceId, requestingUser) {
       .populate({ path: "createdBy", select: "firstName lastName email" })
       .populate({ path: "summaries.auditor", select: "firstName lastName email" });
 
-    if (!audit) {
-      throw new Error("Audit Instance not found.");
-    }
+    if (!audit) throw new Error("Audit Instance not found.");
 
-    // Choose auditors to display
+    // 2. Choose auditors (assigned or creator fallback)
     let auditorsToDisplay = [];
-    if (Array.isArray(audit.assignedAuditors) && audit.assignedAuditors.length > 0) {
+    if (audit.assignedAuditors?.length > 0) {
       auditorsToDisplay = audit.assignedAuditors;
     } else if (audit.createdBy) {
       auditorsToDisplay = [audit.createdBy];
@@ -1322,20 +1322,27 @@ async generateReport(auditInstanceId, requestingUser) {
     const auditObj = audit.toObject({ getters: true });
     auditObj.auditorsToDisplay = auditorsToDisplay;
 
-    // Generate HTML for report
+    // 3. Generate HTML for report
     const html = generateReportHtml(auditObj);
 
-    // Puppeteer launch (uses bundled Chromium automatically)
+    // 4. Puppeteer launch (force bundled Chromium)
     const browser = await puppeteer.launch({
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      channel: "chrome", // fallback if Chrome installed
+    }).catch(async () => {
+      // fallback to bundled Chromium if "chrome" fails
+      return puppeteer.launch({
+        headless: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      });
     });
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1200, height: 800 });
     await page.setContent(html, { waitUntil: "networkidle0", timeout: 60000 });
 
-    // Export PDF
+    // 5. Export PDF
     const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
@@ -1351,12 +1358,7 @@ async generateReport(auditInstanceId, requestingUser) {
     return pdfBuffer;
   } catch (error) {
     console.error("[generateReport] ERROR:", error);
-    const msg = error.message || String(error);
-
-    if (msg.toLowerCase().includes("timeout")) {
-      throw new Error("PDF generation timed out. Try again or generate a smaller report.");
-    }
-    throw new Error(`Failed to generate PDF report: ${msg}`);
+    throw new Error(`Failed to generate PDF report: ${error.message}`);
   }
 }
 
