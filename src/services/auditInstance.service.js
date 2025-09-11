@@ -1299,55 +1299,58 @@ async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
 
  
 
+/* -------------------------------------------------- */
+/* GENERATE PDF REPORT                                */
+/* -------------------------------------------------- */
 async generateReport(auditInstanceId, requestingUser) {
-    try {
-      // Fetch audit with all necessary data
-      const audit = await AuditInstance.findById(auditInstanceId)
-        .populate({ path: 'company', select: 'name industry contactPerson address website' })
-        .populate({ path: 'template' })
-        .populate({ path: 'assignedAuditors', select: 'firstName lastName email' })
-        .populate({ path: 'createdBy', select: 'firstName lastName email' });
+  try {
+    // Fetch audit with all necessary data
+    const audit = await AuditInstance.findById(auditInstanceId)
+      .populate({ path: 'company', select: 'name industry contactPerson address website' })
+      .populate({ path: 'template' })
+      .populate({ path: 'assignedAuditors', select: 'firstName lastName email' })
+      .populate({ path: 'createdBy', select: 'firstName lastName email' });
 
-      if (!audit) {
-        throw new Error('Audit Instance not found.');
-      }
-
-      // Decide who to display as auditors
-      let auditorsToDisplay = [];
-      if (audit.assignedAuditors?.length > 0) {
-        auditorsToDisplay = audit.assignedAuditors;
-      } else if (audit.createdBy) {
-        auditorsToDisplay = [audit.createdBy];
-      }
-
-      const auditObj = audit.toObject();
-      auditObj.auditorsToDisplay = auditorsToDisplay;
-
-      // Build HTML
-      const html = generateReportHtml(auditObj);
-
-      // Launch Puppeteer (uses bundled Chromium)
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
-      const page = await browser.newPage();
-
-      await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
-
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '0.6in', right: '0.6in', bottom: '0.6in', left: '0.6in' }
-      });
-
-      await browser.close();
-      return pdfBuffer;
-    } catch (error) {
-      console.error('[generateReport] ERROR:', error.message);
-      throw new Error(`Failed to generate PDF report: ${error.message}`);
+    if (!audit) {
+      throw new Error('Audit Instance not found.');
     }
+
+    // Decide who to display as auditors
+    let auditorsToDisplay = [];
+    if (audit.assignedAuditors?.length > 0) {
+      auditorsToDisplay = audit.assignedAuditors;
+    } else if (audit.createdBy) {
+      auditorsToDisplay = [audit.createdBy];
+    }
+
+    const auditObj = audit.toObject();
+    auditObj.auditorsToDisplay = auditorsToDisplay;
+
+    // Build HTML
+    const html = generateReportHtml(auditObj);
+
+    // Launch Puppeteer (uses bundled Chromium)
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0.6in', right: '0.6in', bottom: '0.6in', left: '0.6in' }
+    });
+
+    await browser.close();
+    return pdfBuffer;
+  } catch (error) {
+    console.error('[generateReport] ERROR:', error.message);
+    throw new Error(`Failed to generate PDF report: ${error.message}`);
   }
+}
 
 
 
