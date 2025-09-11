@@ -826,8 +826,7 @@
 
 // export default generateReportHtml;
 
-
-const LOGO_URL = 'https://images.credly.com/images/9c7b4205-6582-403c-b656-be1590248fcd/ISACA_CybersecurityAudit_badge_352x352.png';
+ const LOGO_URL = 'https://images.credly.com/images/9c7b4205-6582-403c-b656-be1590248fcd/ISACA_CybersecurityAudit_badge_352x352.png';
 
 /**
  * Escapes HTML to prevent XSS vulnerabilities.
@@ -859,7 +858,6 @@ const getStatusInfo = (selectedValue) => {
     const raw = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
     if (!raw) return { label: 'N/A', color: '#2c3e50' }; // Dark gray for N/A
 
-    // Use a single, consistent color for all status labels to match the new design
     const color = '#3f51b5'; // Primary blue color
 
     if (raw.includes('implemented') || raw === 'yes' || raw === 'true' || raw === 'ok') {
@@ -1049,7 +1047,7 @@ const generateReportHtml = (auditInstance = {}) => {
             <p>Email: <a href="mailto:info@cybersecurityaudit360.com">info@cybersecurityaudit360.com</a></p>
             <p>Website: <a href="https://www.cybersecurityaudit360.com">www.cybersecurityaudit360.com</a></p>
         </div>
-        <p class="slogan">"Securing Your Digital Horizon, Together."</p>
+        <h3 class="slogan-center">"Securing Your Digital Horizon, Together."</h3>
     `;
 
     const html = `
@@ -1085,7 +1083,7 @@ const generateReportHtml = (auditInstance = {}) => {
             .handover { width: 100%; margin-top: 8px; border-collapse: collapse; }
             .handover td { padding: 6px; vertical-align: top; }
             .contact { margin-top: 10px; }
-            .slogan { margin-top: 18px; font-style: italic; color: #3f51b5; }
+            .slogan-center { text-align: center; margin-top: 18px; font-style: italic; color: #3f51b5; font-size: 18pt; }
             a { color: #3f51b5; }
             .cover-quote { margin-top: 10px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; }
             .page-break { page-break-before: always; }
@@ -1118,7 +1116,7 @@ const generateReportHtml = (auditInstance = {}) => {
             ${tocHtml}
         </div>
 
-        <div class="container">
+        <div class="container page-break">
             <h2>Introduction</h2>
             ${introductionText}
         </div>
@@ -1155,9 +1153,7 @@ const generateReportHtml = (auditInstance = {}) => {
 
         <div class="container">
             <h2>Examination environment</h2>
-            <p>Example summary (the auditor should summarise the examination):</p>
             ${envHtml}
-            <p>“The question must be predetermined, and the examiner must simply ask it and attempt to summarise these points based on the answer.”</p>
         </div>
 
         <div class="container">
