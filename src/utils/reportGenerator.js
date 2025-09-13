@@ -822,7 +822,8 @@
 //   `;
 
 //   return html;
-// };// Using the provided ISACA badge image URL for the logoconst// reportGenerator.jsconst LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
+// };// Using the provided ISACA badge image URL for the logoconst// reportGenerator.js
+const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 /**
  * Escapes HTML to prevent XSS vulnerabilities.
