@@ -113,16 +113,13 @@
 /**
  * Controller for company management operations.
  * These routes will be protected by authentication and authorization middleware.
- */ 
-import companyService from '../services/company.service.js';
+ */ import companyService from '../services/company.service.js';
 import { sendSuccessResponse, sendErrorResponse } from '../utils/responseHandler.js';
 
 class CompanyController {
     async createCompany(req, res) {
         try {
-            const companyData = req.body;
-            const createdByUserId = req.user.id;
-            const newCompany = await companyService.createCompany(companyData, createdByUserId);
+            const newCompany = await companyService.createCompany(req.body, req.user.id);
             sendSuccessResponse(res, 201, 'Company created successfully.', newCompany);
         } catch (error) {
             sendErrorResponse(res, 400, error.message);

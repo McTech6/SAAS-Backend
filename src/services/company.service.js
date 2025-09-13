@@ -138,6 +138,7 @@
 // }
 
 // export default new CompanyService();import Company from '../models/company.model.js';
+import Company from '../models/company.model.js';
 import AuditInstance from '../models/auditInstance.model.js';
 import User from '../models/user.model.js';
 
@@ -155,28 +156,17 @@ class CompanyService {
     async getAllCompanies(requestingUserId, requestingUserRole) {
         let query = {};
 
-        if (requestingUserRole === 'super_admin') {
-            query = {};
-        } else if (requestingUserRole === 'admin') {
-            query = { createdBy: requestingUserId };
-        } else if (requestingUserRole === 'auditor') {
-            const companyIdsWithAssignedAudit = await AuditInstance.find(
-                { assignedAuditors: requestingUserId }
-            ).distinct('company');
-
-            query = {
-                $or: [
-                    { createdBy: requestingUserId },
-                    { _id: { $in: companyIdsWithAssignedAudit } }
-                ]
-            };
-        } else {
-            throw new Error('You are not authorized to view companies.');
-        }
+        if (requestingUserRole === 'super_admin') query = {};
+        else if (requestingUserRole === 'admin') query = { createdBy: requestingUserId };
+        else if (requestingUserRole === 'auditor') {
+            const companyIds = await AuditInstance.find({ assignedAuditors: requestingUserId })
+                                                 .distinct('company');
+            query = { $or: [{ createdBy: requestingUserId }, { _id: { $in: companyIds } }] };
+        } else throw new Error('You are not authorized to view companies.');
 
         return Company.find(query)
             .populate('createdBy', 'firstName lastName email')
-            .populate('lastModifiedBy', 'firstName lastName email');
+            .populate('lastModifiedBy', 'firstName lastName email');  // works now
     }
 
     async getCompanyById(companyId, requestingUserId, requestingUserRole) {
@@ -185,27 +175,17 @@ class CompanyService {
             .populate('lastModifiedBy', 'firstName lastName email');
 
         if (!company) throw new Error('Company not found.');
-
         const isCreator = company.createdBy._id.equals(requestingUserId);
 
         if (requestingUserRole === 'super_admin') return company;
-
         if (requestingUserRole === 'admin') {
             if (isCreator) return company;
-
             const managedAuditors = await User.find({ managerId: requestingUserId, role: 'auditor' }).select('_id');
-            const managedAuditorIds = managedAuditors.map(a => a._id.toString());
-
-            if (managedAuditorIds.includes(company.createdBy._id.toString())) return company;
+            if (managedAuditors.map(a => a._id.toString()).includes(company.createdBy._id.toString())) return company;
         }
-
         if (requestingUserRole === 'auditor') {
             if (isCreator) return company;
-
-            const isAssigned = await AuditInstance.exists({
-                company: companyId,
-                assignedAuditors: requestingUserId
-            });
+            const isAssigned = await AuditInstance.exists({ company: companyId, assignedAuditors: requestingUserId });
             if (isAssigned) return company;
         }
 
@@ -222,8 +202,8 @@ class CompanyService {
             { ...updates, lastModifiedBy: requestingUserId },
             { new: true, runValidators: true }
         )
-            .populate('createdBy', 'firstName lastName email')
-            .populate('lastModifiedBy', 'firstName lastName email');
+        .populate('createdBy', 'firstName lastName email')
+        .populate('lastModifiedBy', 'firstName lastName email');
 
         return updated;
     }
@@ -232,7 +212,6 @@ class CompanyService {
         const company = await Company.findById(companyId);
         if (!company) throw new Error('Company not found.');
         if (!company.createdBy.equals(requestingUserId)) throw new Error('You can only delete companies you created.');
-
         await Company.findByIdAndDelete(companyId);
         return true;
     }
