@@ -139,8 +139,6 @@
 
 // export default new CompanyService();
 
-// src/services/company.service.js
-
 import Company from '../models/company.model.js';
 import AuditInstance from '../models/auditInstance.model.js';
 import User from '../models/user.model.js';

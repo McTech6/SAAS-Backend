@@ -102,7 +102,12 @@
 
 
 // src/controllers/company.controller.js
+ 
 
+/**
+ * Controller for company management operations.
+ * These routes will be protected by authentication and authorization middleware.
+ */
 import companyService from '../services/company.service.js';
 import { sendSuccessResponse, sendErrorResponse } from '../utils/responseHandler.js';
 

@@ -823,7 +823,6 @@
 
 //   return html;
 // };
-
 const LOGO_URL = 'https://images.credly.com/images/9c7b4205-6582-403c-b656-be1590248fcd/ISACA_CybersecurityAudit_badge_352x352.png';
 
 /**
@@ -996,6 +995,12 @@ const generateReportHtml = (auditInstance = {}) => {
         <p>This audit report is designed to make this approach practical and understandable. It gives a transparent overview of your current situation, highlights strengths and weaknesses, and provides clear guidance for next steps. The goal is not only to identify risks but also to enable your organization to build sustainable protection—so that technology, organization, and people are aligned and your company can continue to operate with confidence and resilience.</p>
     `;
 
+    const aboutCompanyAudited = `
+        <p>As a prominent player in the <strong>${escapeHtml(company.industry || '')}</strong> industry, <strong>${escapeHtml(company.name || 'Test company')}</strong> has shown a strong commitment to maintaining a secure and reliable operational environment. Our audit was conducted to assess their current security posture, providing a detailed overview of their defenses and identifying key areas for continuous improvement. This assessment highlights their dedication to protecting their digital assets and fostering a resilient business infrastructure.</p>
+        <p><strong>Contact person:</strong> ${escapeHtml(contactName || '')} — ${escapeHtml(contactEmail || '')}</p>
+        ${company.generalInfo ? `<p>${escapeHtml(company.generalInfo)}</p>` : ''}
+    `;
+
     const aboutCompanyHardcoded = `
         <p>We, DV-Beratung Koch, are your reliable partner and system house for information technology, telecommunications and video surveillance. Since 1993, we have been successfully implementing IT projects in the areas of government, healthcare and small and medium-sized enterprises.</p>
         <p>Over the years, our product and service portfolio has been continuously adapted and expanded in line with technological developments. Our aim is to offer you a comprehensive range of IT solutions from a single source, including perfectly coordinated hardware and software for your company.</p>
@@ -1122,10 +1127,13 @@ const generateReportHtml = (auditInstance = {}) => {
         </div>
 
         <div class="container page-break">
-            <h2>About the Company</h2>
-            <p><strong>${escapeHtml(company.name || 'Test company')}</strong> is a prominent player in the **${escapeHtml(company.industry || '')}** industry. This audit was conducted to assess the security posture of their operational environment, providing a detailed overview of their current defenses and identifying key areas for improvement.</p>
-            <p><strong>Contact person:</strong> ${escapeHtml(contactName || '')} — ${escapeHtml(contactEmail || '')}</p>
-            <p>${aboutCompanyHardcoded}</p>
+            <h2>About the Audited Company</h2>
+            ${aboutCompanyAudited}
+        </div>
+
+        <div class="container page-break">
+            <h2>About the Auditing Company</h2>
+            ${aboutCompanyHardcoded}
         </div>
 
         <div class="container page-break">
