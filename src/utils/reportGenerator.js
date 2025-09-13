@@ -782,7 +782,7 @@
 //       <!-- SUMMARY (from template / auditors) -->
 //       <div class="page-break">
 //         <h2>Summary</h2>
-//         <p class="small">(Coming from the Audit Template — auditor summary)</p>
+//         <p class="small">(Coming from the Audit TempFlate — auditor summary)</p>
 //         ${summariesHtml}
 //       </div>
 
@@ -824,9 +824,7 @@
 //   return html;
 // };
 
-// export default generateReportHtml;
-
- const LOGO_URL = 'https://images.credly.com/images/9c7b4205-6582-403c-b656-be1590248fcd/ISACA_CybersecurityAudit_badge_352x352.png';
+const LOGO_URL = 'https://images.credly.com/images/9c7b4205-6582-403c-b656-be1590248fcd/ISACA_CybersecurityAudit_badge_352x352.png';
 
 /**
  * Escapes HTML to prevent XSS vulnerabilities.
@@ -836,10 +834,10 @@
 const escapeHtml = (str) => {
     if (!str) return '';
     return str.replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/"/g, '&quot;')
-              .replace(/'/g, '&#039;');
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 };
 
 const formatDate = (d) => {
@@ -1017,7 +1015,7 @@ const generateReportHtml = (auditInstance = {}) => {
     `;
 
     const handoverText = `
-        <p>This page confirms that the audit report titled “Name of the audit performed for example ISO-2007 check” has been formally handed over by the auditor to the audited company.</p>
+        <p>This page confirms that the audit report titled “${escapeHtml(template.name || 'Name of the audit')}” has been formally handed over by the auditor to the audited company.</p>
         <p>By signing below, both parties acknowledge the reception of the full audit report and confirm that it has been delivered in its final version.</p>
 
         <table class="handover">
@@ -1063,8 +1061,8 @@ const generateReportHtml = (auditInstance = {}) => {
             .cover { text-align: center; padding-top: 20px; padding-bottom: 10px; }
             .logo { max-width: 140px; margin-bottom: 8px; }
             h1 { margin: 0; font-size: 20pt; color: #3f51b5; text-align: center; }
-            h2 { margin: 40px 0 10px 0; font-size: 16pt; color: #3f51b5; text-align: center; border-bottom: 2px solid #3f51b5; padding-bottom: 5px; }
-            h3 { margin: 25px 0 8px 0; font-size: 14pt; color: #2c3e50; text-align: center; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px; }
+            h2 { margin: 40px 0 10px 0; font-size: 16pt; color: #3f51b5; text-align: center; padding-bottom: 5px; }
+            h3 { margin: 25px 0 8px 0; font-size: 14pt; color: #2c3e50; text-align: center; padding-bottom: 3px; }
             p { margin: 6px 0; line-height: 1.25; }
             .meta { margin: 8px 0 16px 0; }
             .meta p { margin: 3px 0; }
@@ -1084,7 +1082,7 @@ const generateReportHtml = (auditInstance = {}) => {
             .handover td { padding: 6px; vertical-align: top; }
             .contact { margin-top: 10px; }
             .slogan-center { text-align: center; margin-top: 18px; font-style: italic; color: #3f51b5; font-size: 18pt; }
-            a { color: #3f51b5; }
+            a { color: #1a237e; } /* Changed color of all links */
             .cover-quote { margin-top: 10px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; }
             .page-break { page-break-before: always; }
         </style>
@@ -1093,17 +1091,19 @@ const generateReportHtml = (auditInstance = {}) => {
         <div class="container">
             <div class="cover">
                 <img class="logo" src="${LOGO_URL}" alt="Logo" />
-                <h1>${escapeHtml(template.name || 'Name of the audit')}</h1>
-                <h2>Report</h2>
-                <div class="meta">
-                    <p><strong>Report Date:</strong> ${escapeHtml(reportDate)}</p>
-                    <p><strong>Audit Date:</strong> ${escapeHtml(auditDateRange)}</p>
-                    <p><strong>Auditor:</strong><br/>${auditorLines}</p>
-                </div>
-                <div style="margin-top:8px;">
-                    <p><strong>For</strong></p>
-                    <p><strong>${escapeHtml(company.name || 'Test company')}</strong></p>
-                    <p>${escapeHtml(contactName || 'Test contact person')} — ${escapeHtml(contactEmail || 'Test contact person email')}</p>
+                <div style="margin-top: 30px;">
+                    <h1>${escapeHtml(template.name || 'Name of the audit')}</h1>
+                    <h2>Report</h2>
+                    <div class="meta">
+                        <p><strong>Report Date:</strong> ${escapeHtml(reportDate)}</p>
+                        <p><strong>Audit Date:</strong> ${escapeHtml(auditDateRange)}</p>
+                        <p><strong>Auditor:</strong><br/>${auditorLines}</p>
+                    </div>
+                    <div style="margin-top:8px;">
+                        <p><strong>For</strong></p>
+                        <p><strong>${escapeHtml(company.name || 'Test company')}</strong></p>
+                        <p>${escapeHtml(contactName || 'Test contact person')} — ${escapeHtml(contactEmail || 'Test contact person email')}</p>
+                    </div>
                 </div>
                 <div class="cover-quote">
                     <p><em>The strength of your defence lies in knowing and understanding your vulnerabilities. This audit provides you with the information you need to create a secure environment in your company. “You can only protect what you know.”</em></p>
@@ -1121,24 +1121,24 @@ const generateReportHtml = (auditInstance = {}) => {
             ${introductionText}
         </div>
 
-        <div class="container">
+        <div class="container page-break">
             <h2>About the Company</h2>
             <p><strong>${escapeHtml(company.name || 'Test company')}</strong> is a prominent player in the **${escapeHtml(company.industry || '')}** industry. This audit was conducted to assess the security posture of their operational environment, providing a detailed overview of their current defenses and identifying key areas for improvement.</p>
             <p><strong>Contact person:</strong> ${escapeHtml(contactName || '')} — ${escapeHtml(contactEmail || '')}</p>
             <p>${aboutCompanyHardcoded}</p>
         </div>
 
-        <div class="container">
+        <div class="container page-break">
             <h2>Preface</h2>
             ${prefaceText}
         </div>
 
-        <div class="container">
+        <div class="container page-break">
             <h2>Disclaimer</h2>
             ${disclaimerText}
         </div>
 
-        <div class="container">
+        <div class="container page-break">
             <h2>Executive Summary</h2>
             <p>This report provides a comprehensive overview of the cybersecurity posture for <strong>${escapeHtml(company.name || 'Test Company')}</strong> based on the "<strong>${escapeHtml(template.name || 'Name of the audit')}</strong>".</p>
             <p>The audit covered key areas including Information Security Policies, Access Control, and other critical domains as defined in the selected template.</p>
@@ -1146,17 +1146,17 @@ const generateReportHtml = (auditInstance = {}) => {
             <p>It is crucial to address identified areas of non-compliance and implement recommended remediation actions to strengthen the overall security posture and ensure continuous adherence to best practices.</p>
         </div>
 
-        <div class="container">
+        <div class="container page-break">
             <h2>Summary</h2>
             ${summariesHtml}
         </div>
 
-        <div class="container">
+        <div class="container page-break">
             <h2>Examination environment</h2>
             ${envHtml}
         </div>
 
-        <div class="container">
+        <div class="container page-break">
             <h2>Content</h2>
             ${mainHtml}
         </div>
