@@ -822,7 +822,8 @@
 //   `;
 
 //   return html;
-// };// Using the provided ISACA badge image URL for the logoconst LOGO_URL = 'https://images.credly.com/images/9c7b4205-6582-403c-b656-be1590248fcd/ISACA_CybersecurityAudit_badge_352x352.png';
+// };// Using the provided ISACA badge image URL for the logoconst
+const LOGO_URL = 'https://images.credly.com/images/9c7b4205-6582-403c-b656-be1590248fcd/ISACA_CybersecurityAudit_badge_352x352.png';
 
 /**
  * Escapes HTML to prevent XSS vulnerabilities.
