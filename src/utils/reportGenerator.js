@@ -822,8 +822,7 @@
 //   `;
 
 //   return html;
-// };// Using the provided ISACA badge image URL for the logo
-const LOGO_URL = 'https://images.credly.com/images/9c7b4205-6582-403c-b656-be1590248fcd/ISACA_CybersecurityAudit_badge_352x352.png';
+// };// Using the provided ISACA badge image URL for the logoconst LOGO_URL = 'https://images.credly.com/images/9c7b4205-6582-403c-b656-be1590248fcd/ISACA_CybersecurityAudit_badge_352x352.png';
 
 /**
  * Escapes HTML to prevent XSS vulnerabilities.
@@ -839,6 +838,11 @@ const escapeHtml = (str) => {
         .replace(/'/g, '&#039;');
 };
 
+/**
+ * Formats a date string or Date object.
+ * @param {Date|string} d - The date to format.
+ * @returns {string} The formatted date string.
+ */
 const formatDate = (d) => {
     if (!d) return 'N/A';
     try {
@@ -850,6 +854,8 @@ const formatDate = (d) => {
 
 /**
  * Determine status category and color from a response value.
+ * @param {*} selectedValue - The value from the audit response.
+ * @returns {{label: string, color: string}} The status label and a color.
  */
 const getStatusInfo = (selectedValue) => {
     const raw = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
@@ -877,7 +883,9 @@ const getStatusInfo = (selectedValue) => {
 };
 
 /**
- * Build table of contents HTML from templateStructureSnapshot
+ * Builds the HTML for the table of contents from the audit template structure.
+ * @param {Array} templateStructure - The snapshot of the audit template structure.
+ * @returns {string} The HTML string for the table of contents.
  */
 const buildToc = (templateStructure) => {
     if (!Array.isArray(templateStructure) || templateStructure.length === 0) return '<p>(No content)</p>';
@@ -899,6 +907,11 @@ const buildToc = (templateStructure) => {
     return tocHtml;
 };
 
+/**
+ * Generates a complete HTML report for an audit instance.
+ * @param {object} auditInstance - The audit instance data.
+ * @returns {string} The full HTML document as a string.
+ */
 const generateReportHtml = (auditInstance = {}) => {
     const company = auditInstance.company || {};
     const template = auditInstance.template || {};
@@ -907,7 +920,6 @@ const generateReportHtml = (auditInstance = {}) => {
     const overallScore = (typeof auditInstance.overallScore === 'number') ? auditInstance.overallScore : 0;
     const createdBy = auditInstance.createdBy || {};
     const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
-    const examinationEnvironment = auditInstance.examinationEnvironment || {};
     const summaries = auditInstance.summaries || [];
 
     const reportDate = formatDate(new Date());
