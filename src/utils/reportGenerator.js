@@ -822,8 +822,7 @@
 //   `;
 
 //   return html;
-// };// Using the provided ISACA badge image URL for the logoconst// reportGenerator.js
-const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
+// };// Using the provided ISACA badge image URL for the logoconst// reportGenerator.jsconst LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 /**
  * Escapes HTML to prevent XSS vulnerabilities.
@@ -853,27 +852,10 @@ const formatDate = (d) => {
  */
 const getStatusInfo = (selectedValue) => {
     const raw = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
-    if (!raw) return { label: 'N/A', color: '#2c3e50' }; // Dark gray for N/A
-
     const color = '#3f51b5'; // Primary blue color
 
-    if (raw.includes('implemented') || raw === 'yes' || raw === 'true' || raw === 'ok') {
-        return { label: 'Implemented', color: color };
-    }
-    if (raw.includes('part') || raw === 'partial' || raw.includes('partially implemented')) {
-        return { label: 'Partially Implemented', color: color };
-    }
-    if (raw.includes('not') || raw === 'no' || raw.includes('not implemented') || raw === 'false') {
-        return { label: 'Not Implemented', color: color };
-    }
-    const asNum = Number(raw);
-    if (!Number.isNaN(asNum)) {
-        if (asNum >= 80) return { label: 'Implemented', color: color };
-        if (asNum >= 40) return { label: 'Partially Implemented', color: color };
-        return { label: 'Not Implemented', color: color };
-    }
-
-    return { label: selectedValue, color: color };
+    // Return the raw value as the label, removing the opinionated logic
+    return { label: raw || 'N/A', color: color };
 };
 
 /**
@@ -907,7 +889,7 @@ const generateReportHtml = (auditInstance = {}) => {
     const overallScore = (typeof auditInstance.overallScore === 'number') ? auditInstance.overallScore : 0;
     const createdBy = auditInstance.createdBy || {};
     const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
-    const examinationEnvironment = auditInstance.examinationEnvironment || {}; // Correctly reference the audit-specific environment
+    const examinationEnvironment = auditInstance.examinationEnvironment || {};
     const summaries = auditInstance.summaries || [];
 
     const reportDate = formatDate(new Date());
@@ -964,21 +946,20 @@ const generateReportHtml = (auditInstance = {}) => {
 
     const envHtml = `
         <table class="env">
-            <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examinationEnvironment.locations || 0))}</td></tr>
-            <tr><td><strong>Number of employees</strong></td><td>${escapeHtml(String(examinationEnvironment.employees || 0))}</td></tr>
-            <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.total || 0))}</td></tr>
-            <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.managed || 0))}</td></tr>
-            <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.unmanaged || 0))}</td></tr>
-            <tr><td><strong>Industry</strong></td><td>${escapeHtml(examinationEnvironment.industry || '')}</td></tr>
-            <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(examinationEnvironment.physicalServers || 0))}</td></tr>
-            <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(examinationEnvironment.vmServers || 0))}</td></tr>
-            <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(examinationEnvironment.firewalls || 0))}</td></tr>
-            <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(examinationEnvironment.switches || 0))}</td></tr>
+            <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examinationEnvironment.locations || 'N/A'))}</td></tr>
+            <tr><td><strong>Number of employees</strong></td><td>${escapeHtml(String(examinationEnvironment.employees || 'N/A'))}</td></tr>
+            <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.total || 'N/A'))}</td></tr>
+            <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.managed || 'N/A'))}</td></tr>
+            <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.unmanaged || 'N/A'))}</td></tr>
+            <tr><td><strong>Industry</strong></td><td>${escapeHtml(examinationEnvironment.industry || 'N/A')}</td></tr>
+            <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(examinationEnvironment.physicalServers || 'N/A'))}</td></tr>
+            <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(examinationEnvironment.vmServers || 'N/A'))}</td></tr>
+            <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(examinationEnvironment.firewalls || 'N/A'))}</td></tr>
+            <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(examinationEnvironment.switches || 'N/A'))}</td></tr>
             <tr><td><strong>Mobile working</strong></td><td>${examinationEnvironment.mobileWorking ? 'Yes' : 'No'}</td></tr>
             <tr><td><strong>Smartphones</strong></td><td>${examinationEnvironment.smartphones ? 'Yes' : 'No'}</td></tr>
         </table>
     `;
-
 
     const summariesHtml = (Array.isArray(summaries) && summaries.length > 0)
         ? summaries.map(s => `<div class="summary"><p><strong>${escapeHtml(s.auditor?.firstName || '')} ${escapeHtml(s.auditor?.lastName || '')}</strong></p><p>${escapeHtml(s.text || '')}</p></div>`).join('')
@@ -1088,7 +1069,7 @@ const generateReportHtml = (auditInstance = {}) => {
             .handover td { padding: 6px; vertical-align: top; }
             .contact { margin-top: 10px; }
             .slogan-center { text-align: center; margin-top: 18px; font-style: italic; color: #3f51b5; font-size: 18pt; }
-            a { color: #1a237e; } /* Changed color of all links */
+            a { color: #1a237e; }
             .cover-quote { margin-top: 10px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; }
             .page-break { page-break-before: always; }
         </style>
