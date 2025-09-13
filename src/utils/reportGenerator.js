@@ -822,8 +822,7 @@
 //   `;
 
 //   return html;
-// };// Using the provided ISACA badge image URL for the logoconst// reportGenerator.js
-const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
+// };// Using the provided ISACA badge image URL for the logoconst// reportGenerator.jsconst LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 /**
  * Escapes HTML to prevent XSS vulnerabilities.
@@ -890,7 +889,11 @@ const generateReportHtml = (auditInstance = {}) => {
     const overallScore = (typeof auditInstance.overallScore === 'number') ? auditInstance.overallScore : 0;
     const createdBy = auditInstance.createdBy || {};
     const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
-    const examinationEnvironment = auditInstance.examinationEnvironment || {};
+    
+    // FIX: Get examination environment from the right place
+    // First try audit instance level, then company level
+    const examinationEnvironment = auditInstance.examinationEnvironment || company.examinationEnvironment || {};
+    
     const summaries = auditInstance.summaries || [];
 
     const reportDate = formatDate(new Date());
@@ -945,6 +948,7 @@ const generateReportHtml = (auditInstance = {}) => {
         mainHtml += `</div>`;
     });
 
+    // FIX: Updated examination environment HTML generation with proper data access
     const envHtml = `
         <table class="env">
             <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examinationEnvironment.locations || 'N/A'))}</td></tr>
@@ -952,13 +956,14 @@ const generateReportHtml = (auditInstance = {}) => {
             <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.total || 'N/A'))}</td></tr>
             <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.managed || 'N/A'))}</td></tr>
             <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.unmanaged || 'N/A'))}</td></tr>
-            <tr><td><strong>Industry</strong></td><td>${escapeHtml(examinationEnvironment.industry || 'N/A')}</td></tr>
+            <tr><td><strong>Industry</strong></td><td>${escapeHtml(examinationEnvironment.industry || company.industry || 'N/A')}</td></tr>
             <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(examinationEnvironment.physicalServers || 'N/A'))}</td></tr>
             <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(examinationEnvironment.vmServers || 'N/A'))}</td></tr>
             <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(examinationEnvironment.firewalls || 'N/A'))}</td></tr>
             <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(examinationEnvironment.switches || 'N/A'))}</td></tr>
             <tr><td><strong>Mobile working</strong></td><td>${examinationEnvironment.mobileWorking ? 'Yes' : 'No'}</td></tr>
             <tr><td><strong>Smartphones</strong></td><td>${examinationEnvironment.smartphones ? 'Yes' : 'No'}</td></tr>
+            ${examinationEnvironment.notes ? `<tr><td><strong>Notes</strong></td><td>${escapeHtml(examinationEnvironment.notes)}</td></tr>` : ''}
         </table>
     `;
 
@@ -974,14 +979,14 @@ const generateReportHtml = (auditInstance = {}) => {
             <li><strong>People</strong> – the awareness, behavior, and decisions of everyone involved.</li>
         </ul>
         <p>Only when these three elements are combined can we create real protection. Focusing on technology alone is not enough. A secure company requires clear structures, well-trained employees, and a culture where security is seen as part of everyday work.</p>
-        <p>In today’s ever-changing world, the importance of protecting data and systems continues to grow. New threats appear daily, and digitalization increases the complexity of our business environment. For this reason, security must be given the right priority. It should not be treated as an “add-on” or a last step, but as an integral part of every decision, process, and investment.</p>
+        <p>In today's ever-changing world, the importance of protecting data and systems continues to grow. New threats appear daily, and digitalization increases the complexity of our business environment. For this reason, security must be given the right priority. It should not be treated as an "add-on" or a last step, but as an integral part of every decision, process, and investment.</p>
         <p>This audit report is designed to make this approach practical and understandable. It gives a transparent overview of your current situation, highlights strengths and weaknesses, and provides clear guidance for next steps. The goal is not only to identify risks but also to enable your organization to build sustainable protection—so that technology, organization, and people are aligned and your company can continue to operate with confidence and resilience.</p>
     `;
 
     const aboutCompanyAudited = `
         <p>As a prominent player in the <strong>${escapeHtml(company.industry || '')}</strong> industry, <strong>${escapeHtml(company.name || 'Test company')}</strong> has shown a strong commitment to maintaining a secure and reliable operational environment. Our audit was conducted to assess their current security posture, providing a detailed overview of their defenses and identifying key areas for continuous improvement. This assessment highlights their dedication to protecting their digital assets and fostering a resilient business infrastructure.</p>
         <p><strong>Contact person:</strong> ${escapeHtml(contactName || '')} — ${escapeHtml(contactEmail || '')}</p>
-        ${company.generalInfo ? `<p>${escapeHtml(company.generalInfo)}</p>` : ''}
+        ${company.generalInfo || company.examinationEnvironment?.generalInfo ? `<p>${escapeHtml(company.generalInfo || company.examinationEnvironment?.generalInfo)}</p>` : ''}
     `;
 
     const aboutCompanyHardcoded = `
@@ -1003,7 +1008,7 @@ const generateReportHtml = (auditInstance = {}) => {
     `;
 
     const handoverText = `
-        <p>This page confirms that the audit report titled “${escapeHtml(template.name || 'Name of the audit')}” has been formally handed over by the auditor to the audited company.</p>
+        <p>This page confirms that the audit report titled "${escapeHtml(template.name || 'Name of the audit')}" has been formally handed over by the auditor to the audited company.</p>
         <p>By signing below, both parties acknowledge the reception of the full audit report and confirm that it has been delivered in its final version.</p>
 
         <table class="handover">
@@ -1094,7 +1099,7 @@ const generateReportHtml = (auditInstance = {}) => {
                     </div>
                 </div>
                 <div class="cover-quote">
-                    <p><em>The strength of your defence lies in knowing and understanding your vulnerabilities. This audit provides you with the information you need to create a secure environment in your company. “You can only protect what you know.”</em></p>
+                    <p><em>The strength of your defence lies in knowing and understanding your vulnerabilities. This audit provides you with the information you need to create a secure environment in your company. "You can only protect what you know."</em></p>
                 </div>
             </div>
         </div>
