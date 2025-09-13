@@ -137,27 +137,21 @@
 //   }
 // }
 
-// export default new CompanyService();
-import Company from '../models/company.model.js';
+// export default new CompanyService();import Company from '../models/company.model.js';
 import AuditInstance from '../models/auditInstance.model.js';
 import User from '../models/user.model.js';
 
 class CompanyService {
-    /**
-     * Creates a new company.
-     */
     async createCompany(companyData, createdByUserId) {
         const newCompany = new Company({
             ...companyData,
-            createdBy: createdByUserId
+            createdBy: createdByUserId,
+            lastModifiedBy: createdByUserId
         });
         await newCompany.save();
         return newCompany;
     }
 
-    /**
-     * Retrieves all companies accessible by the user.
-     */
     async getAllCompanies(requestingUserId, requestingUserRole) {
         let query = {};
 
@@ -185,9 +179,6 @@ class CompanyService {
             .populate('lastModifiedBy', 'firstName lastName email');
     }
 
-    /**
-     * Get a single company by ID with access control.
-     */
     async getCompanyById(companyId, requestingUserId, requestingUserRole) {
         const company = await Company.findById(companyId)
             .populate('createdBy', 'firstName lastName email')
@@ -221,9 +212,6 @@ class CompanyService {
         throw new Error('You are not authorized to view this company.');
     }
 
-    /**
-     * Update a company → only creator can update.
-     */
     async updateCompany(companyId, updates, requestingUserId) {
         const company = await Company.findById(companyId);
         if (!company) throw new Error('Company not found.');
@@ -240,9 +228,6 @@ class CompanyService {
         return updated;
     }
 
-    /**
-     * Delete company → only creator may delete.
-     */
     async deleteCompany(companyId, requestingUserId) {
         const company = await Company.findById(companyId);
         if (!company) throw new Error('Company not found.');

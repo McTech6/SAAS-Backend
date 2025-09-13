@@ -113,16 +113,14 @@
 /**
  * Controller for company management operations.
  * These routes will be protected by authentication and authorization middleware.
- */import companyService from '../services/company.service.js';
+ */ 
+import companyService from '../services/company.service.js';
 import { sendSuccessResponse, sendErrorResponse } from '../utils/responseHandler.js';
 
 class CompanyController {
-    /**
-     * Create a new company.
-     */
     async createCompany(req, res) {
         try {
-            const companyData = req.body; // includes examinationEnvironment if provided
+            const companyData = req.body;
             const createdByUserId = req.user.id;
             const newCompany = await companyService.createCompany(companyData, createdByUserId);
             sendSuccessResponse(res, 201, 'Company created successfully.', newCompany);
@@ -131,9 +129,6 @@ class CompanyController {
         }
     }
 
-    /**
-     * Get all companies accessible to the user.
-     */
     async getAllCompanies(req, res) {
         try {
             const companies = await companyService.getAllCompanies(req.user.id, req.user.role);
@@ -143,9 +138,6 @@ class CompanyController {
         }
     }
 
-    /**
-     * Get a single company by ID.
-     */
     async getCompanyById(req, res) {
         try {
             const company = await companyService.getCompanyById(req.params.id, req.user.id, req.user.role);
@@ -155,9 +147,6 @@ class CompanyController {
         }
     }
 
-    /**
-     * Update an existing company.
-     */
     async updateCompany(req, res) {
         try {
             const updatedCompany = await companyService.updateCompany(req.params.id, req.body, req.user.id);
@@ -167,9 +156,6 @@ class CompanyController {
         }
     }
 
-    /**
-     * Delete a company permanently.
-     */
     async deleteCompany(req, res) {
         try {
             await companyService.deleteCompany(req.params.id, req.user.id);

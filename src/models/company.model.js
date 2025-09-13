@@ -96,29 +96,18 @@
 
 // const Company = mongoose.model('Company', companySchema);
 
-// export default Company;
-import mongoose from 'mongoose';
+// export default Company; import mongoose from "mongoose";
+
+import mongoose from "mongoose";
 
 const companySchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true,
-    unique: true
-  },
-  industry: {
-    type: String,
-    trim: true
-  },
+  name: { type: String, required: true, trim: true, unique: true },
+  industry: { type: String, trim: true },
   contactPerson: {
     name: { type: String, trim: true },
     email: { type: String, trim: true },
     phone: { type: String, trim: true }
   },
-
-  /**
-   * NEW: Environment details snapshot stored at company level
-   */
   examinationEnvironment: {
     locations: { type: Number, default: 0 },
     employees: { type: Number, default: 0 },
@@ -127,23 +116,26 @@ const companySchema = new mongoose.Schema({
       managed: { type: Number, default: 0 },
       unmanaged: { type: Number, default: 0 }
     },
-    industry: { type: String, trim: true }, // e.g., Software Development
+    industry: { type: String, trim: true },
     physicalServers: { type: Number, default: 0 },
     vmServers: { type: Number, default: 0 },
     firewalls: { type: Number, default: 0 },
     switches: { type: Number, default: 0 },
     mobileWorking: { type: Boolean, default: false },
-    smartphones: { type: Boolean, default: false }
+    smartphones: { type: Boolean, default: false },
+    notes: { type: String, trim: true },
+    generalInfo: { type: String, trim: true }
   },
-
   createdBy: {
     type: mongoose.Schema.ObjectId,
     ref: 'User',
     required: true
+  },
+  lastModifiedBy: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'User'
   }
-}, {
-  timestamps: true
-});
+}, { timestamps: true });
 
 const Company = mongoose.model('Company', companySchema);
 export default Company;
