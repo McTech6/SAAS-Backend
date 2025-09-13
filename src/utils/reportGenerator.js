@@ -822,7 +822,7 @@
 //   `;
 
 //   return html;
-// };
+// };// Using the provided ISACA badge image URL for the logo
 const LOGO_URL = 'https://images.credly.com/images/9c7b4205-6582-403c-b656-be1590248fcd/ISACA_CybersecurityAudit_badge_352x352.png';
 
 /**
@@ -962,22 +962,24 @@ const generateReportHtml = (auditInstance = {}) => {
         mainHtml += `</div>`;
     });
 
+    const operationalEnv = company.operationalEnvironment || {};
     const envHtml = `
         <table class="env">
-            <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examinationEnvironment.locations || 0))}</td></tr>
-            <tr><td><strong>Number of employees</strong></td><td>${escapeHtml(String(examinationEnvironment.employees || 0))}</td></tr>
-            <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.total || 0))}</td></tr>
-            <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.managed || 0))}</td></tr>
-            <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.unmanaged || 0))}</td></tr>
-            <tr><td><strong>Industry</strong></td><td>${escapeHtml(examinationEnvironment.industry || company.industry || '')}</td></tr>
-            <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(examinationEnvironment.physicalServers || 0))}</td></tr>
-            <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(examinationEnvironment.vmServers || 0))}</td></tr>
-            <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(examinationEnvironment.firewalls || 0))}</td></tr>
-            <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(examinationEnvironment.switches || 0))}</td></tr>
-            <tr><td><strong>Mobile working</strong></td><td>${examinationEnvironment.mobileWorking ? 'Yes' : 'No'}</td></tr>
-            <tr><td><strong>Smartphones</strong></td><td>${examinationEnvironment.smartphones ? 'Yes' : 'No'}</td></tr>
+            <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(operationalEnv.locations || 0))}</td></tr>
+            <tr><td><strong>Number of employees</strong></td><td>${escapeHtml(String(operationalEnv.employees || 0))}</td></tr>
+            <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(operationalEnv.clients?.total || 0))}</td></tr>
+            <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(operationalEnv.clients?.managed || 0))}</td></tr>
+            <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(operationalEnv.clients?.unmanaged || 0))}</td></tr>
+            <tr><td><strong>Industry</strong></td><td>${escapeHtml(company.industry || '')}</td></tr>
+            <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(operationalEnv.physicalServers || 0))}</td></tr>
+            <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(operationalEnv.vmServers || 0))}</td></tr>
+            <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(operationalEnv.firewalls || 0))}</td></tr>
+            <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(operationalEnv.switches || 0))}</td></tr>
+            <tr><td><strong>Mobile working</strong></td><td>${operationalEnv.mobileWorking ? 'Yes' : 'No'}</td></tr>
+            <tr><td><strong>Smartphones</strong></td><td>${operationalEnv.smartphones ? 'Yes' : 'No'}</td></tr>
         </table>
     `;
+
 
     const summariesHtml = (Array.isArray(summaries) && summaries.length > 0)
         ? summaries.map(s => `<div class="summary"><p><strong>${escapeHtml(s.auditor?.firstName || '')} ${escapeHtml(s.auditor?.lastName || '')}</strong></p><p>${escapeHtml(s.text || '')}</p></div>`).join('')
@@ -1127,13 +1129,13 @@ const generateReportHtml = (auditInstance = {}) => {
         </div>
 
         <div class="container page-break">
-            <h2>About the Audited Company</h2>
-            ${aboutCompanyAudited}
-        </div>
-
-        <div class="container page-break">
             <h2>About the Auditing Company</h2>
             ${aboutCompanyHardcoded}
+        </div>
+        
+        <div class="container page-break">
+            <h2>About the Audited Company</h2>
+            ${aboutCompanyAudited}
         </div>
 
         <div class="container page-break">
