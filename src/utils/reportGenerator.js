@@ -1290,12 +1290,13 @@ const generateReportHtml = (auditInstance = {}) => {
                 const answerText = escapeHtml(resp.selectedValue === undefined || resp.selectedValue === null ? 'N/A' : String(resp.selectedValue));
                 const commentHtml = resp.comment ? `<div class="comment"><strong>Comment:</strong><div>${escapeHtml(resp.comment)}</div></div>` : '';
                 const evidenceHtml = (Array.isArray(resp.evidenceUrls) && resp.evidenceUrls.length > 0) ? `<div class="evidence"><strong>Evidence:</strong><ul>${resp.evidenceUrls.map(u => `<li><a href="${escapeHtml(u)}">${escapeHtml(u)}</a></li>`).join('')}</ul></div>` : '';
+                const recommendationHtml = resp.recommendation ? `<div class="recommendation"><strong>Recommendation:</strong><div>${escapeHtml(resp.recommendation)}</div></div>` : '';
 
                 mainHtml += `
                     <div class="question-block">
                         <div class="question-header" style="border-left:6px solid ${status.color};">
                             <p class="question-title" style="color:${status.color};"><strong>${escapeHtml(question.text || 'Untitled question')}</strong></p>
-                            <p class="status-label" style="color:${status.color};"><em>${escapeHtml(status.label)}</em></p>
+                            // <p class="status-label" style="color:${status.color};"><em>${escapeHtml(status.label)}</em></p>
                         </div>
                         <div class="answer-row"><strong>Answer:</strong> ${answerText}</div>
                         ${commentHtml}
