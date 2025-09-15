@@ -1296,7 +1296,7 @@ const generateReportHtml = (auditInstance = {}) => {
                     <div class="question-block">
                         <div class="question-header" style="border-left:6px solid ${status.color};">
                             <p class="question-title" style="color:${status.color};"><strong>${escapeHtml(question.text || 'Untitled question')}</strong></p>
-                            // <p class="status-label" style="color:${status.color};"><em>${escapeHtml(status.label)}</em></p>
+                            
                         </div>
                         <div class="answer-row"><strong>Answer:</strong> ${answerText}</div>
                         ${commentHtml}
