@@ -1411,93 +1411,200 @@ import chromium from '@sparticuz/chromium';
 import generateReportHtml from '../utils/reportGenerator.js';
 
 class AuditInstanceService {
+    // async createAuditInstance(data, requestingUser) {
+    //     console.log('[createAuditInstance] START - Data received:', data);
+    //     console.log('[createAuditInstance] START - Requesting user:', requestingUser);
+    //     try {
+    //         const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate, examinationEnvironment } = data;
+
+    //         let finalAuditorIds = assignedAuditorIds || [];
+    //         if (!finalAuditorIds.includes(requestingUser.id)) {
+    //             finalAuditorIds = [requestingUser.id, ...finalAuditorIds];
+    //         }
+    //         console.log('[createAuditInstance] Final auditor IDs:', finalAuditorIds);
+
+    //         let companyId;
+    //         if (companyDetails) {
+    //             console.log('[createAuditInstance] Creating new company...');
+    //             const newCompany = await companyService.createCompany(companyDetails, requestingUser.id);
+    //             companyId = newCompany._id;
+    //         } else if (existingCompanyId) {
+    //             console.log('[createAuditInstance] Using existing company ID:', existingCompanyId);
+    //             const existingCompany = await companyService.getCompanyById(existingCompanyId, requestingUser.id, requestingUser.role);
+    //             if (!existingCompany) throw new Error('Existing company not found or you do not have access to it.');
+    //             companyId = existingCompany._id;
+    //         } else {
+    //             throw new Error('Either companyDetails or existingCompanyId must be provided.');
+    //         }
+
+    //         console.log('[createAuditInstance] Finding audit template:', auditTemplateId);
+    //         const auditTemplate = await AuditTemplate.findById(auditTemplateId);
+    //         if (!auditTemplate) throw new Error('Audit Template not found.');
+
+    //         const templateStructureSnapshot = JSON.parse(JSON.stringify(auditTemplate.sections.toObject()));
+
+    //         const initialResponses = [];
+    //         templateStructureSnapshot.forEach(section => {
+    //             section.subSections.forEach(subSection => {
+    //                 subSection.questions.forEach(question => {
+    //                     initialResponses.push({
+    //                         questionId: question._id,
+    //                         questionTextSnapshot: question.text,
+    //                         questionTypeSnapshot: question.type,
+    //                         answerOptionsSnapshot: question.answerOptions,
+    //                         comment: '',
+    //                         includeCommentInReport: question.includeCommentInReportDefault,
+    //                         score: 0,
+    //                         auditorId: requestingUser.id,
+    //                         lastUpdated: new Date()
+    //                     });
+    //                 });
+    //             });
+    //         });
+
+    //         const newAuditInstance = new AuditInstance({
+    //             company: companyId,
+    //             template: auditTemplateId,
+    //             templateNameSnapshot: auditTemplate.name,
+    //             templateVersionSnapshot: auditTemplate.version,
+    //             templateStructureSnapshot,
+    //             assignedAuditors: finalAuditorIds,
+    //             startDate: startDate || new Date(),
+    //             endDate,
+    //             status: 'Draft',
+    //             responses: initialResponses,
+    //             createdBy: requestingUser.id,
+    //             lastModifiedBy: requestingUser.id,
+    //             examinationEnvironment: examinationEnvironment || {}
+    //         });
+
+    //         await newAuditInstance.save();
+
+    //         try {
+    //             const populatedAudit = await newAuditInstance.populate([
+    //                 { path: 'company', select: 'name industry contactPerson' },
+    //                 { path: 'template', select: 'name version' },
+    //                 { path: 'assignedAuditors', select: 'firstName lastName email' },
+    //                 { path: 'createdBy', select: 'firstName lastName email' }
+    //             ]);
+    //             console.log('[createAuditInstance] SUCCESS - Audit instance created and populated');
+    //             return populatedAudit;
+    //         } catch (populateError) {
+    //             console.error('[createAuditInstance] Population error:', populateError.message);
+    //             return newAuditInstance;
+    //         }
+    //     } catch (error) {
+    //         console.error('[createAuditInstance] ERROR:', error.message);
+    //         throw error;
+    //     }
+    // }
     async createAuditInstance(data, requestingUser) {
-        console.log('[createAuditInstance] START - Data received:', data);
-        console.log('[createAuditInstance] START - Requesting user:', requestingUser);
-        try {
-            const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate, examinationEnvironment } = data;
+    console.log('[createAuditInstance] START - Data received:', data);
+    console.log('[createAuditInstance] START - Requesting user:', requestingUser);
+    try {
+        const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate, examinationEnvironment } = data;
 
-            let finalAuditorIds = assignedAuditorIds || [];
-            if (!finalAuditorIds.includes(requestingUser.id)) {
-                finalAuditorIds = [requestingUser.id, ...finalAuditorIds];
+        let finalAuditorIds = assignedAuditorIds || [];
+        if (!finalAuditorIds.includes(requestingUser.id)) {
+            finalAuditorIds = [requestingUser.id, ...finalAuditorIds];
+        }
+        console.log('[createAuditInstance] Final auditor IDs:', finalAuditorIds);
+
+        let companyId;
+        if (companyDetails) {
+            console.log('[createAuditInstance] Creating new company...');
+            
+            // Ensure examination environment is included in company details
+            if (examinationEnvironment) {
+                companyDetails.examinationEnvironment = examinationEnvironment;
+                console.log('[createAuditInstance] Added examination environment to company details:', examinationEnvironment);
             }
-            console.log('[createAuditInstance] Final auditor IDs:', finalAuditorIds);
-
-            let companyId;
-            if (companyDetails) {
-                console.log('[createAuditInstance] Creating new company...');
-                const newCompany = await companyService.createCompany(companyDetails, requestingUser.id);
-                companyId = newCompany._id;
-            } else if (existingCompanyId) {
-                console.log('[createAuditInstance] Using existing company ID:', existingCompanyId);
-                const existingCompany = await companyService.getCompanyById(existingCompanyId, requestingUser.id, requestingUser.role);
-                if (!existingCompany) throw new Error('Existing company not found or you do not have access to it.');
-                companyId = existingCompany._id;
-            } else {
-                throw new Error('Either companyDetails or existingCompanyId must be provided.');
+            
+            const newCompany = await companyService.createCompany(companyDetails, requestingUser.id);
+            companyId = newCompany._id;
+            console.log('[createAuditInstance] New company created with ID:', companyId);
+        } else if (existingCompanyId) {
+            console.log('[createAuditInstance] Using existing company ID:', existingCompanyId);
+            const existingCompany = await companyService.getCompanyById(existingCompanyId, requestingUser.id, requestingUser.role);
+            if (!existingCompany) throw new Error('Existing company not found or you do not have access to it.');
+            companyId = existingCompany._id;
+            
+            // If we have examination environment data, update the existing company
+            if (examinationEnvironment) {
+                console.log('[createAuditInstance] Updating existing company with examination environment data');
+                await Company.findByIdAndUpdate(companyId, {
+                    $set: { examinationEnvironment: examinationEnvironment },
+                    lastModifiedBy: requestingUser.id
+                });
             }
+        } else {
+            throw new Error('Either companyDetails or existingCompanyId must be provided.');
+        }
 
-            console.log('[createAuditInstance] Finding audit template:', auditTemplateId);
-            const auditTemplate = await AuditTemplate.findById(auditTemplateId);
-            if (!auditTemplate) throw new Error('Audit Template not found.');
+        console.log('[createAuditInstance] Finding audit template:', auditTemplateId);
+        const auditTemplate = await AuditTemplate.findById(auditTemplateId);
+        if (!auditTemplate) throw new Error('Audit Template not found.');
 
-            const templateStructureSnapshot = JSON.parse(JSON.stringify(auditTemplate.sections.toObject()));
+        const templateStructureSnapshot = JSON.parse(JSON.stringify(auditTemplate.sections.toObject()));
 
-            const initialResponses = [];
-            templateStructureSnapshot.forEach(section => {
-                section.subSections.forEach(subSection => {
-                    subSection.questions.forEach(question => {
-                        initialResponses.push({
-                            questionId: question._id,
-                            questionTextSnapshot: question.text,
-                            questionTypeSnapshot: question.type,
-                            answerOptionsSnapshot: question.answerOptions,
-                            comment: '',
-                            includeCommentInReport: question.includeCommentInReportDefault,
-                            score: 0,
-                            auditorId: requestingUser.id,
-                            lastUpdated: new Date()
-                        });
+        const initialResponses = [];
+        templateStructureSnapshot.forEach(section => {
+            section.subSections.forEach(subSection => {
+                subSection.questions.forEach(question => {
+                    initialResponses.push({
+                        questionId: question._id,
+                        questionTextSnapshot: question.text,
+                        questionTypeSnapshot: question.type,
+                        answerOptionsSnapshot: question.answerOptions,
+                        comment: '',
+                        includeCommentInReport: question.includeCommentInReportDefault,
+                        score: 0,
+                        auditorId: requestingUser.id,
+                        lastUpdated: new Date()
                     });
                 });
             });
+        });
 
-            const newAuditInstance = new AuditInstance({
-                company: companyId,
-                template: auditTemplateId,
-                templateNameSnapshot: auditTemplate.name,
-                templateVersionSnapshot: auditTemplate.version,
-                templateStructureSnapshot,
-                assignedAuditors: finalAuditorIds,
-                startDate: startDate || new Date(),
-                endDate,
-                status: 'Draft',
-                responses: initialResponses,
-                createdBy: requestingUser.id,
-                lastModifiedBy: requestingUser.id,
-                examinationEnvironment: examinationEnvironment || {}
-            });
+        const newAuditInstance = new AuditInstance({
+            company: companyId,
+            template: auditTemplateId,
+            templateNameSnapshot: auditTemplate.name,
+            templateVersionSnapshot: auditTemplate.version,
+            templateStructureSnapshot,
+            assignedAuditors: finalAuditorIds,
+            startDate: startDate || new Date(),
+            endDate,
+            status: 'Draft',
+            responses: initialResponses,
+            createdBy: requestingUser.id,
+            lastModifiedBy: requestingUser.id,
+            // Store examination environment at audit level as backup
+            examinationEnvironment: examinationEnvironment || {}
+        });
 
-            await newAuditInstance.save();
+        await newAuditInstance.save();
+        console.log('[createAuditInstance] Audit instance saved with examination environment:', examinationEnvironment);
 
-            try {
-                const populatedAudit = await newAuditInstance.populate([
-                    { path: 'company', select: 'name industry contactPerson' },
-                    { path: 'template', select: 'name version' },
-                    { path: 'assignedAuditors', select: 'firstName lastName email' },
-                    { path: 'createdBy', select: 'firstName lastName email' }
-                ]);
-                console.log('[createAuditInstance] SUCCESS - Audit instance created and populated');
-                return populatedAudit;
-            } catch (populateError) {
-                console.error('[createAuditInstance] Population error:', populateError.message);
-                return newAuditInstance;
-            }
-        } catch (error) {
-            console.error('[createAuditInstance] ERROR:', error.message);
-            throw error;
+        try {
+            const populatedAudit = await newAuditInstance.populate([
+                { path: 'company', select: 'name industry contactPerson examinationEnvironment' },
+                { path: 'template', select: 'name version' },
+                { path: 'assignedAuditors', select: 'firstName lastName email' },
+                { path: 'createdBy', select: 'firstName lastName email' }
+            ]);
+            console.log('[createAuditInstance] SUCCESS - Audit instance created and populated');
+            console.log('[createAuditInstance] Company examination environment:', JSON.stringify(populatedAudit.company.examinationEnvironment, null, 2));
+            return populatedAudit;
+        } catch (populateError) {
+            console.error('[createAuditInstance] Population error:', populateError.message);
+            return newAuditInstance;
         }
+    } catch (error) {
+        console.error('[createAuditInstance] ERROR:', error.message);
+        throw error;
     }
+}
 
     async getAllAuditInstances(requestingUser) {
         console.log('[getAllAuditInstances] START - Requesting user:', requestingUser);
@@ -1810,80 +1917,166 @@ class AuditInstanceService {
         console.log('[deleteAuditInstance] Audit deleted successfully.');
     }
 
-    async generateReport(auditInstanceId, requestingUser) {
-        console.log('[generateReport] START - auditInstanceId:', auditInstanceId);
+    // async generateReport(auditInstanceId, requestingUser) {
+    //     console.log('[generateReport] START - auditInstanceId:', auditInstanceId);
 
-        try {
-            const audit = await AuditInstance.findById(auditInstanceId)
-                .populate({ path: 'company', select: 'name industry contactPerson address website generalInfo' })
-                .populate({ path: 'template' })
-                .populate({ path: 'assignedAuditors', select: 'firstName lastName email' })
-                .populate({ path: 'createdBy', select: 'firstName lastName email' });
+    //     try {
+    //         const audit = await AuditInstance.findById(auditInstanceId)
+    //             .populate({ path: 'company', select: 'name industry contactPerson address website generalInfo' })
+    //             .populate({ path: 'template' })
+    //             .populate({ path: 'assignedAuditors', select: 'firstName lastName email' })
+    //             .populate({ path: 'createdBy', select: 'firstName lastName email' });
 
-            if (!audit) {
-                throw new Error('Audit Instance not found.');
-            }
+    //         if (!audit) {
+    //             throw new Error('Audit Instance not found.');
+    //         }
             
-            // Check authorization to generate report
-            const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
-            const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
-            const isAdminOrSuperAdmin = requestingUser.role === 'super_admin' || requestingUser.role === 'admin';
+    //         // Check authorization to generate report
+    //         const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
+    //         const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
+    //         const isAdminOrSuperAdmin = requestingUser.role === 'super_admin' || requestingUser.role === 'admin';
 
-            if (!isCreator && !isAssigned && !isAdminOrSuperAdmin) {
-                throw new Error('You are not authorized to generate a report for this audit instance.');
-            }
+    //         if (!isCreator && !isAssigned && !isAdminOrSuperAdmin) {
+    //             throw new Error('You are not authorized to generate a report for this audit instance.');
+    //         }
 
-            // Decide who to display as auditors
-            let auditorsToDisplay = [];
-            if (audit.assignedAuditors?.length > 0) {
-                auditorsToDisplay = audit.assignedAuditors;
-            } else if (audit.createdBy) {
-                auditorsToDisplay = [audit.createdBy];
-            }
+    //         // Decide who to display as auditors
+    //         let auditorsToDisplay = [];
+    //         if (audit.assignedAuditors?.length > 0) {
+    //             auditorsToDisplay = audit.assignedAuditors;
+    //         } else if (audit.createdBy) {
+    //             auditorsToDisplay = [audit.createdBy];
+    //         }
 
-            const auditObj = audit.toObject();
-            auditObj.auditorsToDisplay = auditorsToDisplay;
+    //         const auditObj = audit.toObject();
+    //         auditObj.auditorsToDisplay = auditorsToDisplay;
 
-            const html = generateReportHtml(auditObj);
-            console.log('[generateReport] HTML report content generated');
+    //         const html = generateReportHtml(auditObj);
+    //         console.log('[generateReport] HTML report content generated');
 
-            const browser = await puppeteer.launch({
-                args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
-                defaultViewport: chromium.defaultViewport,
-                executablePath: await chromium.executablePath(),
-                headless: chromium.headless,
-                ignoreHTTPSErrors: true,
-            });
+    //         const browser = await puppeteer.launch({
+    //             args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
+    //             defaultViewport: chromium.defaultViewport,
+    //             executablePath: await chromium.executablePath(),
+    //             headless: chromium.headless,
+    //             ignoreHTTPSErrors: true,
+    //         });
 
-            console.log('[generateReport] Browser launched successfully with @sparticuz/chromium');
+    //         console.log('[generateReport] Browser launched successfully with @sparticuz/chromium');
 
-            const page = await browser.newPage();
-            await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
-            console.log('[generateReport] HTML content set on page');
+    //         const page = await browser.newPage();
+    //         await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+    //         console.log('[generateReport] HTML content set on page');
 
-            const pdfBuffer = await page.pdf({
-                format: 'A4',
-                printBackground: true,
-                margin: { top: '0.6in', right: '0.6in', bottom: '0.6in', left: '0.6in' }
-            });
-            console.log('[generateReport] PDF generated successfully');
+    //         const pdfBuffer = await page.pdf({
+    //             format: 'A4',
+    //             printBackground: true,
+    //             margin: { top: '0.6in', right: '0.6in', bottom: '0.6in', left: '0.6in' }
+    //         });
+    //         console.log('[generateReport] PDF generated successfully');
 
-            await browser.close();
-            console.log('[generateReport] Browser closed');
+    //         await browser.close();
+    //         console.log('[generateReport] Browser closed');
 
-            return pdfBuffer;
+    //         return pdfBuffer;
 
-        } catch (error) {
-            console.error('[generateReport] ERROR occurred:', {
-                auditId: auditInstanceId,
-                userId: requestingUser.id,
-                error: error.message,
-                stack: error.stack,
-                timestamp: new Date().toISOString()
-            });
-            throw new Error(`Failed to generate PDF report: ${error.message}`);
+    //     } catch (error) {
+    //         console.error('[generateReport] ERROR occurred:', {
+    //             auditId: auditInstanceId,
+    //             userId: requestingUser.id,
+    //             error: error.message,
+    //             stack: error.stack,
+    //             timestamp: new Date().toISOString()
+    //         });
+    //         throw new Error(`Failed to generate PDF report: ${error.message}`);
+    //     }
+    // }
+
+    async generateReport(auditInstanceId, requestingUser) {
+    console.log('[generateReport] START - auditInstanceId:', auditInstanceId);
+
+    try {
+        const audit = await AuditInstance.findById(auditInstanceId)
+            .populate({ 
+                path: 'company', 
+                select: 'name industry contactPerson address website generalInfo examinationEnvironment' 
+            })
+            .populate({ path: 'template' })
+            .populate({ path: 'assignedAuditors', select: 'firstName lastName email' })
+            .populate({ path: 'createdBy', select: 'firstName lastName email' });
+
+        if (!audit) {
+            throw new Error('Audit Instance not found.');
         }
+        
+        // Debug logging to see what data we have
+        console.log('[generateReport] Company data:', JSON.stringify(audit.company, null, 2));
+        console.log('[generateReport] Audit examinationEnvironment:', JSON.stringify(audit.examinationEnvironment, null, 2));
+        
+        // Check authorization to generate report
+        const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
+        const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
+        const isAdminOrSuperAdmin = requestingUser.role === 'super_admin' || requestingUser.role === 'admin';
+
+        if (!isCreator && !isAssigned && !isAdminOrSuperAdmin) {
+            throw new Error('You are not authorized to generate a report for this audit instance.');
+        }
+
+        // Decide who to display as auditors
+        let auditorsToDisplay = [];
+        if (audit.assignedAuditors?.length > 0) {
+            auditorsToDisplay = audit.assignedAuditors;
+        } else if (audit.createdBy) {
+            auditorsToDisplay = [audit.createdBy];
+        }
+
+        const auditObj = audit.toObject();
+        auditObj.auditorsToDisplay = auditorsToDisplay;
+
+        // Debug: Log the final audit object structure
+        console.log('[generateReport] Final audit object company:', JSON.stringify(auditObj.company, null, 2));
+        console.log('[generateReport] Final audit object examinationEnvironment:', JSON.stringify(auditObj.examinationEnvironment, null, 2));
+
+        const html = generateReportHtml(auditObj);
+        console.log('[generateReport] HTML report content generated');
+
+        const browser = await puppeteer.launch({
+            args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
+            ignoreHTTPSErrors: true,
+        });
+
+        console.log('[generateReport] Browser launched successfully with @sparticuz/chromium');
+
+        const page = await browser.newPage();
+        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+        console.log('[generateReport] HTML content set on page');
+
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '0.6in', right: '0.6in', bottom: '0.6in', left: '0.6in' }
+        });
+        console.log('[generateReport] PDF generated successfully');
+
+        await browser.close();
+        console.log('[generateReport] Browser closed');
+
+        return pdfBuffer;
+
+    } catch (error) {
+        console.error('[generateReport] ERROR occurred:', {
+            auditId: auditInstanceId,
+            userId: requestingUser.id,
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString()
+        });
+        throw new Error(`Failed to generate PDF report: ${error.message}`);
     }
+}
 
     _calcScore(question, value) {
         if (!question) return 0;

@@ -143,15 +143,74 @@ import AuditInstance from '../models/auditInstance.model.js';
 import User from '../models/user.model.js';
 
 class CompanyService {
-    async createCompany(companyData, createdByUserId) {
-        const newCompany = new Company({
-            ...companyData,
-            createdBy: createdByUserId,
-            lastModifiedBy: createdByUserId
-        });
+    // async createCompany(companyData, createdByUserId) {
+    //     const newCompany = new Company({
+    //         ...companyData,
+    //         createdBy: createdByUserId,
+    //         lastModifiedBy: createdByUserId
+    //     });
+    //     await newCompany.save();
+    //     return newCompany;
+    // }
+
+    async createCompany(companyData, userId) {
+    console.log('[createCompany] START - Company data received:', JSON.stringify(companyData, null, 2));
+    
+    try {
+        // Ensure all required fields are present
+        const companyToCreate = {
+            name: companyData.name,
+            industry: companyData.industry,
+            contactPerson: {
+                name: companyData.contactPerson?.name || '',
+                email: companyData.contactPerson?.email || '',
+                phone: companyData.contactPerson?.phone || ''
+            },
+            createdBy: userId,
+            lastModifiedBy: userId
+        };
+
+        // Add examination environment if provided
+        if (companyData.examinationEnvironment) {
+            companyToCreate.examinationEnvironment = {
+                locations: companyData.examinationEnvironment.locations || 0,
+                employees: companyData.examinationEnvironment.employees || 0,
+                clients: {
+                    total: companyData.examinationEnvironment.clients?.total || 0,
+                    managed: companyData.examinationEnvironment.clients?.managed || 0,
+                    unmanaged: companyData.examinationEnvironment.clients?.unmanaged || 0
+                },
+                industry: companyData.examinationEnvironment.industry || companyData.industry || '',
+                physicalServers: companyData.examinationEnvironment.physicalServers || 0,
+                vmServers: companyData.examinationEnvironment.vmServers || 0,
+                firewalls: companyData.examinationEnvironment.firewalls || 0,
+                switches: companyData.examinationEnvironment.switches || 0,
+                mobileWorking: Boolean(companyData.examinationEnvironment.mobileWorking),
+                smartphones: Boolean(companyData.examinationEnvironment.smartphones),
+                notes: companyData.examinationEnvironment.notes || '',
+                generalInfo: companyData.examinationEnvironment.generalInfo || companyData.generalInfo || ''
+            };
+            
+            console.log('[createCompany] Added examination environment:', JSON.stringify(companyToCreate.examinationEnvironment, null, 2));
+        }
+
+        // Add general info if provided at top level
+        if (companyData.generalInfo) {
+            companyToCreate.generalInfo = companyData.generalInfo;
+        }
+
+        const newCompany = new Company(companyToCreate);
         await newCompany.save();
+        
+        console.log('[createCompany] SUCCESS - Company created with ID:', newCompany._id);
+        console.log('[createCompany] Company examination environment saved:', JSON.stringify(newCompany.examinationEnvironment, null, 2));
+        
         return newCompany;
+    } catch (error) {
+        console.error('[createCompany] ERROR:', error.message);
+        throw error;
     }
+}
 
     async getAllCompanies(requestingUserId, requestingUserRole) {
         let query = {};
