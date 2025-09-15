@@ -1176,8 +1176,7 @@
 // };
 
 // export default generateReportHtml;
-
-
+ 
 const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 /**
@@ -1252,8 +1251,8 @@ const generateReportHtml = (auditInstance = {}) => {
     const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
     
     // FIX: Get examination environment from the right place
-    // First try audit instance level, then company level
-    const examinationEnvironment = auditInstance.examinationEnvironment || company.examinationEnvironment || {};
+    // First try company level (where the real data is), then audit instance level as fallback
+    const examinationEnvironment = company.examinationEnvironment || auditInstance.examinationEnvironment || {};
     
     console.log('[generateReportHtml] Final examination environment data:', JSON.stringify(examinationEnvironment, null, 2));
     
