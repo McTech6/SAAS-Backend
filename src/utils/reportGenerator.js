@@ -1299,6 +1299,8 @@ const generateReportHtml = (auditInstance = {}) => {
                             
                         </div>
                         <div class="answer-row"><strong>Answer:</strong> ${answerText}</div>
+                         <div class="answer-row"><strong>Answer:</strong> ${answerText}</div>
+                        ${recommendationHtml}
                         ${commentHtml}
                         ${evidenceHtml}
                     </div>
