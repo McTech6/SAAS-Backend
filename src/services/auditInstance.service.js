@@ -949,7 +949,7 @@ class AuditInstanceService {
             console.log('[assignAuditors] Audit found successfully');
 
             if (audit.assignedAuditors && audit.assignedAuditors.length > 0) {
-                throw new Error('An auditor has already been assigned to this audit. You cannot reassign.');
+                throw new Error('You cannot assign more than one auditor to this audit.');
             }
 
             if (requestingUserRole !== 'super_admin' && requestingUserRole !== 'admin') {
