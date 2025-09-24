@@ -715,8 +715,6 @@
 // }
 // }
 
-// export default new AuditInstanceService();
-
 import AuditInstance from '../models/auditInstance.model.js';
 import Company from '../models/company.model.js';
 import AuditTemplate from '../models/auditTemplate.model.js';
@@ -735,12 +733,8 @@ class AuditInstanceService {
             const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate, examinationEnvironment } = data;
 
             let finalAuditorIds = assignedAuditorIds || [];
-            
-            // CHANGE: Ensure exactly one auditor is assigned
-            if (finalAuditorIds.length !== 1) {
-                throw new Error('Exactly one auditor must be assigned to create an audit instance.');
-            }
 
+            // CHANGE: No longer a must to assign an auditor at creation
             console.log('[createAuditInstance] Final auditor IDs:', finalAuditorIds);
 
             let companyId;
@@ -953,6 +947,10 @@ class AuditInstanceService {
                 throw new Error('Audit Instance not found.');
             }
             console.log('[assignAuditors] Audit found successfully');
+
+            if (audit.assignedAuditors && audit.assignedAuditors.length > 0) {
+                throw new Error('An auditor has already been assigned to this audit. You cannot reassign.');
+            }
 
             if (requestingUserRole !== 'super_admin' && requestingUserRole !== 'admin') {
                 console.log('[assignAuditors] ERROR - Unauthorized role:', requestingUserRole);
