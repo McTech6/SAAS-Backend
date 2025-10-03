@@ -1,454 +1,811 @@
+ 
+
+// // export default generateReportHtml;
+// const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
+
+// /**
+//  * Escapes HTML to prevent XSS vulnerabilities.
+//  * @param {string} str - The string to escape.
+//  * @returns {string} The escaped string.
+//  */
+// const escapeHtml = (str) => {
+//     if (!str) return '';
+//     return str.replace(/&/g, '&amp;')
+//         .replace(/</g, '&lt;')
+//         .replace(/>/g, '&gt;')
+//         .replace(/"/g, '&quot;')
+//         .replace(/'/g, '&#039;');
+// };
+
+// const formatDate = (d) => {
+//     if (!d) return 'N/A';
+//     try {
+//         return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+//     } catch {
+//         return String(d);
+//     }
+// };
+
+// /**
+//  * Determine status category and color from a response value.
+//  */
+// const getStatusInfo = (selectedValue) => {
+//     const raw = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
+//     const color = '#014f65'; // Primary green color
+
+//     // Return the raw value as the label, removing the opinionated logic
+//     return { label: raw || 'N/A', color: color };
+// };
+
+// /**
+//  * Build table of contents HTML from templateStructureSnapshot with numbering
+//  */
+// const buildToc = (templateStructure) => {
+//     if (!Array.isArray(templateStructure) || templateStructure.length === 0) return '<p>(No content)</p>';
+//     let tocHtml = '<ul class="toc-root">';
+//     templateStructure.forEach((section, sIdx) => {
+//         const secId = `sec-${sIdx}`;
+//         tocHtml += `<li><a href="#${secId}">${escapeHtml(section.name || 'Unnamed Section')}</a>`;
+//         if (Array.isArray(section.subSections) && section.subSections.length > 0) {
+//             tocHtml += '<ul>';
+//             section.subSections.forEach((ss, ssIdx) => {
+//                 const subId = `sec-${sIdx}-sub-${ssIdx}`;
+//                 tocHtml += `<li><a href="#${subId}">${escapeHtml(ss.name || 'Unnamed Subsection')}</a></li>`;
+//             });
+//             tocHtml += '</ul>';
+//         }
+//         tocHtml += '</li>';
+//     });
+//     tocHtml += '</ul>';
+//     return tocHtml;
+// };
+
+// const generateReportHtml = (auditInstance = {}) => {
+//     console.log('[generateReportHtml] Received audit instance:', JSON.stringify({
+//         company: auditInstance.company,
+//         examinationEnvironment: auditInstance.examinationEnvironment
+//     }, null, 2));
+
+//     const company = auditInstance.company || {};
+//     const template = auditInstance.template || {};
+//     const responses = auditInstance.responses || [];
+//     const templateStructure = auditInstance.templateStructureSnapshot || [];
+//     const overallScore = (typeof auditInstance.overallScore === 'number') ? auditInstance.overallScore : 0;
+//     const createdBy = auditInstance.createdBy || {};
+//     const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
+
+//     // Get examination environment data
+//     const examinationEnvironment = company.examinationEnvironment || auditInstance.examinationEnvironment || {};
+
+//     console.log('[generateReportHtml] Final examination environment data:', JSON.stringify(examinationEnvironment, null, 2));
+
+//     const summaries = auditInstance.summaries || [];
+
+//     const reportDate = formatDate(new Date());
+//     const auditDateRange = (auditInstance.startDate || auditInstance.endDate) ?
+//         `${formatDate(auditInstance.startDate)} - ${formatDate(auditInstance.endDate)}` : 'N/A';
+
+//     const auditorLines = auditorsToDisplay.map(u => `${escapeHtml(u.firstName || '')} ${escapeHtml(u.lastName || '')} (${escapeHtml(u.email || '')})`).join('<br/>') || `${escapeHtml(createdBy.firstName || '')} ${escapeHtml(createdBy.lastName || '')} (${escapeHtml(createdBy.email || '')})`;
+
+//     const contactName = company.contactPerson?.name || '';
+//     const contactEmail = company.contactPerson?.email || '';
+
+//     const tocHtml = buildToc(templateStructure);
+
+//     let mainHtml = '';
+//     templateStructure.forEach((section, sIdx) => {
+//         const secId = `sec-${sIdx}`;
+//         mainHtml += `<div class="section" id="${secId}"><h2>${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
+//         if (section.description) {
+//             mainHtml += `<p class="section-desc">${escapeHtml(section.description)}</p>`;
+//         }
+
+//         (section.subSections || []).forEach((subSection, ssIdx) => {
+//             const subId = `sec-${sIdx}-sub-${ssIdx}`;
+//             mainHtml += `<div class="subsection" id="${subId}"><h3>${escapeHtml(subSection.name || 'Unnamed Subsection')}</h3>`;
+//             if (subSection.description) {
+//                 mainHtml += `<p class="subsection-desc">${escapeHtml(subSection.description)}</p>`;
+//             }
+
+//             (subSection.questions || []).forEach((question, qIdx) => {
+//                 const resp = responses.find(r => r.questionId?.toString() === question._id?.toString()) || {};
+//                 const status = getStatusInfo(resp.selectedValue);
+//                 const answerText = escapeHtml(resp.selectedValue === undefined || resp.selectedValue === null ? 'N/A' : String(resp.selectedValue));
+//                 const commentHtml = resp.comment ? `<div class="comment"><strong>Comment:</strong><div>${escapeHtml(resp.comment)}</div></div>` : '';
+//                 const evidenceHtml = (Array.isArray(resp.evidenceUrls) && resp.evidenceUrls.length > 0) ? `<div class="evidence"><strong>Evidence:</strong><ul>${resp.evidenceUrls.map(u => `<li><a href="${escapeHtml(u)}">${escapeHtml(u)}</a></li>`).join('')}</ul></div>` : '';
+//                 const recommendationHtml = resp.recommendation ? `<div class="recommendation"><strong>Recommendation:</strong><div>${escapeHtml(resp.recommendation)}</div></div>` : '';
+
+//                 mainHtml += `
+//                     <div class="question-block">
+//                         <div class="question-header" style="border-left:3px solid ${status.color};">
+//                             <p class="question-title" style="color:${status.color};"><strong>${escapeHtml(question.text || 'Untitled question')}</strong></p>
+                            
+//                         </div>
+//                         <div class="answer-row"><strong>Answer:</strong> ${answerText}</div>
+//                         ${recommendationHtml}
+//                         ${commentHtml}
+//                         ${evidenceHtml}
+//                     </div>
+//                 `;
+//             });
+
+//             mainHtml += `</div>`;
+//         });
+
+//         mainHtml += `</div>`;
+//     });
+
+//     const envHtml = `
+//         <table class="env">
+//             <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examinationEnvironment.locations || 'N/A'))}</td></tr>
+//             <tr><td><strong>Number of employees</strong></td><td>${escapeHtml(String(examinationEnvironment.employees || 'N/A'))}</td></tr>
+//             <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.total || 'N/A'))}</td></tr>
+//             <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.managed || 'N/A'))}</td></tr>
+//             <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.unmanaged || 'N/A'))}</td></tr>
+//             <tr><td><strong>Industry</strong></td><td>${escapeHtml(examinationEnvironment.industry || company.industry || 'N/A')}</td></tr>
+//             <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(examinationEnvironment.physicalServers || 'N/A'))}</td></tr>
+//             <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(examinationEnvironment.vmServers || 'N/A'))}</td></tr>
+//             <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(examinationEnvironment.firewalls || 'N/A'))}</td></tr>
+//             <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(examinationEnvironment.switches || 'N/A'))}</td></tr>
+//             <tr><td><strong>Mobile working</strong></td><td>${examinationEnvironment.mobileWorking ? 'Yes' : 'No'}</td></tr>
+//             <tr><td><strong>Smartphones</strong></td><td>${examinationEnvironment.smartphones ? 'Yes' : 'No'}</td></tr>
+//             ${examinationEnvironment.notes ? `<tr><td><strong>Notes</strong></td><td>${escapeHtml(examinationEnvironment.notes)}</td></tr>` : ''}
+//         </table>
+//     `;
+
+//     const summariesHtml = (Array.isArray(summaries) && summaries.length > 0)
+//         ? summaries.map(s => `<div class="summary"><p><strong>${escapeHtml(s.auditor?.firstName || '')} ${escapeHtml(s.auditor?.lastName || '')}</strong></p><p>${escapeHtml(s.text || '')}</p></div>`).join('')
+//         : '<p>No summaries provided.</p>';
+
+//     const introductionText = `
+//         <p>When we speak about Cyber, Information, and IT Security, it is important to recognize that it is not only a technical matter. Technology plays a key role, but security is always the result of three dimensions working together:</p>
+//         <ul>
+//             <li><strong>Technology</strong> – the tools and systems that protect our data.</li>
+//             <li><strong>Organization</strong> – the rules, processes, and responsibilities that guide how we work.</li>
+//             <li><strong>People</strong> – the awareness, behavior, and decisions of everyone involved.</li>
+//         </ul>
+//         <p>Only when these three elements are combined can we create real protection. Focusing on technology alone is not enough. A secure company requires clear structures, well-trained employees, and a culture where security is seen as part of everyday work.</p>
+//         <p>In today's ever-changing world, the importance of protecting data and systems continues to grow. New threats appear daily, and digitalization increases the complexity of our business environment. For this reason, security must be given the right priority. It should not be treated as an "add-on" or a last step, but as an integral part of every decision, process, and investment.</p>
+//         <p>This audit report is designed to make this approach practical and understandable. It gives a transparent overview of your current situation, highlights strengths and weaknesses, and provides clear guidance for next steps. The goal is not only to identify risks but also to enable your organization to build sustainable protection—so that technology, organization, and people are aligned and your company can continue to operate with confidence and resilience.</p>
+//     `;
+
+//     const aboutCompanyAudited = `
+//         <p>As a prominent player in the <strong>${escapeHtml(company.industry || '')}</strong> industry, <strong>${escapeHtml(company.name || 'Test company')}</strong> has shown a strong commitment to maintaining a secure and reliable operational environment. Our audit was conducted to assess their current security posture, providing a detailed overview of their defenses and identifying key areas for continuous improvement. This assessment highlights their dedication to protecting their digital assets and fostering a resilient business infrastructure.</p>
+//         <p><strong>Contact person:</strong> ${escapeHtml(contactName || '')} — ${escapeHtml(contactEmail || '')}</p>
+//         ${company.generalInfo || company.examinationEnvironment?.generalInfo ? `<p>${escapeHtml(company.generalInfo || company.examinationEnvironment?.generalInfo)}</p>` : ''}
+//     `;
+
+//     const aboutCompanyHardcoded = `
+//         <p>We, DV-Beratung Koch, are your reliable partner and system house for information technology, telecommunications and video surveillance. Since 1993, we have been successfully implementing IT projects in the areas of government, healthcare and small and medium-sized enterprises.</p>
+//         <p>Over the years, our product and service portfolio has been continuously adapted and expanded in line with technological developments. Our aim is to offer you a comprehensive range of IT solutions from a single source, including perfectly coordinated hardware and software for your company.</p>
+//         <p>Through continuous training of our team, we ensure that our expert knowledge is always up to date in order to guarantee you modern IT consulting and implementation. We look forward to starting a successful and cooperative partnership with you.</p>
+//     `;
+
+//     const prefaceText = `
+//         <p>The CyberAudit 360 Check Report has been developed to provide organizations with a structured and independent assessment of their information security posture. The aim is not only to identify technical issues, but to create a holistic view that combines technology, organization, and people.</p>
+//         <p>This report is designed as a practical tool for decision-makers at all levels. Whether you have a technical background or not, the findings and recommendations are presented in a way that allows you to clearly understand where strengths lie, where risks exist, and what steps can be taken to achieve sustainable improvement.</p>
+//         <p>Our mission is to support organizations in treating cybersecurity as an integral part of their business strategy and daily operations—helping to build trust, ensure compliance, and strengthen resilience in an ever-changing digital world.</p>
+//     `;
+
+//     const disclaimerText = `
+//         <p>This report is based on the information, data, and evidence made available during the audit process. While every effort has been made to provide accurate and reliable findings, the results and recommendations are limited to the scope of the audit and the time of its execution.</p>
+//         <p>The report should not be considered a guarantee against future risks or incidents. Security threats evolve constantly, and continuous monitoring, improvement, and adaptation remain essential.</p>
+//         <p>The auditor and auditing organization do not assume liability for direct or indirect damages that may result from the use of this report. The responsibility for implementing and maintaining effective security measures lies with the audited organization.</p>
+//     `;
+
+//     const handoverText = `
+//         <p>This page confirms that the audit report titled "${escapeHtml(template.name || 'Name of the audit')}" has been formally handed over by the auditor to the audited company.</p>
+//         <p>By signing below, both parties acknowledge the reception of the full audit report and confirm that it has been delivered in its final version.</p>
+
+//         <table class="handover">
+//             <tr><td><strong>Auditor:</strong></td><td></td></tr>
+//             <tr><td>Name:</td><td>_________________________</td></tr>
+//             <tr><td>Organization:</td><td>_________________________</td></tr>
+//             <tr><td>Date:</td><td>_________________________</td></tr>
+//             <tr><td>Signature:</td><td>_________________________</td></tr>
+//         </table>
+
+//         <br/>
+
+//         <table class="handover">
+//             <tr><td><strong>Audited Company Representative:</strong></td><td></td></tr>
+//             <tr><td>Name:</td><td>_________________________</td></tr>
+//             <tr><td>Organization:</td><td>_________________________</td></tr>
+//             <tr><td>Date:</td><td>_________________________</td></tr>
+//             <tr><td>Signature:</td><td>_________________________</td></tr>
+//         </table>
+//     `;
+
+//     const thankYouText = `
+//         <div style="text-align: center;">
+//             <p>Thank You for Choosing Cybersecurity Audit 360</p>
+//             <p>We are committed to enhancing your organization's security posture and ensuring compliance in an ever evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
+//             <p>Our team is dedicated to supporting your journey beyond this audit. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
+//             <div class="contact">
+//                 <p>Email: <a href="mailto:info@cybersecurityaudit360.com">info@cybersecurityaudit360.com</a></p>
+//                 <p>Website: <a href="https://www.cybersecurityaudit360.com">www.cybersecurityaudit360.com</a></p>
+//             </div>
+//             <h3 class="slogan-center">"Securing Your Digital Horizon, Together."</h3>
+//         </div>
+//     `;
+
+//     const html = `
+//     <!doctype html>
+//     <html>
+//     <head>
+//         <meta charset="utf-8">
+//         <title>Audit Report - ${escapeHtml(company.name || 'Unknown Company')}</title>
+//         <style>
+//             @page { margin: 0.6in; }
+//             body { font-family: Arial, Helvetica, sans-serif; font-size: 12pt; color: #2c3e50; margin: 0; -webkit-print-color-adjust: exact; }
+//             .container { padding: 0.6in; box-sizing: border-box; }
+//             .cover { text-align: center; padding-top: 20px; padding-bottom: 10px; }
+//             .logo { max-width: 140px; margin-bottom: 8px; }
+//             h1 { margin: 0; font-size: 28pt; color: #014f65; text-align: center; }
+//             h2 { margin: 40px 0 10px 0; font-size: 16pt; color: #014f65; text-align: center; padding-bottom: 5px; }
+//             h3 { margin: 25px 0 8px 0; font-size: 14pt; color: #2c3e50; text-align: center; padding-bottom: 3px; }
+//             p { margin: 6px 0; line-height: 1.25; }
+//             .meta { margin: 12px 0 24px 0; font-size: 14pt; line-height: 1.5; }
+//             .meta p { margin: 6px 0; }
+//             .for-company { margin-top: 15px; line-height: 1.5; }
+//             .cover-quote { margin-top: 12px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.5; }
+//             .toc-root { counter-reset: section; }
+//             .toc-root > li { counter-increment: section; margin-top: 10px; list-style: none; }
+//             .toc-root > li:before { content: counter(section) ". "; font-weight: bold; }
+//             .toc-root > li ul { list-style: none; padding-left: 25px; }
+//             .toc-root > li li { counter-increment: subsection; }
+//             .toc-root > li li:before { content: counter(section) "." counter(subsection) ". "; font-weight: normal; }
+//             .toc-root a { text-decoration: none; color: #003340; }
+//             .section { margin-top: 20px; }
+//             .section-desc, .subsection-desc { font-size: 11pt; color: #444; margin-bottom: 8px; }
+//             .question-block { margin-bottom: 12px; padding: 10px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; }
+//             .question-header { display: flex; align-items: flex-start; margin-bottom: 6px; }
+//             .question-header .question-title { font-size: 11.5pt; margin: 0; padding-left: 10px; }
+//             .question-header .line { width: 3px; height: 100%; background-color: #014f65; margin-right: 10px; }
+//             .answer-row { margin: 8px 0; font-size: 11pt; }
+//             .comment { margin-top: 6px; background:#e6f7f6; padding:6px; border-left:3px solid #014f65; }
+//             .evidence ul { margin:4px 0 0 18px; }
+//             .env { width: 100%; border-collapse: collapse; margin: 6px 0 12px 0; }
+//             .env td { padding: 6px 8px; border: 1px solid #e6e6e6; font-size: 11pt; }
+//             .summary { margin:6px 0; padding:8px; background:#f6f6f6; border-radius:4px; }
+//             .handover { width: 100%; margin-top: 8px; border-collapse: collapse; }
+//             .handover td { padding: 6px; vertical-align: top; }
+//             .contact { margin-top: 10px; }
+//             .contact a { text-decoration: none; color: #003340; }
+//             .slogan-center { text-align: center; margin-top: 18px; font-style: italic; color: #014f65; font-size: 18pt; }
+//             a { color: #003340; }
+//             .page-break { page-break-before: always; }
+//         </style>
+//     </head>
+//     <body>
+//         <div class="container">
+//             <div class="cover">
+//                 <img class="logo" src="${LOGO_URL}" alt="Logo" />
+//                 <div style="margin-top: 30px;">
+//                     <h1>${escapeHtml(template.name || 'Name of the audit')}</h1>
+//                     <h2>Report</h2>
+//                     <div class="meta">
+//                         <p><strong>Report Date:</strong> ${escapeHtml(reportDate)}</p>
+//                         <p><strong>Audit Date:</strong> ${escapeHtml(auditDateRange)}</p>
+//                         <p><strong>Auditor:</strong><br/>${auditorLines}</p>
+//                     </div>
+//                     <div class="for-company">
+//                         <p><strong>For</strong></p>
+//                         <p><strong>${escapeHtml(company.name || 'Test company')}</strong></p>
+//                         <p>${escapeHtml(contactName || 'Test contact person')} — ${escapeHtml(contactEmail || 'Test contact person email')}</p>
+//                     </div>
+//                 </div>
+//                 <div class="cover-quote">
+//                     <p><em>The strength of your defence lies in knowing and understanding your vulnerabilities. This audit provides you with the information you need to create a secure environment in your company. "You can only protect what you know."</em></p>
+//                 </div>
+//             </div>
+//         </div>
+
+//         <div class="container page-break">
+//             <h2>Table of Contents</h2>
+//             ${tocHtml}
+//         </div>
+
+//         <div class="container page-break">
+//             <h2>Introduction</h2>
+//             ${introductionText}
+//         </div>
+
+//         <div class="container page-break">
+//             <h2>About the Auditing Company</h2>
+//             ${aboutCompanyHardcoded}
+//             <h2 style="margin-top: 30px;">About the Audited Company</h2>
+//             ${aboutCompanyAudited}
+//         </div>
+
+//         <div class="container page-break">
+//             <h2>Preface</h2>
+//             ${prefaceText}
+//             <h2 style="margin-top: 30px;">Disclaimer</h2>
+//             ${disclaimerText}
+//         </div>
+
+//         <div class="container page-break">
+//             <h2>Executive Summary</h2>
+//             <p>This report provides a comprehensive overview of the cybersecurity posture for <strong>${escapeHtml(company.name || 'Test Company')}</strong> based on the "<strong>${escapeHtml(template.name || 'Name of the audit')}</strong>".</p>
+//             <p>The audit covered key areas including Information Security Policies, Access Control, and other critical domains as defined in the selected template.</p>
+//             <p>Overall, the assessment indicates a compliance score of <strong>${Number(overallScore).toFixed(2)}%</strong>. Detailed findings and observations are provided in the subsequent sections, along with specific recommendations for improvement.</p>
+//             <p>It is crucial to address identified areas of non-compliance and implement recommended remediation actions to strengthen the overall security posture and ensure continuous adherence to best practices.</p>
+//             ${(Array.isArray(summaries) && summaries.length > 0) ? `
+//             <h2 style="margin-top: 30px;">Summary</h2>
+//             ${summariesHtml}
+//             ` : ''}
+//         </div>
+
+//         <div class="container page-break">
+//             <h2>Examination environment</h2>
+//             ${envHtml}
+//         </div>
+
+//         <div class="container page-break">
+//             <h2>Content</h2>
+//             ${mainHtml}
+//         </div>
+
+//         <div class="container page-break">
+//             <h2>Handover</h2>
+//             ${handoverText}
+//         </div>
+
+//         <div class="container page-break">
+//             <h2>Thank You</h2>
+//             ${thankYouText}
+//         </div>
+
+//     </body>
+//     </html>
+//     `;
+
+//     return html;
+// };
+
+// export default generateReportHtml;
+// export default generateReportHtml; 
+
+// export default generateReportHtml; 
+
 const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 /**
- * Escapes HTML to prevent XSS vulnerabilities.
- * @param {string} str - The string to escape.
- * @returns {string} The escaped string.
- */
+ * Escapes HTML to prevent XSS vulnerabilities.
+ * @param {string} str - The string to escape.
+ * @returns {string} The escaped string.
+ */
 const escapeHtml = (str) => {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 };
 
 const formatDate = (d) => {
-    if (!d) return 'N/A';
-    try {
-        return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    } catch {
-        return String(d);
-    }
+    if (!d) return null; // Return null if date is not available
+    try {
+        // Return null if date is not a valid date
+        if (isNaN(new Date(d).getTime())) return null;
+        return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch {
+        return null;
+    }
 };
 
 /**
- * Determine status category and color from a response value.
- */
+ * Determine status category and color from a response value.
+ */
 const getStatusInfo = (selectedValue) => {
-    const raw = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
-    const color = '#014f65'; // Primary green color
+    const raw = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
+    const color = '#014f65'; // Primary green color
 
-    // Return the raw value as the label, removing the opinionated logic
-    return { label: raw || 'N/A', color: color };
+    // Return the raw value as the label, removing the opinionated logic
+    return { label: raw || 'N/A', color: color };
 };
 
 /**
- * Build table of contents HTML from templateStructureSnapshot with numbering
- */
+ * Build table of contents HTML from templateStructureSnapshot with numbering
+ */
 const buildToc = (templateStructure) => {
-    if (!Array.isArray(templateStructure) || templateStructure.length === 0) return '<p>(No content)</p>';
-    let tocHtml = '<ul class="toc-root">';
-    templateStructure.forEach((section, sIdx) => {
-        const secId = `sec-${sIdx}`;
-        tocHtml += `<li><a href="#${secId}">${escapeHtml(section.name || 'Unnamed Section')}</a>`;
-        if (Array.isArray(section.subSections) && section.subSections.length > 0) {
-            tocHtml += '<ul>';
-            section.subSections.forEach((ss, ssIdx) => {
-                const subId = `sec-${sIdx}-sub-${ssIdx}`;
-                tocHtml += `<li><a href="#${subId}">${escapeHtml(ss.name || 'Unnamed Subsection')}</a></li>`;
-            });
-            tocHtml += '</ul>';
-        }
-        tocHtml += '</li>';
-    });
-    tocHtml += '</ul>';
-    return tocHtml;
+    if (!Array.isArray(templateStructure) || templateStructure.length === 0) return '<p>(No content)</p>';
+    let tocHtml = '<ul class="toc-root">';
+    templateStructure.forEach((section, sIdx) => {
+        const secId = `sec-${sIdx}`;
+        tocHtml += `<li><a href="#${secId}">${escapeHtml(section.name || 'Unnamed Section')}</a>`;
+        if (Array.isArray(section.subSections) && section.subSections.length > 0) {
+            tocHtml += '<ul>';
+            section.subSections.forEach((ss, ssIdx) => {
+                const subId = `sec-${sIdx}-sub-${ssIdx}`;
+                tocHtml += `<li><a href="#${subId}">${escapeHtml(ss.name || 'Unnamed Subsection')}</a></li>`;
+            });
+            tocHtml += '</ul>';
+        }
+        tocHtml += '</li>';
+    });
+    tocHtml += '</ul>';
+    return tocHtml;
 };
 
 const generateReportHtml = (auditInstance = {}) => {
-    console.log('[generateReportHtml] Received audit instance:', JSON.stringify({
-        company: auditInstance.company,
-        examinationEnvironment: auditInstance.examinationEnvironment
-    }, null, 2));
+    console.log('[generateReportHtml] Received audit instance:', JSON.stringify({
+        company: auditInstance.company,
+        examinationEnvironment: auditInstance.examinationEnvironment
+    }, null, 2));
 
-    const company = auditInstance.company || {};
-    const template = auditInstance.template || {};
-    const responses = auditInstance.responses || [];
-    const templateStructure = auditInstance.templateStructureSnapshot || [];
-    const overallScore = (typeof auditInstance.overallScore === 'number') ? auditInstance.overallScore : 0;
-    const createdBy = auditInstance.createdBy || {};
-    const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
+    const company = auditInstance.company || {};
+    const template = auditInstance.template || {};
+    const responses = auditInstance.responses || [];
+    const templateStructure = auditInstance.templateStructureSnapshot || [];
+    const overallScore = (typeof auditInstance.overallScore === 'number') ? auditInstance.overallScore : 0;
+    const createdBy = auditInstance.createdBy || {};
+    const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
 
-    // Get examination environment data
-    const examinationEnvironment = company.examinationEnvironment || auditInstance.examinationEnvironment || {};
+    // Get examination environment data
+    const examinationEnvironment = company.examinationEnvironment || auditInstance.examinationEnvironment || {};
 
-    console.log('[generateReportHtml] Final examination environment data:', JSON.stringify(examinationEnvironment, null, 2));
+    console.log('[generateReportHtml] Final examination environment data:', JSON.stringify(examinationEnvironment, null, 2));
 
-    const summaries = auditInstance.summaries || [];
+    const summaries = auditInstance.summaries || [];
 
-    const reportDate = formatDate(new Date());
-    
-    // Fix for the Audit Date range
-    let auditDateRange;
-    const startDate = auditInstance.startDate;
-    const endDate = auditInstance.endDate;
+    const reportDate = formatDate(new Date());
 
-    if (startDate && endDate) {
-        auditDateRange = `${formatDate(startDate)} - ${formatDate(endDate)}`;
-    } else if (startDate) {
-        auditDateRange = formatDate(startDate);
-    } else if (endDate) {
-        auditDateRange = formatDate(endDate);
-    } else {
-        auditDateRange = 'N/A';
+    // Corrected Audit Date Range Logic
+    const startDateFormatted = formatDate(auditInstance.startDate);
+    const endDateFormatted = formatDate(auditInstance.endDate);
+
+    let auditDateRange = 'N/A';
+    if (startDateFormatted && endDateFormatted) {
+        auditDateRange = `${startDateFormatted} - ${endDateFormatted}`;
+    } else if (startDateFormatted) {
+        auditDateRange = startDateFormatted;
     }
+    // End of Corrected Audit Date Range Logic
 
+    const auditorLines = auditorsToDisplay.map(u => `${escapeHtml(u.firstName || '')} ${escapeHtml(u.lastName || '')} (${escapeHtml(u.email || '')})`).join('<br/>') || `${escapeHtml(createdBy.firstName || '')} ${escapeHtml(createdBy.lastName || '')} (${escapeHtml(createdBy.email || '')})`;
 
-    // Grouping auditor name and email for cover page requirement
-    const auditorLines = auditorsToDisplay.map(u => `
-        <p style="margin: 0; line-height: 1.0;"><strong>Auditor:</strong> ${escapeHtml(u.firstName || '')} ${escapeHtml(u.lastName || '')}</p>
-        <p style="margin: 0; line-height: 1.0;"><strong>E-Mail:</strong> ${escapeHtml(u.email || '')}</p>
-    `).join('') || `
-        <p style="margin: 0; line-height: 1.0;"><strong>Auditor:</strong> ${escapeHtml(createdBy.firstName || '')} ${escapeHtml(createdBy.lastName || '')}</p>
-        <p style="margin: 0; line-height: 1.0;"><strong>E-Mail:</strong> ${escapeHtml(createdBy.email || '')}</p>
-    `;
+    const contactName = company.contactPerson?.name || '';
+    const contactEmail = company.contactPerson?.email || '';
 
-    const contactName = company.contactPerson?.name || '';
-    const contactEmail = company.contactPerson?.email || '';
+    const tocHtml = buildToc(templateStructure);
 
-    const tocHtml = buildToc(templateStructure);
+    let mainHtml = '';
+    templateStructure.forEach((section, sIdx) => {
+        const secId = `sec-${sIdx}`;
+        // Added 'header-spacing' class
+        mainHtml += `<div class="section" id="${secId}"><h2 class="header-spacing">${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
+        if (section.description) {
+            mainHtml += `<p class="section-desc">${escapeHtml(section.description)}</p>`;
+        }
 
-    // Reduced font size for content elements: h3 (16pt), question-title (12pt), answer-row/comment/recommendation/evidence (11pt)
-    let mainHtml = '';
-    templateStructure.forEach((section, sIdx) => {
-        const secId = `sec-${sIdx}`;
-        // Add margin-top for 16pt space below the H2 in the 'Content' section
-        mainHtml += `<div class="section" id="${secId}" style="margin-top: 16pt;"><h2>${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
-        if (section.description) {
-            mainHtml += `<p class="section-desc">${escapeHtml(section.description)}</p>`;
-        }
+        (section.subSections || []).forEach((subSection, ssIdx) => {
+            const subId = `sec-${sIdx}-sub-${ssIdx}`;
+            // Added 'header-spacing' class
+            mainHtml += `<div class="subsection" id="${subId}"><h3 class="header-spacing">${escapeHtml(subSection.name || 'Unnamed Subsection')}</h3>`;
+            if (subSection.description) {
+                mainHtml += `<p class="subsection-desc">${escapeHtml(subSection.description)}</p>`;
+            }
 
-        (section.subSections || []).forEach((subSection, ssIdx) => {
-            const subId = `sec-${sIdx}-sub-${ssIdx}`;
-            // All subsection headers (H3) are 16pt - no change here, just adding space below it.
-            mainHtml += `<div class="subsection" id="${subId}"><h3 style="font-size: 16pt; margin-bottom: 16pt;">${escapeHtml(subSection.name || 'Unnamed Subsection')}</h3>`; 
-            if (subSection.description) {
-                mainHtml += `<p class="subsection-desc">${escapeHtml(subSection.description)}</p>`;
-            }
+            (subSection.questions || []).forEach((question, qIdx) => {
+                const resp = responses.find(r => r.questionId?.toString() === question._id?.toString()) || {};
+                const status = getStatusInfo(resp.selectedValue);
+                const answerText = escapeHtml(resp.selectedValue === undefined || resp.selectedValue === null ? 'N/A' : String(resp.selectedValue));
+                const commentHtml = resp.comment ? `<div class="comment"><strong>Comment:</strong><div>${escapeHtml(resp.comment)}</div></div>` : '';
+                const evidenceHtml = (Array.isArray(resp.evidenceUrls) && resp.evidenceUrls.length > 0) ? `<div class="evidence"><strong>Evidence:</strong><ul>${resp.evidenceUrls.map(u => `<li><a href="${escapeHtml(u)}">${escapeHtml(u)}</a></li>`).join('')}</ul></div>` : '';
+                const recommendationHtml = resp.recommendation ? `<div class="recommendation"><strong>Recommendation:</strong><div>${escapeHtml(resp.recommendation)}</div></div>` : '';
 
-            (subSection.questions || []).forEach((question, qIdx) => {
-                const resp = responses.find(r => r.questionId?.toString() === question._id?.toString()) || {};
-                const status = getStatusInfo(resp.selectedValue);
-                const answerText = escapeHtml(resp.selectedValue === undefined || resp.selectedValue === null ? 'N/A' : String(resp.selectedValue));
-                // Reduced font size for comment, recommendation, and evidence (11pt)
-                const commentHtml = resp.comment ? `<div class="comment"><strong>Comment:</strong><div style="font-size: 11pt;">${escapeHtml(resp.comment)}</div></div>` : '';
-                const evidenceHtml = (Array.isArray(resp.evidenceUrls) && resp.evidenceUrls.length > 0) ? `<div class="evidence"><strong>Evidence:</strong><ul style="font-size: 11pt;">${resp.evidenceUrls.map(u => `<li><a href="${escapeHtml(u)}">${escapeHtml(u)}</a></li>`).join('')}</ul></div>` : '';
-                const recommendationHtml = resp.recommendation ? `<div class="recommendation"><strong>Recommendation:</strong><div style="font-size: 11pt;">${escapeHtml(resp.recommendation)}</div></div>` : '';
-
-                mainHtml += `
-                    <div class="question-block">
-                        <div class="question-header" style="border-left:3px solid ${status.color};">
-                                                        <p class="question-title" style="color:${status.color}; font-size: 12pt;"><strong>${escapeHtml(question.text || 'Untitled question')}</strong></p>
-                            
-                        </div>
-                                                <div class="answer-row" style="font-size: 11pt;"><strong>Answer:</strong> ${answerText}</div>
-                        ${recommendationHtml}
-                        ${commentHtml}
-                        ${evidenceHtml}
-                    </div>
-                `;
-            });
-
-            mainHtml += `</div>`;
-        });
-
-        mainHtml += `</div>`;
-    });
-
-    const envHtml = `
-        <table class="env">
-            <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examinationEnvironment.locations || 'N/A'))}</td></tr>
-            <tr><td><strong>Number of employees</strong></td><td>${escapeHtml(String(examinationEnvironment.employees || 'N/A'))}</td></tr>
-            <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.total || 'N/A'))}</td></tr>
-            <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.managed || 'N/A'))}</td></tr>
-            <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.unmanaged || 'N/A'))}</td></tr>
-            <tr><td><strong>Industry</strong></td><td>${escapeHtml(examinationEnvironment.industry || company.industry || 'N/A')}</td></tr>
-            <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(examinationEnvironment.physicalServers || 'N/A'))}</td></tr>
-            <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(examinationEnvironment.vmServers || 'N/A'))}</td></tr>
-            <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(examinationEnvironment.firewalls || 'N/A'))}</td></tr>
-            <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(examinationEnvironment.switches || 'N/A'))}</td></tr>
-            <tr><td><strong>Mobile working</strong></td><td>${examinationEnvironment.mobileWorking ? 'Yes' : 'No'}</td></tr>
-            <tr><td><strong>Smartphones</strong></td><td>${examinationEnvironment.smartphones ? 'Yes' : 'No'}</td></tr>
-            ${examinationEnvironment.notes ? `<tr><td><strong>Notes</strong></td><td>${escapeHtml(examinationEnvironment.notes)}</td></tr>` : ''}
-        </table>
-    `;
-
-    const summariesHtml = (Array.isArray(summaries) && summaries.length > 0)
-        ? summaries.map(s => `<div class="summary"><p><strong>${escapeHtml(s.auditor?.firstName || '')} ${escapeHtml(s.auditor?.lastName || '')}</strong></p><p>${escapeHtml(s.text || '')}</p></div>`).join('')
-        : '<p class="justify-text">No summaries provided.</p>';
-
-    // Set all static content text to 14pt
-    // Increased line-height for static text as requested (1.5)
-    const introductionText = `
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">When we speak about Cyber, Information, and IT Security, it is important to recognize that it is not only a technical matter. Technology plays a key role, but security is always the result of three dimensions working together:</p>
-        <ul style="margin-top: 4px; margin-bottom: 4px; font-size: 14pt; line-height: 1.5;">
-            <li><strong>Technology</strong> – the tools and systems that protect our data.</li>
-            <li><strong>Organization</strong> – the rules, processes, and responsibilities that guide how we work.</li>
-            <li><strong>People</strong> – the awareness, behavior, and decisions of everyone involved.</li>
-        </ul>
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">Only when these three elements are combined can we create real protection. Focusing on technology alone is not enough. A secure company requires clear structures, well-trained employees, and a culture where security is seen as part of everyday work.</p>
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">In today's ever-changing world, the importance of protecting data and systems continues to grow. New threats appear daily, and digitalization increases the complexity of our business environment. For this reason, security must be given the right priority. It should not be treated as an "add-on" or a last step, but as an integral part of every decision, process, and investment.</p>
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">This audit report is designed to make this approach practical and understandable. It gives a transparent overview of your current situation, highlights strengths and weaknesses, and provides clear guidance for next steps. The goal is not only to identify risks but also to enable your organization to build sustainable protection—so that technology, organization, and people are aligned and your company can continue to operate with confidence and resilience.</p>
-    `;
-
-    const aboutCompanyAudited = `
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">As a prominent player in the <strong>${escapeHtml(company.industry || '')}</strong> industry, <strong>${escapeHtml(company.name || 'Test company')}</strong> has shown a strong commitment to maintaining a secure and reliable operational environment. Our audit was conducted to assess their current security posture, providing a detailed overview of their defenses and identifying key areas for continuous improvement. This assessment highlights their dedication to protecting their digital assets and fostering a resilient business infrastructure.</p>
-        <p style="margin-top: 5px; font-size: 14pt; line-height: 1.5;"><strong>Contact person:</strong> ${escapeHtml(contactName || '')} — ${escapeHtml(contactEmail || '')}</p>
-        ${company.generalInfo || company.examinationEnvironment?.generalInfo ? `<p class="justify-text" style="font-size: 14pt; line-height: 1.5;">${escapeHtml(company.generalInfo || company.examinationEnvironment?.generalInfo)}</p>` : ''}
-    `;
-
-    const aboutCompanyHardcoded = `
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">We, DV-Beratung Koch, are your reliable partner and system house for information technology, telecommunications and video surveillance. Since 1993, we have been successfully implementing IT projects in the areas of government, healthcare and small and medium-sized enterprises.</p>
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">Over the years, our product and service portfolio has been continuously adapted and expanded in line with technological developments. Our aim is to offer you a comprehensive range of IT solutions from a single source, including perfectly coordinated hardware and software for your company.</p>
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">Through continuous training of our team, we ensure that our expert knowledge is always up to date in order to guarantee you modern IT consulting and implementation. We look forward to starting a successful and cooperative partnership with you.</p>
-    `;
-
-    const prefaceText = `
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">The CyberAudit 360 Check Report has been developed to provide organizations with a structured and independent assessment of their information security posture. The aim is not only to identify technical issues, but to create a holistic view that combines technology, organization, and people.</p>
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">This report is designed as a practical tool for decision-makers at all levels. Whether you have a technical background or not, the findings and recommendations are presented in a way that allows you to clearly understand where strengths lie, where risks exist, and what steps can be taken to achieve sustainable improvement.</p>
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">Our mission is to support organizations in treating cybersecurity as an integral part of their business strategy and daily operations—helping to build trust, ensure compliance, and strengthen resilience in an ever-changing digital world.</p>
-    `;
-
-    const disclaimerText = `
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">This report is based on the information, data, and evidence made available during the audit process. While every effort has been made to provide accurate and reliable findings, the results and recommendations are limited to the scope of the audit and the time of its execution.</p>
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">The report should not be considered a guarantee against future risks or incidents. Security threats evolve constantly, and continuous monitoring, improvement, and adaptation remain essential.</p>
-        <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">The auditor and auditing organization do not assume liability for direct or indirect damages that may result from the use of this report. The responsibility for implementing and maintaining effective security measures lies with the audited organization.</p>
-    `;
-
-    const handoverText = `
-        <p class="justify-text">This page confirms that the audit report titled "<strong>${escapeHtml(template.name || 'Name of the audit')}</strong>" has been formally handed over by the auditor to the audited company.</p>
-        <p class="justify-text">By signing below, both parties acknowledge the reception of the full audit report and confirm that it has been delivered in its final version.</p>
-
-        <div class="handover-section">
-            <h3 class="handover-heading" style="font-size: 16pt;">Auditor:</h3>
-            <table class="handover-table">
-                <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input"></span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
-                <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
-            </table>
-        </div>
-        
-        <div class="handover-section" style="margin-top: 25px;">
-            <h3 class="handover-heading" style="font-size: 16pt;">Audited Company Representative:</h3>
-            <table class="handover-table">
-                <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input"></span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
-                <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
-            </table>
-        </div>
-    `;
-
-    const thankYouText = `
-        <div style="text-align: center;">
-            <h2 style="border-bottom: none; margin-bottom: 5px; font-size: 26pt; color: #014f65; margin-top: 0; padding-bottom: 0;">Thank You</h2>
-            <p style="font-size: 18pt; margin-bottom: 10px; margin-top: 4px; font-weight: bold;">for Choosing Cybersecurity Audit 360</p>
-            <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">We are committed to enhancing your organization's security posture and ensuring compliance in an ever evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
-            <p class="justify-text" style="font-size: 14pt; line-height: 1.5;">Our team is dedicated to supporting your journey beyond this audit. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
-            <p style="margin-top: 8px; font-size: 14pt; line-height: 1.5;">For further discussions or to schedule a follow-up consultation, please contact us:</p>
-            <div class="contact" style="font-size: 14pt;">
-                <p><strong>Email:</strong> <a href="mailto:info@cybersecurityaudit360.com">info@cybersecurityaudit360.com</a></p>
-                <p><strong>Website:</strong> <a href="https://www.cybersecurityaudit360.com">www.cybersecurityaudit360.com</a></p>
-            </div>
-            <h3 class="slogan-center" style="margin-top: 15px; font-size: 22pt;">"Securing Your Digital Horizon, Together."</h3>
-        </div>
-    `;
-
-    const html = `
-    <!doctype html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Audit Report - ${escapeHtml(company.name || 'Unknown Company')}</title>
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;700&display=swap');
-            @page { margin: 0.3in; } 
-            body { font-family: 'Lexend', Arial, Helvetica, sans-serif; font-size: 14pt; color: #2c3e50; margin: 0; -webkit-print-color-adjust: exact; } 
-            .container { padding: 0.3in; box-sizing: border-box; }
-            .cover { text-align: center; padding-top: 15px; padding-bottom: 10px; height: 9.7in; display: flex; flex-direction: column; justify-content: space-between; }
-            .logo { max-width: 350px; margin-bottom: 15px; } 
-            
-            /* Cover Title Styling */
-            .cover-title { margin-top: 15px; }
-            .cover-title h1 { margin: 0; font-size: 36pt; color: #014f65; text-align: center; line-height: 1.1; } /* 36pt */
-            .cover-title h2 { margin: 0; font-size: 36pt; color: #014f65; text-align: center; padding-bottom: 5px; font-weight: normal; } /* 36pt */
-
-            /* Main Content Headers */
-            h2 { margin: 15px 0 4px 0; font-size: 26pt; color: #014f65; text-align: center; padding-bottom: 0; } /* 26pt */
-            /* Add 16pt margin-bottom to h2 for spacing */
-            h2:not(.slogan-center) { margin-bottom: 16pt; }
-            h3 { margin: 8px 0 3px 0; font-size: 16pt; color: #2c3e50; text-align: left; padding-bottom: 0; } /* 16pt */
-            /* Add 16pt margin-bottom to h3 for spacing, for headings not inside the content flow */
-            h3:not(.handover-heading, .slogan-center) { margin-bottom: 16pt; }
-            
-            p { margin: 2px 0; line-height: 1.3; } 
-            .justify-text { text-align: justify; }
-
-            /* Cover Meta Information (16pt, tight spacing) */
-            .meta { margin: 15px 0 0 0; font-size: 16pt; line-height: 1.0; }
-            .meta p { margin: 1px 0; } /* Very tight line height for the group */
-            /* Added class to separate meta lines by ~16pt */
-            .meta-line { margin-top: 16pt; }
-            .meta-line:first-child { margin-top: 0; }
-            /* Adjusted meta group to reduce gap */
-            .meta-group { margin-top: 10px; margin-bottom: 20px; }
-
-
-            .for-company { margin-top: 10px; line-height: 1.0; font-size: 16pt; }
-            .for-company p { margin: 1px 0; }
-            /* Adjusted line-height of cover quote */
-            .cover-quote { margin-top: 15px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.5; font-size: 14pt; } /* 14pt italic, line-height 1.5 */
-            
-            /* TOC Styling (content 14pt) */
-            .toc-root { counter-reset: section; padding-left: 0; margin-top: 5px; font-size: 14pt; }
-            .toc-root > li { counter-increment: section; margin-top: 3px; list-style: none; } 
-            .toc-root > li:before { content: counter(section) ". "; font-weight: bold; }
-            .toc-root > li ul { list-style: none; padding-left: 30px; margin-top: 1px; }
-            .toc-root > li li { counter-increment: subsection; margin-top: 1px; }
-            .toc-root > li li:before { content: counter(section) "." counter(subsection) ". "; font-weight: normal; }
-            .toc-root a { text-decoration: none; color: #003340; }
-            
-            /* Content Styling (default 14pt text) */
-            .section { margin-top: 10px; }
-            /* Reduced font size for content-specific descriptions */
-            .section-desc, .subsection-desc { font-size: 13pt; color: #444; margin-bottom: 4px; text-align: justify; }
-            .subsection { margin-top: 8px; }
-            
-            /* Reduced font size for content block elements */
-            .question-block { margin-bottom: 5px; padding: 5px 10px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; }
-            .question-header { display: flex; align-items: flex-start; margin-bottom: 1px; border-left: 3px solid; padding-left: 10px; }
-            /* Question title font size is set to 12pt in the HTML */
-            .question-header .question-title { margin: 0; }
-            /* Answer row font size is set to 11pt in the HTML */
-            .answer-row { margin: 2px 0; }
-            /* Comment, recommendation, evidence font size is set to 11pt in the HTML */
-            .comment, .recommendation, .evidence { margin-top: 3px; padding: 4px; border-left: 3px solid #014f65; }
-            .comment { background:#e6f7f6; }
-            .recommendation { background: #f0f8ff; }
-            .evidence { background: #fff8e6; }
-            .evidence ul { margin:2px 0 0 18px; }
-            
-            /* Environment Table (content is 13pt) */
-            .env { width: 100%; border-collapse: collapse; margin: 6px 0 10px 0; table-layout: fixed; }
-            .env td { padding: 4px 8px; border: 1px solid #e6e6e6; font-size: 13pt; }
-            .env td:first-child { width: 30%; font-weight: bold; background: #f5f5f5; }
-
-            /* Summary & Handover */
-            .summary { margin:4px 0; padding:6px; background:#f6f6f6; border-radius:4px; font-size: 14pt; }
-            .handover-heading { margin-bottom: 3px; font-size: 16pt; color: #014f65; text-align: left; font-weight: bold;}
-            .handover-table { width: 100%; margin-top: 3px; border-collapse: collapse; font-size: 14pt; }
-            .handover-table td { padding: 2px 0; vertical-align: top; width: 16%; }
-            .handover-table td:nth-child(2), .handover-table td:nth-child(4), .handover-table td:nth-child(6) { padding-left: 5px; }
-            .signature-input { display: inline-block; border-bottom: 1px solid #000; width: 85%; height: 1.1em; } 
-            .signature-line-row { padding-top: 10px !important; }
-            .signature-line { display: inline-block; border-bottom: 1px solid #000; width: 250px; height: 1.1em; margin-left: 5px;}
-            .handover-section { margin-bottom: 20px; }
-            
-            /* Footer/Thank You */
-            .contact { margin-top: 8px; font-size: 14pt; }
-            .contact a { text-decoration: none; color: #003340; }
-            .slogan-center { text-align: center; margin-top: 15px; font-style: italic; color: #014f65; font-size: 22pt; }
-            
-            /* Utilities */
-            a { color: #003340; }
-            .page-break { page-break-before: always; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="cover">
-                <div>
-                    <img class="logo" src="${LOGO_URL}" alt="Logo" />
-                    <div class="cover-title">
-                        <h1>${escapeHtml(template.name || 'Name of the audit')}</h1>
-                        <h2>REPORT</h2>
-                    </div>
-                    <div class="meta-group">
-                        <div class="meta meta-line">
-                            <p><strong>Report Date:</strong> ${escapeHtml(reportDate)}</p>
-                        </div>
-                        <div class="meta meta-line">
-                            <p><strong>Audit Date:</strong> ${escapeHtml(auditDateRange)}</p>
-                        </div>
-                        <div class="meta meta-line">
-                            ${auditorLines}
-                        </div>
+                mainHtml += `
+                    <div class="question-block">
+                        <div class="question-header" style="border-left:3px solid ${status.color};">
+                            <p class="question-title" style="color:${status.color};"><strong>${escapeHtml(question.text || 'Untitled question')}</strong></p>
+                            
+                        </div>
+                        <div class="answer-row"><strong>Answer:</strong> ${answerText}</div>
+                        ${recommendationHtml}
+                        ${commentHtml}
+                        ${evidenceHtml}
+                        ${evidenceHtml}
                     </div>
-                </div>
-                                <div>
-                    <div class="for-company">
-                        <p><strong>For</strong></p>
-                        <p>${escapeHtml(company.name || 'Test company')}</p>
-                        <p>${escapeHtml(contactName || 'Test contact person')}</p>
-                        <p>${escapeHtml(contactEmail || 'Test contact person email')}</p>
-                    </div>
-                    <div class="cover-quote">
-                        <p><em>The strength of your defence lies in knowing and understanding your vulnerabilities. This audit provides you with the information you need to create a secure environment in your company. "You can only protect what you know."</em></p>
-                    </div>
-                </div>
-            </div>
-        </div>
+                `;
+            });
 
-        <div class="container page-break">
-            <h2 style="font-size: 26pt;">Table of Contents</h2>
-            ${tocHtml}
-        </div>
+            mainHtml += `</div>`;
+        });
 
-        <div class="container page-break">
-            <h2 style="font-size: 26pt;">Introduction</h2>
-            ${introductionText}
-        </div>
+        mainHtml += `</div>`;
+    });
 
-        <div class="container page-break">
-            <h2 style="font-size: 26pt;">About the Auditing Company</h2>
-            ${aboutCompanyHardcoded}
-            <h2 style="margin-top: 15px; font-size: 26pt;">About the Audited Company</h2>
-            ${aboutCompanyAudited}
-        </div>
+    const envHtml = `
+        <table class="env">
+            <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examinationEnvironment.locations || 'N/A'))}</td></tr>
+            <tr><td><strong>Number of employees</strong></td><td>${escapeHtml(String(examinationEnvironment.employees || 'N/A'))}</td></tr>
+            <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.total || 'N/A'))}</td></tr>
+            <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.managed || 'N/A'))}</td></tr>
+            <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(examinationEnvironment.clients?.unmanaged || 'N/A'))}</td></tr>
+            <tr><td><strong>Industry</strong></td><td>${escapeHtml(examinationEnvironment.industry || company.industry || 'N/A')}</td></tr>
+            <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(examinationEnvironment.physicalServers || 'N/A'))}</td></tr>
+            <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(examinationEnvironment.vmServers || 'N/A'))}</td></tr>
+            <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(examinationEnvironment.firewalls || 'N/A'))}</td></tr>
+            <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(examinationEnvironment.switches || 'N/A'))}</td></tr>
+            <tr><td><strong>Mobile working</strong></td><td>${examinationEnvironment.mobileWorking ? 'Yes' : 'No'}</td></tr>
+            <tr><td><strong>Smartphones</strong></td><td>${examinationEnvironment.smartphones ? 'Yes' : 'No'}</td></tr>
+            ${examinationEnvironment.notes ? `<tr><td><strong>Notes</strong></td><td>${escapeHtml(examinationEnvironment.notes)}</td></tr>` : ''}
+        </table>
+    `;
 
-        <div class="container page-break">
-            <h2 style="font-size: 26pt;">Preface</h2>
-            ${prefaceText}
-            <h2 style="margin-top: 15px; font-size: 26pt;">Disclaimer</h2>
-            ${disclaimerText}
-        </div>
+    const summariesHtml = (Array.isArray(summaries) && summaries.length > 0)
+        ? summaries.map(s => `<div class="summary"><p><strong>${escapeHtml(s.auditor?.firstName || '')} ${escapeHtml(s.auditor?.lastName || '')}</strong></p><p>${escapeHtml(s.text || '')}</p></div>`).join('')
+        : '<p class="justify-text">No summaries provided.</p>';
 
-        <div class="container page-break">
-            <h2 style="font-size: 26pt;">Executive Summary</h2>
-            <p class="justify-text" style="font-size: 14pt;">This report provides a comprehensive overview of the cybersecurity posture for <strong>${escapeHtml(company.name || 'Test Company')}</strong> based on the "<strong>${escapeHtml(template.name || 'Name of the audit')}</strong>".</p>
-            <p class="justify-text" style="font-size: 14pt;">The audit covered key areas including Information Security Policies, Access Control, and other critical domains as defined in the selected template.</p>
-            <p class="justify-text" style="font-size: 14pt;">Overall, the assessment indicates a compliance score of <strong>${Number(overallScore).toFixed(2)}%</strong>. Detailed findings and observations are provided in the subsequent sections, along with specific recommendations for improvement.</p>
-            <p class="justify-text" style="font-size: 14pt;">It is crucial to address identified areas of non-compliance and implement recommended remediation actions to strengthen the overall security posture and ensure continuous adherence to best practices.</p>
-            ${(Array.isArray(summaries) && summaries.length > 0) ? `
-            <h2 style="margin-top: 15px; font-size: 26pt;">Summary</h2>
-            ${summariesHtml}
-            ` : ''}
-        </div>
+    const introductionText = `
+        <p class="justify-text">When we speak about Cyber, Information, and IT Security, it is important to recognize that it is not only a technical matter. Technology plays a key role, but security is always the result of three dimensions working together:</p>
+        <ul style="margin-top: 5px; margin-bottom: 5px;">
+            <li><strong>Technology</strong> – the tools and systems that protect our data.</li>
+            <li><strong>Organization</strong> – the rules, processes, and responsibilities that guide how we work.</li>
+            <li><strong>People</strong> – the awareness, behavior, and decisions of everyone involved.</li>
+        </ul>
+        <p class="justify-text">Only when these three elements are combined can we create real protection. Focusing on technology alone is not enough. A secure company requires clear structures, well-trained employees, and a culture where security is seen as part of everyday work.</p>
+        <p class="justify-text">In today's ever-changing world, the importance of protecting data and systems continues to grow. New threats appear daily, and digitalization increases the complexity of our business environment. For this reason, security must be given the right priority. It should not be treated as an "add-on" or a last step, but as an integral part of every decision, process, and investment.</p>
+        <p class="justify-text">This audit report is designed to make this approach practical and understandable. It gives a transparent overview of your current situation, highlights strengths and weaknesses, and provides clear guidance for next steps. The goal is not only to identify risks but also to enable your organization to build sustainable protection—so that technology, organization, and people are aligned and your company can continue to operate with confidence and resilience.</p>
+    `;
 
-        <div class="container page-break">
-            <h2 style="font-size: 26pt;">Examination Environment</h2>
-            ${envHtml}
-        </div>
+    const aboutCompanyAudited = `
+        <p class="justify-text">As a prominent player in the <strong>${escapeHtml(company.industry || '')}</strong> industry, <strong>${escapeHtml(company.name || 'Test company')}</strong> has shown a strong commitment to maintaining a secure and reliable operational environment. Our audit was conducted to assess their current security posture, providing a detailed overview of their defenses and identifying key areas for continuous improvement. This assessment highlights their dedication to protecting their digital assets and fostering a resilient business infrastructure.</p>
+        <p style="margin-top: 5px;"><strong>Contact person:</strong> ${escapeHtml(contactName || '')} — ${escapeHtml(contactEmail || '')}</p>
+        ${company.generalInfo || company.examinationEnvironment?.generalInfo ? `<p class="justify-text">${escapeHtml(company.generalInfo || company.examinationEnvironment?.generalInfo)}</p>` : ''}
+    `;
 
-        <div class="container page-break">
-            <h2 style="font-size: 26pt;">Content</h2>
-            ${mainHtml}
-        </div>
+    const aboutCompanyHardcoded = `
+        <p class="justify-text">We, DV-Beratung Koch, are your reliable partner and system house for information technology, telecommunications and video surveillance. Since 1993, we have been successfully implementing IT projects in the areas of government, healthcare and small and medium-sized enterprises.</p>
+        <p class="justify-text">Over the years, our product and service portfolio has been continuously adapted and expanded in line with technological developments. Our aim is to offer you a comprehensive range of IT solutions from a single source, including perfectly coordinated hardware and software for your company.</p>
+        <p class="justify-text">Through continuous training of our team, we ensure that our expert knowledge is always up to date in order to guarantee you modern IT consulting and implementation. We look forward to starting a successful and cooperative partnership with you.</p>
+    `;
 
-        <div class="container page-break">
-            <h2 style="font-size: 26pt;">Handover</h2>
-            ${handoverText}
-        </div>
+    const prefaceText = `
+        <p class="justify-text">The CyberAudit 360 Check Report has been developed to provide organizations with a structured and independent assessment of their information security posture. The aim is not only to identify technical issues, but to create a holistic view that combines technology, organization, and people.</p>
+        <p class="justify-text">This report is designed as a practical tool for decision-makers at all levels. Whether you have a technical background or not, the findings and recommendations are presented in a way that allows you to clearly understand where strengths lie, where risks exist, and what steps can be taken to achieve sustainable improvement.</p>
+        <p class="justify-text">Our mission is to support organizations in treating cybersecurity as an integral part of their business strategy and daily operations—helping to build trust, ensure compliance, and strengthen resilience in an ever-changing digital world.</p>
+    `;
 
-        <div class="container page-break">
-            <h2 style="font-size: 26pt;">Thank You</h2>
-            ${thankYouText}
-        </div>
+    const disclaimerText = `
+        <p class="justify-text">This report is based on the information, data, and evidence made available during the audit process. While every effort has been made to provide accurate and reliable findings, the results and recommendations are limited to the scope of the audit and the time of its execution.</p>
+        <p class="justify-text">The report should not be considered a guarantee against future risks or incidents. Security threats evolve constantly, and continuous monitoring, improvement, and adaptation remain essential.</p>
+        <p class="justify-text">The auditor and auditing organization do not assume liability for direct or indirect damages that may result from the use of this report. The responsibility for implementing and maintaining effective security measures lies with the audited organization.</p>
+    `;
 
-    </body>
-    </html>
-    `;
+    const handoverText = `
+        <p class="justify-text">This page confirms that the audit report titled "<strong>${escapeHtml(template.name || 'Name of the audit')}</strong>" has been formally handed over by the auditor to the audited company.</p>
+        <p class="justify-text">By signing below, both parties acknowledge the reception of the full audit report and confirm that it has been delivered in its final version.</p>
 
-    return html;
+        <div class="handover-section">
+            <h3 class="handover-heading">Auditor:</h3>
+            <table class="handover-table">
+                <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input"></span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
+                <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
+            </table>
+        </div>
+        
+        <div class="handover-section" style="margin-top: 30px;">
+            <h3 class="handover-heading">Audited Company Representative:</h3>
+            <table class="handover-table">
+                <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input"></span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
+                <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
+            </table>
+        </div>
+    `;
+
+    const thankYouText = `
+        <div style="text-align: center;">
+            <h2 style="border-bottom: none; margin-bottom: 5px; font-size: 24pt; color: #014f65; margin-top: 0;">Thank You</h2>
+            <p style="font-size: 16pt; margin-bottom: 15px; margin-top: 5px; font-weight: bold;">for Choosing Cybersecurity Audit 360</p>
+            <p class="justify-text">We are committed to enhancing your organization's security posture and ensuring compliance in an ever evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
+            <p class="justify-text">Our team is dedicated to supporting your journey beyond this audit. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
+            <p style="margin-top: 15px;">For further discussions or to schedule a follow-up consultation, please contact us:</p>
+            <div class="contact">
+                <p><strong>Email:</strong> <a href="mailto:info@cybersecurityaudit360.com">info@cybersecurityaudit360.com</a></p>
+                <p><strong>Website:</strong> <a href="https://www.cybersecurityaudit360.com">www.cybersecurityaudit360.com</a></p>
+            </div>
+            <h3 class="slogan-center">"Securing Your Digital Horizon, Together."</h3>
+        </div>
+    `;
+
+    const html = `
+    <!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Audit Report - ${escapeHtml(company.name || 'Unknown Company')}</title>
+        <style>
+            @page { margin: 0.35in; } /* Slightly reduced margin */
+            body { 
+                font-family: 'Arial', Helvetica, sans-serif; 
+                font-size: 11pt; /* Reduced base font size for content sections */
+                color: #2c3e50; 
+                margin: 0; 
+                -webkit-print-color-adjust: exact; 
+            } 
+            .container { padding: 0.35in; box-sizing: border-box; }
+            .cover { 
+                text-align: center; 
+                padding-top: 15px; 
+                padding-bottom: 10px; 
+                height: 9.3in; /* Reduced height to lessen the big gap */
+                display: flex; 
+                flex-direction: column; 
+                justify-content: space-between; 
+            }
+            .logo { max-width: 350px; margin-bottom: 15px; } /* Large logo */
+            
+            /* Cover Title Styling - Adjusted margins */
+            .cover-title { margin-top: 15px; } /* Reduced top margin */
+            .cover-title h1 { margin: 0; font-size: 40pt; color: #014f65; text-align: center; line-height: 1.1; }
+            .cover-title h2 { margin-top: 5px; font-size: 30pt; color: #014f65; text-align: center; padding-bottom: 5px; font-weight: normal; }
+
+            /* New class for 16pt space below headings */
+            .header-spacing { margin-top: 16px !important; margin-bottom: 5px !important; }
+
+            h2 { margin: 20px 0 5px 0; font-size: 20pt; color: #014f65; text-align: center; padding-bottom: 2px; } /* Standard H2 larger, minimal margin */
+            h3 { margin: 10px 0 4px 0; font-size: 15pt; color: #2c3e50; text-align: left; padding-bottom: 1px; } /* Subsection H3 larger, minimal margin */
+            
+            p { margin: 3px 0; line-height: 1.4; } /* Tighter paragraph spacing */
+            .justify-text { text-align: justify; }
+
+            /* Meta data spacing adjusted */
+            .meta { 
+                margin: 20px 0 30px 0; 
+                font-size: 13pt; 
+                line-height: 1.5; /* Set to 1.5 as requested for static text */
+            }
+            .meta p { margin: 8px 0; } /* Increased margin between meta lines to ~16pt */
+            .for-company { 
+                margin-top: 15px; 
+                line-height: 1.5; /* Set to 1.5 as requested for static text */
+                font-size: 14pt; 
+            }
+            .cover-quote { margin-top: 20px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.5; font-size: 13pt; }
+            
+            /* TOC Styling */
+            .toc-root { counter-reset: section; padding-left: 0; margin-top: 8px; }
+            .toc-root > li { counter-increment: section; margin-top: 4px; list-style: none; } /* Tighter TOC spacing */
+            .toc-root > li:before { content: counter(section) ". "; font-weight: bold; }
+            .toc-root > li ul { list-style: none; padding-left: 30px; margin-top: 2px; }
+            .toc-root > li li { counter-increment: subsection; margin-top: 2px; }
+            .toc-root > li li:before { content: counter(section) "." counter(subsection) ". "; font-weight: normal; }
+            .toc-root a { text-decoration: none; color: #003340; }
+            
+            /* Content Styling */
+            .section { margin-top: 15px; }
+            .section-desc, .subsection-desc { font-size: 11pt; color: #444; margin-bottom: 5px; text-align: justify; } /* Reduced font size */
+            .subsection { margin-top: 12px; }
+            
+            .question-block { margin-bottom: 6px; padding: 6px 10px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; }
+            .question-header { display: flex; align-items: flex-start; margin-bottom: 2px; border-left: 3px solid; padding-left: 10px; }
+            .question-header .question-title { font-size: 11pt; margin: 0; } /* Reduced font size */
+            .answer-row { margin: 3px 0; font-size: 11pt; } /* Reduced font size */
+            .comment, .recommendation, .evidence { margin-top: 4px; padding: 5px; border-left: 3px solid #014f65; font-size: 11pt; } /* Reduced font size */
+            .comment { background:#e6f7f6; }
+            .recommendation { background: #f0f8ff; }
+            .evidence { background: #fff8e6; }
+            .evidence ul { margin:3px 0 0 18px; font-size: 11pt; } /* Reduced font size */
+            
+            /* Environment Table */
+            .env { width: 100%; border-collapse: collapse; margin: 8px 0 15px 0; table-layout: fixed; }
+            .env td { padding: 5px 8px; border: 1px solid #e6e6e6; font-size: 11pt; } /* Reduced font size */
+            .env td:first-child { width: 30%; font-weight: bold; background: #f5f5f5; }
+
+            /* Summary & Handover */
+            .summary { margin:5px 0; padding:8px; background:#f6f6f6; border-radius:4px; font-size: 11pt; } /* Reduced font size */
+            .handover-heading { margin-bottom: 5px; font-size: 14pt; color: #014f65; text-align: left; font-weight: bold;}
+            .handover-table { width: 100%; margin-top: 5px; border-collapse: collapse; font-size: 11pt; } /* Reduced font size */
+            .handover-table td { padding: 2px 0; vertical-align: top; width: 16%; }
+            .handover-table td:nth-child(2), .handover-table td:nth-child(4), .handover-table td:nth-child(6) { padding-left: 5px; }
+            .signature-input { display: inline-block; border-bottom: 1px solid #000; width: 85%; height: 1em; } /* Single line for entry */
+            .signature-line-row { padding-top: 15px !important; }
+            .signature-line { display: inline-block; border-bottom: 1px solid #000; width: 250px; height: 1em; margin-left: 5px;}
+            .handover-section { margin-bottom: 25px; }
+            
+            /* Footer/Thank You */
+            .contact { margin-top: 12px; font-size: 11pt; } /* Reduced font size */
+            .contact a { text-decoration: none; color: #003340; }
+            .slogan-center { text-align: center; margin-top: 25px; font-style: italic; color: #014f65; font-size: 20pt; }
+            
+            /* Utilities */
+            a { color: #003340; }
+            .page-break { page-break-before: always; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="cover">
+                <div>
+                    <img class="logo" src="${LOGO_URL}" alt="Logo" />
+                    <div class="cover-title">
+                        <h1>${escapeHtml(template.name || 'Name of the audit')}</h1>
+                        <h2>REPORT</h2>
+                    </div>
+                    <div class="meta">
+                        <p><strong>Report Date:</strong> ${escapeHtml(reportDate)}</p>
+                        <p><strong>Audit Date:</strong> ${escapeHtml(auditDateRange)}</p>
+                        <p><strong>Auditor:</strong><br/>${auditorLines}</p>
+                    </div>
+                </div>
+                <div>
+                    <div class="for-company">
+                        <p><strong>FOR</strong></p>
+                        <p><strong>${escapeHtml(company.name || 'Test company')}</strong></p>
+                        <p>${escapeHtml(contactName || 'Test contact person')} — ${escapeHtml(contactEmail || 'Test contact person email')}</p>
+                    </div>
+                    <div class="cover-quote">
+                        <p><em>The strength of your defence lies in knowing and understanding your vulnerabilities. This audit provides you with the information you need to create a secure environment in your company. "You can only protect what you know."</em></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container page-break">
+            <h2 class="header-spacing">Table of Contents</h2>
+            ${tocHtml}
+        </div>
+
+        <div class="container page-break">
+            <h2 class="header-spacing">Introduction</h2>
+            ${introductionText}
+        </div>
+
+        <div class="container page-break">
+            <h2 class="header-spacing">About the Auditing Company</h2>
+            ${aboutCompanyHardcoded}
+            <h2 class="header-spacing" style="margin-top: 25px;">About the Audited Company</h2>
+            ${aboutCompanyAudited}
+        </div>
+
+        <div class="container page-break">
+            <h2 class="header-spacing">Preface</h2>
+            ${prefaceText}
+            <h2 class="header-spacing" style="margin-top: 25px;">Disclaimer</h2>
+            ${disclaimerText}
+        </div>
+
+        <div class="container page-break">
+            <h2 class="header-spacing">Executive Summary</h2>
+            <p class="justify-text">This report provides a comprehensive overview of the cybersecurity posture for <strong>${escapeHtml(company.name || 'Test Company')}</strong> based on the "<strong>${escapeHtml(template.name || 'Name of the audit')}</strong>".</p>
+            <p class="justify-text">The audit covered key areas including Information Security Policies, Access Control, and other critical domains as defined in the selected template.</p>
+            <p class="justify-text">Overall, the assessment indicates a compliance score of <strong>${Number(overallScore).toFixed(2)}%</strong>. Detailed findings and observations are provided in the subsequent sections, along with specific recommendations for improvement.</p>
+            <p class="justify-text">It is crucial to address identified areas of non-compliance and implement recommended remediation actions to strengthen the overall security posture and ensure continuous adherence to best practices.</p>
+            ${(Array.isArray(summaries) && summaries.length > 0) ? `
+            <h2 class="header-spacing" style="margin-top: 25px;">Summary</h2>
+            ${summariesHtml}
+            ` : ''}
+        </div>
+
+        <div class="container page-break">
+            <h2 class="header-spacing">Examination Environment</h2>
+            ${envHtml}
+        </div>
+
+        <div class="container page-break">
+            <h2 class="header-spacing">Content</h2>
+            ${mainHtml}
+        </div>
+
+        <div class="container page-break">
+            <h2 class="header-spacing">Handover</h2>
+            ${handoverText}
+        </div>
+
+        <div class="container page-break">
+            <h2 class="header-spacing">Thank You</h2>
+            ${thankYouText}
+        </div>
+
+    </body>
+    </html>
+    `;
+
+    return html;
 };
 
 export default generateReportHtml;
