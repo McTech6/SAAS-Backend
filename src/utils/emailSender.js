@@ -34,29 +34,33 @@
 
 
 // src/utils/emailSender.js
-
 import sgMail from '@sendgrid/mail';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Set API key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const sendEmail = async (to, subject, text, html) => {
   try {
-    await sgMail.send({
+    const msg = {
       to,
-      from: process.env.SENDER_EMAIL, // Must be verified in SendGrid
+      from: process.env.SENDER_EMAIL, // must be verified in SendGrid
       replyTo: 'no-reply@yourdomain.com',
       subject,
       text,
       html,
-    });
+    };
+
+    console.log('Sending email with the following details:', msg);
+
+    const response = await sgMail.send(msg);
+
+    console.log('SendGrid response:', response); // this will show headers, status codes
     console.log(`Email sent to ${to} with subject: ${subject}`);
   } catch (error) {
-    console.error(`Error sending email to ${to}:`, error);
+    console.error('Error sending email:', error);
     if (error.response) {
-      console.error(error.response.body);
+      console.error('SendGrid error response body:', error.response.body);
     }
     throw new Error('Failed to send email.');
   }
