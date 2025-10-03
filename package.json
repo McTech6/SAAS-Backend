@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "@sparticuz/chromium": "^138.0.2",
     "argon2": "^0.43.0",
     "cloudinary": "^2.7.0",

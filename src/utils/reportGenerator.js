@@ -361,8 +361,6 @@
 // };
 
 // export default generateReportHtml;
-
-
 const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 /**
@@ -579,14 +577,16 @@ const generateReportHtml = (auditInstance = {}) => {
     `;
 
     const thankYouText = `
-        <p>Thank You for Choosing Cybersecurity Audit 360</p>
-        <p>We are committed to enhancing your organization's security posture and ensuring compliance in an ever evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
-        <p>Our team is dedicated to supporting your journey beyond this audit. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
-        <div class="contact">
-            <p>Email: <a href="mailto:info@cybersecurityaudit360.com">info@cybersecurityaudit360.com</a></p>
-            <p>Website: <a href="https://www.cybersecurityaudit360.com">www.cybersecurityaudit360.com</a></p>
+        <div style="text-align: center;">
+            <p>Thank You for Choosing Cybersecurity Audit 360</p>
+            <p>We are committed to enhancing your organization's security posture and ensuring compliance in an ever evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
+            <p>Our team is dedicated to supporting your journey beyond this audit. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
+            <div class="contact">
+                <p>Email: <a href="mailto:info@cybersecurityaudit360.com">info@cybersecurityaudit360.com</a></p>
+                <p>Website: <a href="https://www.cybersecurityaudit360.com">www.cybersecurityaudit360.com</a></p>
+            </div>
+            <h3 class="slogan-center">"Securing Your Digital Horizon, Together."</h3>
         </div>
-        <h3 class="slogan-center">"Securing Your Digital Horizon, Together."</h3>
     `;
 
     const html = `
