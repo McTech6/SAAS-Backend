@@ -365,6 +365,8 @@
 // };
 
 // export default generateReportHtml;
+// export default generateReportHtml; 
+
 // export default generateReportHtml;
 const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
@@ -536,7 +538,7 @@ const generateReportHtml = (auditInstance = {}) => {
 
     const aboutCompanyAudited = `
         <p class="justify-text">As a prominent player in the <strong>${escapeHtml(company.industry || '')}</strong> industry, <strong>${escapeHtml(company.name || 'Test company')}</strong> has shown a strong commitment to maintaining a secure and reliable operational environment. Our audit was conducted to assess their current security posture, providing a detailed overview of their defenses and identifying key areas for continuous improvement. This assessment highlights their dedication to protecting their digital assets and fostering a resilient business infrastructure.</p>
-        <p style="margin-top: 10px;"><strong>Contact person:</strong> ${escapeHtml(contactName || '')} — ${escapeHtml(contactEmail || '')}</p>
+        <p style="margin-top: 5px;"><strong>Contact person:</strong> ${escapeHtml(contactName || '')} — ${escapeHtml(contactEmail || '')}</p>
         ${company.generalInfo || company.examinationEnvironment?.generalInfo ? `<p class="justify-text">${escapeHtml(company.generalInfo || company.examinationEnvironment?.generalInfo)}</p>` : ''}
     `;
 
@@ -565,26 +567,26 @@ const generateReportHtml = (auditInstance = {}) => {
         <div class="handover-section">
             <h3 class="handover-heading">Auditor:</h3>
             <table class="handover-table">
-                <tr><td>Name:</td><td></td><td>Organization:</td><td></td><td>Date:</td><td></td></tr>
-                <tr><td colspan="6" class="signature-line">Signature: _________________________</td></tr>
+                <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input"></span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
+                <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
             </table>
         </div>
         
-        <div class="handover-section" style="margin-top: 40px;">
+        <div class="handover-section" style="margin-top: 30px;">
             <h3 class="handover-heading">Audited Company Representative:</h3>
             <table class="handover-table">
-                <tr><td>Name:</td><td></td><td>Organization:</td><td></td><td>Date:</td><td></td></tr>
-                <tr><td colspan="6" class="signature-line">Signature: _________________________</td></tr>
+                <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input"></span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
+                <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
             </table>
         </div>
     `;
 
     const thankYouText = `
         <div style="text-align: center;">
-            <h2 style="border-bottom: none; margin-bottom: 5px; font-size: 20pt; color: #014f65;">Thank You</h2>
-            <p style="font-size: 14pt; margin-bottom: 15px; margin-top: 5px;">for Choosing Cybersecurity Audit 360</p>
-            <p>We are committed to enhancing your organization's security posture and ensuring compliance in an ever evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
-            <p>Our team is dedicated to supporting your journey beyond this audit. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
+            <h2 style="border-bottom: none; margin-bottom: 5px; font-size: 24pt; color: #014f65; margin-top: 0;">Thank You</h2>
+            <p style="font-size: 16pt; margin-bottom: 15px; margin-top: 5px; font-weight: bold;">for Choosing Cybersecurity Audit 360</p>
+            <p class="justify-text">We are committed to enhancing your organization's security posture and ensuring compliance in an ever evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
+            <p class="justify-text">Our team is dedicated to supporting your journey beyond this audit. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
             <p style="margin-top: 15px;">For further discussions or to schedule a follow-up consultation, please contact us:</p>
             <div class="contact">
                 <p><strong>Email:</strong> <a href="mailto:info@cybersecurityaudit360.com">info@cybersecurityaudit360.com</a></p>
@@ -601,70 +603,72 @@ const generateReportHtml = (auditInstance = {}) => {
         <meta charset="utf-8">
         <title>Audit Report - ${escapeHtml(company.name || 'Unknown Company')}</title>
         <style>
-            @page { margin: 0.4in; }
-            body { font-family: 'Arial', Helvetica, sans-serif; font-size: 12pt; color: #2c3e50; margin: 0; -webkit-print-color-adjust: exact; } /* Base font increased to 12pt */
-            .container { padding: 0.4in; box-sizing: border-box; }
-            .cover { text-align: center; padding-top: 15px; padding-bottom: 10px; height: 9in; display: flex; flex-direction: column; justify-content: space-between; }
-            .logo { max-width: 350px; margin-bottom: 15px; } /* Logo size significantly increased */
+            @page { margin: 0.35in; } /* Slightly reduced margin */
+            body { font-family: 'Arial', Helvetica, sans-serif; font-size: 13pt; color: #2c3e50; margin: 0; -webkit-print-color-adjust: exact; } /* Base font increased to 13pt */
+            .container { padding: 0.35in; box-sizing: border-box; }
+            .cover { text-align: center; padding-top: 15px; padding-bottom: 10px; height: 9.5in; display: flex; flex-direction: column; justify-content: space-between; }
+            .logo { max-width: 350px; margin-bottom: 15px; } /* Large logo */
             
             /* Cover Title Styling */
-            .cover-title { margin-top: 30px; }
-            .cover-title h1 { margin: 0; font-size: 38pt; color: #014f65; text-align: center; line-height: 1.1; }
-            .cover-title h2 { margin: 0; font-size: 28pt; color: #014f65; text-align: center; padding-bottom: 5px; font-weight: normal; } /* Title and report are closer */
+            .cover-title { margin-top: 25px; }
+            .cover-title h1 { margin: 0; font-size: 40pt; color: #014f65; text-align: center; line-height: 1.1; }
+            .cover-title h2 { margin: 0; font-size: 30pt; color: #014f65; text-align: center; padding-bottom: 5px; font-weight: normal; }
 
-            h2 { margin: 25px 0 8px 0; font-size: 18pt; color: #014f65; text-align: center; padding-bottom: 2px; } /* Standard H2 styling, no border */
-            h3 { margin: 15px 0 5px 0; font-size: 14pt; color: #2c3e50; text-align: left; padding-bottom: 1px; } /* Subsection H3, tighter spacing */
+            h2 { margin: 20px 0 5px 0; font-size: 20pt; color: #014f65; text-align: center; padding-bottom: 2px; } /* Standard H2 larger, minimal margin */
+            h3 { margin: 10px 0 4px 0; font-size: 15pt; color: #2c3e50; text-align: left; padding-bottom: 1px; } /* Subsection H3 larger, minimal margin */
             
-            p { margin: 4px 0; line-height: 1.4; } /* Tighter paragraph spacing */
+            p { margin: 3px 0; line-height: 1.4; } /* Tighter paragraph spacing */
             .justify-text { text-align: justify; }
 
-            .meta { margin: 25px 0 35px 0; font-size: 12pt; line-height: 1.5; }
+            .meta { margin: 20px 0 30px 0; font-size: 13pt; line-height: 1.4; }
             .meta p { margin: 4px 0; }
-            .for-company { margin-top: 20px; line-height: 1.5; font-size: 14pt; }
-            .cover-quote { margin-top: 25px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.5; font-size: 12pt; }
+            .for-company { margin-top: 15px; line-height: 1.5; font-size: 14pt; }
+            .cover-quote { margin-top: 20px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.5; font-size: 13pt; }
             
             /* TOC Styling */
-            .toc-root { counter-reset: section; padding-left: 0; margin-top: 10px; }
-            .toc-root > li { counter-increment: section; margin-top: 6px; list-style: none; }
+            .toc-root { counter-reset: section; padding-left: 0; margin-top: 8px; }
+            .toc-root > li { counter-increment: section; margin-top: 4px; list-style: none; } /* Tighter TOC spacing */
             .toc-root > li:before { content: counter(section) ". "; font-weight: bold; }
-            .toc-root > li ul { list-style: none; padding-left: 30px; margin-top: 4px; }
-            .toc-root > li li { counter-increment: subsection; margin-top: 3px; }
+            .toc-root > li ul { list-style: none; padding-left: 30px; margin-top: 2px; }
+            .toc-root > li li { counter-increment: subsection; margin-top: 2px; }
             .toc-root > li li:before { content: counter(section) "." counter(subsection) ". "; font-weight: normal; }
             .toc-root a { text-decoration: none; color: #003340; }
             
             /* Content Styling */
-            .section { margin-top: 20px; }
-            .section-desc, .subsection-desc { font-size: 11pt; color: #444; margin-bottom: 6px; text-align: justify; }
-            .subsection { margin-top: 15px; }
+            .section { margin-top: 15px; }
+            .section-desc, .subsection-desc { font-size: 12pt; color: #444; margin-bottom: 5px; text-align: justify; }
+            .subsection { margin-top: 12px; }
             
-            .question-block { margin-bottom: 8px; padding: 6px 10px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; }
+            .question-block { margin-bottom: 6px; padding: 6px 10px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; }
             .question-header { display: flex; align-items: flex-start; margin-bottom: 2px; border-left: 3px solid; padding-left: 10px; }
-            .question-header .question-title { font-size: 12pt; margin: 0; }
-            .answer-row { margin: 4px 0; font-size: 11pt; }
-            .comment, .recommendation, .evidence { margin-top: 4px; padding: 5px; border-left: 3px solid #014f65; font-size: 11pt; }
+            .question-header .question-title { font-size: 13pt; margin: 0; }
+            .answer-row { margin: 3px 0; font-size: 12pt; }
+            .comment, .recommendation, .evidence { margin-top: 4px; padding: 5px; border-left: 3px solid #014f65; font-size: 12pt; }
             .comment { background:#e6f7f6; }
             .recommendation { background: #f0f8ff; }
             .evidence { background: #fff8e6; }
-            .evidence ul { margin:3px 0 0 18px; font-size: 11pt; }
+            .evidence ul { margin:3px 0 0 18px; font-size: 12pt; }
             
             /* Environment Table */
             .env { width: 100%; border-collapse: collapse; margin: 8px 0 15px 0; table-layout: fixed; }
-            .env td { padding: 5px 8px; border: 1px solid #e6e6e6; font-size: 11pt; }
+            .env td { padding: 5px 8px; border: 1px solid #e6e6e6; font-size: 12pt; }
             .env td:first-child { width: 30%; font-weight: bold; background: #f5f5f5; }
 
             /* Summary & Handover */
-            .summary { margin:6px 0; padding:8px; background:#f6f6f6; border-radius:4px; font-size: 11pt; }
-            .handover-heading { margin-bottom: 5px; font-size: 13pt; color: #014f65; text-align: left;}
-            .handover-table { width: 100%; margin-top: 5px; border-collapse: collapse; font-size: 12pt; }
-            .handover-table td { padding: 4px 0; vertical-align: top; width: 16%; }
-            .handover-table td:nth-child(2), .handover-table td:nth-child(4), .handover-table td:nth-child(6) { border-bottom: 1px solid #000; width: 25%; } /* Only signature lines remain */
-            .signature-line { padding-top: 15px !important; }
-            .handover-section { margin-bottom: 30px; }
+            .summary { margin:5px 0; padding:8px; background:#f6f6f6; border-radius:4px; font-size: 12pt; }
+            .handover-heading { margin-bottom: 5px; font-size: 14pt; color: #014f65; text-align: left; font-weight: bold;}
+            .handover-table { width: 100%; margin-top: 5px; border-collapse: collapse; font-size: 13pt; }
+            .handover-table td { padding: 2px 0; vertical-align: top; width: 16%; }
+            .handover-table td:nth-child(2), .handover-table td:nth-child(4), .handover-table td:nth-child(6) { padding-left: 5px; }
+            .signature-input { display: inline-block; border-bottom: 1px solid #000; width: 85%; height: 1em; } /* Single line for entry */
+            .signature-line-row { padding-top: 15px !important; }
+            .signature-line { display: inline-block; border-bottom: 1px solid #000; width: 250px; height: 1em; margin-left: 5px;}
+            .handover-section { margin-bottom: 25px; }
             
             /* Footer/Thank You */
-            .contact { margin-top: 12px; font-size: 12pt; }
+            .contact { margin-top: 12px; font-size: 13pt; }
             .contact a { text-decoration: none; color: #003340; }
-            .slogan-center { text-align: center; margin-top: 25px; font-style: italic; color: #014f65; font-size: 18pt; }
+            .slogan-center { text-align: center; margin-top: 25px; font-style: italic; color: #014f65; font-size: 20pt; }
             
             /* Utilities */
             a { color: #003340; }
@@ -712,14 +716,14 @@ const generateReportHtml = (auditInstance = {}) => {
         <div class="container page-break">
             <h2>About the Auditing Company</h2>
             ${aboutCompanyHardcoded}
-            <h2 style="margin-top: 30px;">About the Audited Company</h2>
+            <h2 style="margin-top: 25px;">About the Audited Company</h2>
             ${aboutCompanyAudited}
         </div>
 
         <div class="container page-break">
             <h2>Preface</h2>
             ${prefaceText}
-            <h2 style="margin-top: 30px;">Disclaimer</h2>
+            <h2 style="margin-top: 25px;">Disclaimer</h2>
             ${disclaimerText}
         </div>
 
@@ -730,7 +734,7 @@ const generateReportHtml = (auditInstance = {}) => {
             <p class="justify-text">Overall, the assessment indicates a compliance score of <strong>${Number(overallScore).toFixed(2)}%</strong>. Detailed findings and observations are provided in the subsequent sections, along with specific recommendations for improvement.</p>
             <p class="justify-text">It is crucial to address identified areas of non-compliance and implement recommended remediation actions to strengthen the overall security posture and ensure continuous adherence to best practices.</p>
             ${(Array.isArray(summaries) && summaries.length > 0) ? `
-            <h2 style="margin-top: 30px;">Summary</h2>
+            <h2 style="margin-top: 25px;">Summary</h2>
             ${summariesHtml}
             ` : ''}
         </div>
