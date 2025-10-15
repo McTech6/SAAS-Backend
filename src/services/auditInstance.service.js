@@ -1295,13 +1295,19 @@ class AuditInstanceService {
      * @param {object} requestingUser - The user object creating the audit.
      * @returns {Promise<AuditInstance>} The newly created audit instance.
      */
-   async createAuditInstance(data, requestingUser) {
+// ... existing imports ...
+
+    async createAuditInstance(data, requestingUser) {
     console.log('[createAuditInstance] START - Data received:', data);
     console.log('[createAuditInstance] START - Requesting user:', requestingUser);
+    console.log('[createAuditInstance] START - Requesting user ID:', requestingUser?.id); // Check user ID early
 
     try {
         const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate, examinationEnvironment } = data;
 
+        // Log key incoming data
+        console.log('[createAuditInstance] Extracted Data: companyDetails present:', !!companyDetails, 'existingCompanyId:', existingCompanyId, 'auditTemplateId:', auditTemplateId);
+        
         // Ensure assignedAuditorIds is always an array
         const finalAuditorIds = Array.isArray(assignedAuditorIds) ? assignedAuditorIds : [];
 
@@ -1315,15 +1321,29 @@ class AuditInstanceService {
         // Handle company creation or existing company
         let companyId;
         if (companyDetails) {
+            console.log('[createAuditInstance] Handling new company creation. Details:', companyDetails);
             if (examinationEnvironment) companyDetails.examinationEnvironment = examinationEnvironment;
+            
+            // Log what is passed to companyService.createCompany
+            console.log('[createAuditInstance] Calling companyService.createCompany with companyDetails and creator ID:', requestingUser.id);
             const newCompany = await companyService.createCompany(companyDetails, requestingUser.id);
+            console.log('[createAuditInstance] New company created. ID:', newCompany._id);
+
             companyId = newCompany._id;
         } else if (existingCompanyId) {
+            console.log('[createAuditInstance] Handling existing company. ID:', existingCompanyId);
+            
+            // Log what is passed to companyService.getCompanyById
+            console.log('[createAuditInstance] Calling companyService.getCompanyById with ID:', existingCompanyId, 'User ID:', requestingUser.id, 'Role:', requestingUser.role);
             const existingCompany = await companyService.getCompanyById(existingCompanyId, requestingUser.id, requestingUser.role);
+            
             if (!existingCompany) throw new Error('Existing company not found or inaccessible.');
+            console.log('[createAuditInstance] Existing company found. ID:', existingCompany._id);
+
             companyId = existingCompany._id;
 
             if (examinationEnvironment) {
+                console.log('[createAuditInstance] Updating existing company with examinationEnvironment:', examinationEnvironment);
                 await Company.findByIdAndUpdate(companyId, {
                     $set: { examinationEnvironment },
                     lastModifiedBy: requestingUser.id
@@ -1334,16 +1354,24 @@ class AuditInstanceService {
         }
 
         // Fetch audit template
+        console.log('[createAuditInstance] Fetching Audit Template with ID:', auditTemplateId);
         const auditTemplate = await AuditTemplate.findById(auditTemplateId);
         if (!auditTemplate) throw new Error('Audit Template not found.');
+        
+        // Check template fields before use
+        console.log('[createAuditInstance] Audit Template found. Name:', auditTemplate.name, 'Version:', auditTemplate.version, 'Sections count:', auditTemplate.sections?.length);
 
         const templateStructureSnapshot = JSON.parse(JSON.stringify(auditTemplate.sections || []));
         
         // Initialize responses
         const initialResponses = [];
+        let questionCount = 0;
         templateStructureSnapshot.forEach(section => {
             (section.subSections || []).forEach(subSection => {
                 (subSection.questions || []).forEach(question => {
+                    // CRITICAL CHECK: Log question fields before snapshotting
+                    console.log(`[createAuditInstance] Snapshotting Question ID: ${question._id}, Type: ${question.type}, Text: ${question.text?.substring(0, 30)}...`);
+                    questionCount++;
                     initialResponses.push({
                         questionId: question._id,
                         questionTextSnapshot: question.text || '',
@@ -1358,9 +1386,11 @@ class AuditInstanceService {
                 });
             });
         });
+        console.log(`[createAuditInstance] Total questions initialized for responses: ${questionCount}`);
 
         // DYNAMIC STATUS BASED ON AUDITOR
         const initialStatus = finalAuditorIds.length === 1 ? 'In Progress' : 'Draft';
+        console.log('[createAuditInstance] Initial Status set to:', initialStatus);
 
         const newAuditInstance = new AuditInstance({
             company: companyId,
@@ -1378,7 +1408,9 @@ class AuditInstanceService {
             examinationEnvironment: examinationEnvironment || {}
         });
 
+        console.log('[createAuditInstance] Attempting to save new audit instance...');
         await newAuditInstance.save();
+        console.log('[createAuditInstance] Audit instance saved. Attempting population...');
 
         const populatedAudit = await newAuditInstance.populate([
             { path: 'company', select: 'name industry contactPerson examinationEnvironment' },
@@ -1391,10 +1423,17 @@ class AuditInstanceService {
         return populatedAudit;
 
     } catch (error) {
-        console.error('[createAuditInstance] ERROR:', error.message);
+        console.error('[createAuditInstance] FINAL ERROR CATCH:', error.message);
+        // This is the place the original error occurs, likely within the function called *before* the catch.
+        // If the toUpperCase() error is from an external call (like companyService.createCompany),
+        // we'll see the error.message here.
+        if (error.message.includes("Cannot read properties of undefined (reading 'toUpperCase')")) {
+             console.error('[createAuditInstance] SUSPECTED CAUSE: An undefined variable was used where a string was expected, possibly in a related service like companyService.');
+        }
         throw error;
     }
 }
+// ... rest of the class ...
 
 
     async getAllAuditInstances(requestingUser) {
