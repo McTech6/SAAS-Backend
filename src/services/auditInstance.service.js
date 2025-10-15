@@ -1295,108 +1295,107 @@ class AuditInstanceService {
      * @param {object} requestingUser - The user object creating the audit.
      * @returns {Promise<AuditInstance>} The newly created audit instance.
      */
-    async createAuditInstance(data, requestingUser) {
-        console.log('[createAuditInstance] START - Data received:', data);
-        console.log('[createAuditInstance] START - Requesting user:', requestingUser);
-        try {
-            const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate, examinationEnvironment } = data;
+   async createAuditInstance(data, requestingUser) {
+    console.log('[createAuditInstance] START - Data received:', data);
+    console.log('[createAuditInstance] START - Requesting user:', requestingUser);
 
-            let finalAuditorIds = assignedAuditorIds || [];
+    try {
+        const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate, examinationEnvironment } = data;
 
-            // 1. ENFORCE SINGLE AUDITOR CONSTRAINT (REQUIRED)
-            if (finalAuditorIds.length > 1) {
-                throw new Error('Only a maximum of one auditor can be assigned at the time of creation, as per current policy.');
+        // Ensure assignedAuditorIds is always an array
+        const finalAuditorIds = Array.isArray(assignedAuditorIds) ? assignedAuditorIds : [];
+
+        // ENFORCE STRICT SINGLE AUDITOR POLICY
+        if (finalAuditorIds.length > 1) {
+            throw new Error('Only one auditor can be assigned at creation.');
+        }
+
+        console.log('[createAuditInstance] Final auditor IDs:', finalAuditorIds);
+
+        // Handle company creation or existing company
+        let companyId;
+        if (companyDetails) {
+            if (examinationEnvironment) companyDetails.examinationEnvironment = examinationEnvironment;
+            const newCompany = await companyService.createCompany(companyDetails, requestingUser.id);
+            companyId = newCompany._id;
+        } else if (existingCompanyId) {
+            const existingCompany = await companyService.getCompanyById(existingCompanyId, requestingUser.id, requestingUser.role);
+            if (!existingCompany) throw new Error('Existing company not found or inaccessible.');
+            companyId = existingCompany._id;
+
+            if (examinationEnvironment) {
+                await Company.findByIdAndUpdate(companyId, {
+                    $set: { examinationEnvironment },
+                    lastModifiedBy: requestingUser.id
+                });
             }
-            console.log('[createAuditInstance] Final auditor IDs:', finalAuditorIds);
+        } else {
+            throw new Error('Either companyDetails or existingCompanyId must be provided.');
+        }
 
-            let companyId;
-            if (companyDetails) {
-                console.log('[createAuditInstance] Creating new company...');
-                if (examinationEnvironment) {
-                    companyDetails.examinationEnvironment = examinationEnvironment;
-                    console.log('[createAuditInstance] Added examination environment to company details:', examinationEnvironment);
-                }
-                const newCompany = await companyService.createCompany(companyDetails, requestingUser.id);
-                companyId = newCompany._id;
-                console.log('[createAuditInstance] New company created with ID:', companyId);
-            } else if (existingCompanyId) {
-                console.log('[createAuditInstance] Using existing company ID:', existingCompanyId);
-                const existingCompany = await companyService.getCompanyById(existingCompanyId, requestingUser.id, requestingUser.role);
-                if (!existingCompany) throw new Error('Existing company not found or you do not have access to it.');
-                companyId = existingCompany._id;
-                if (examinationEnvironment) {
-                    console.log('[createAuditInstance] Updating existing company with examination environment data');
-                    await Company.findByIdAndUpdate(companyId, {
-                        $set: { examinationEnvironment: examinationEnvironment },
-                        lastModifiedBy: requestingUser.id
-                    });
-                }
-            } else {
-                throw new Error('Either companyDetails or existingCompanyId must be provided.');
-            }
+        // Fetch audit template
+        const auditTemplate = await AuditTemplate.findById(auditTemplateId);
+        if (!auditTemplate) throw new Error('Audit Template not found.');
 
-            console.log('[createAuditInstance] Finding audit template:', auditTemplateId);
-            const auditTemplate = await AuditTemplate.findById(auditTemplateId);
-            if (!auditTemplate) throw new Error('Audit Template not found.');
-
-            const templateStructureSnapshot = JSON.parse(JSON.stringify(auditTemplate.sections));
-
-            // Initialize responses from the template structure
-            const initialResponses = [];
-            templateStructureSnapshot.forEach(section => {
-                section.subSections.forEach(subSection => {
-                    subSection.questions.forEach(question => {
-                        initialResponses.push({
-                            questionId: question._id,
-                            questionTextSnapshot: question.text,
-                            questionTypeSnapshot: question.type,
-                            answerOptionsSnapshot: question.answerOptions,
-                            comment: '',
-                            includeCommentInReport: question.includeCommentInReportDefault,
-                            score: 0,
-                            auditorId: requestingUser.id,
-                            lastUpdated: new Date()
-                        });
+        const templateStructureSnapshot = JSON.parse(JSON.stringify(auditTemplate.sections || []));
+        
+        // Initialize responses
+        const initialResponses = [];
+        templateStructureSnapshot.forEach(section => {
+            (section.subSections || []).forEach(subSection => {
+                (subSection.questions || []).forEach(question => {
+                    initialResponses.push({
+                        questionId: question._id,
+                        questionTextSnapshot: question.text || '',
+                        questionTypeSnapshot: question.type || '',
+                        answerOptionsSnapshot: question.answerOptions || [],
+                        comment: '',
+                        includeCommentInReport: question.includeCommentInReportDefault || false,
+                        score: 0,
+                        auditorId: requestingUser.id,
+                        lastUpdated: new Date()
                     });
                 });
             });
+        });
 
-            // 2. DYNAMIC STATUS SETTING (REQUIRED)
-            const initialStatus = finalAuditorIds.length > 0 ? 'In Progress' : 'Draft';
-            console.log('[createAuditInstance] Initial status set to:', initialStatus);
+        // DYNAMIC STATUS BASED ON AUDITOR
+        const initialStatus = finalAuditorIds.length === 1 ? 'In Progress' : 'Draft';
 
-            const newAuditInstance = new AuditInstance({
-                company: companyId,
-                template: auditTemplateId,
-                templateNameSnapshot: auditTemplate.name,
-                templateVersionSnapshot: auditTemplate.version,
-                templateStructureSnapshot,
-                assignedAuditors: finalAuditorIds,
-                startDate: startDate || new Date(),
-                endDate,
-                status: initialStatus, // DYNAMIC STATUS
-                responses: initialResponses,
-                createdBy: requestingUser.id,
-                lastModifiedBy: requestingUser.id,
-                examinationEnvironment: examinationEnvironment || {}
-            });
+        const newAuditInstance = new AuditInstance({
+            company: companyId,
+            template: auditTemplateId,
+            templateNameSnapshot: auditTemplate.name || '',
+            templateVersionSnapshot: auditTemplate.version || '',
+            templateStructureSnapshot,
+            assignedAuditors: finalAuditorIds,
+            startDate: startDate || new Date(),
+            endDate: endDate || null,
+            status: initialStatus,
+            responses: initialResponses,
+            createdBy: requestingUser.id,
+            lastModifiedBy: requestingUser.id,
+            examinationEnvironment: examinationEnvironment || {}
+        });
 
-            await newAuditInstance.save();
-            console.log('[createAuditInstance] Audit instance saved with status:', initialStatus);
+        await newAuditInstance.save();
 
-            const populatedAudit = await newAuditInstance.populate([
-                { path: 'company', select: 'name industry contactPerson examinationEnvironment' },
-                { path: 'template', select: 'name version' },
-                { path: 'assignedAuditors', select: 'firstName lastName email' },
-                { path: 'createdBy', select: 'firstName lastName email' }
-            ]);
-            console.log('[createAuditInstance] SUCCESS - Audit instance created and populated');
-            return populatedAudit;
-        } catch (error) {
-            console.error('[createAuditInstance] ERROR:', error.message);
-            throw error;
-        }
+        const populatedAudit = await newAuditInstance.populate([
+            { path: 'company', select: 'name industry contactPerson examinationEnvironment' },
+            { path: 'template', select: 'name version' },
+            { path: 'assignedAuditors', select: 'firstName lastName email' },
+            { path: 'createdBy', select: 'firstName lastName email' }
+        ]);
+
+        console.log('[createAuditInstance] SUCCESS - Audit instance created with status:', initialStatus);
+        return populatedAudit;
+
+    } catch (error) {
+        console.error('[createAuditInstance] ERROR:', error.message);
+        throw error;
     }
+}
+
 
     async getAllAuditInstances(requestingUser) {
         console.log('[getAllAuditInstances] START - Requesting user:', requestingUser);
