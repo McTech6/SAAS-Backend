@@ -1202,8 +1202,7 @@
 // };
 
 // export default generateReportHtml;
-
-
+ 
 const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 /**
@@ -1235,8 +1234,6 @@ const formatDate = (d) => {
 const getStatusInfo = (selectedValue) => {
     const raw = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
     const color = '#014f65'; // Primary green color
-
-    // Return the raw value as the label, removing the opinionated logic
     return { label: raw || 'N/A', color: color };
 };
 
@@ -1245,9 +1242,10 @@ const getStatusInfo = (selectedValue) => {
  */
 const buildToc = (templateStructure) => {
     if (!Array.isArray(templateStructure) || templateStructure.length === 0) return '<p>(No content)</p>';
-    let tocHtml = '<ul>';
+    let tocHtml = '<ul class="toc-root">';
     templateStructure.forEach((section, sIdx) => {
         const secId = `sec-${sIdx}`;
+        // Removed underline via CSS change to 'a' tag
         tocHtml += `<li><a href="#${secId}">${escapeHtml(section.name || 'Unnamed Section')}</a>`;
         if (Array.isArray(section.subSections) && section.subSections.length > 0) {
             tocHtml += '<ul>';
@@ -1264,11 +1262,6 @@ const buildToc = (templateStructure) => {
 };
 
 const generateReportHtml = (auditInstance = {}) => {
-    console.log('[generateReportHtml] Received audit instance:', JSON.stringify({
-        company: auditInstance.company,
-        examinationEnvironment: auditInstance.examinationEnvironment
-    }, null, 2));
-
     const company = auditInstance.company || {};
     const template = auditInstance.template || {};
     const responses = auditInstance.responses || [];
@@ -1277,16 +1270,17 @@ const generateReportHtml = (auditInstance = {}) => {
     const createdBy = auditInstance.createdBy || {};
     const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
 
+    // 1. Overall Score Fix: Round to nearest whole number
+    const roundedOverallScore = Math.round(overallScore); 
+
     // Get examination environment data
     const examinationEnvironment = company.examinationEnvironment || auditInstance.examinationEnvironment || {};
-
-    console.log('[generateReportHtml] Final examination environment data:', JSON.stringify(examinationEnvironment, null, 2));
 
     const summaries = auditInstance.summaries || [];
 
     const reportDate = formatDate(new Date());
 
-    // FIX: Correctly determine the audit date range string
+    // 2. Audit Date Range Fix: Handle missing end date gracefully
     let auditDateRange;
     const start = auditInstance.startDate;
     const end = auditInstance.endDate;
@@ -1294,10 +1288,8 @@ const generateReportHtml = (auditInstance = {}) => {
     if (start && end) {
         auditDateRange = `${formatDate(start)} - ${formatDate(end)}`;
     } else if (start) {
-        // If only start date is available, display it as a single date
         auditDateRange = formatDate(start);
     } else if (end) {
-        // If only end date is available, display it as a single date
         auditDateRange = formatDate(end);
     } else {
         auditDateRange = 'N/A';
@@ -1314,7 +1306,7 @@ const generateReportHtml = (auditInstance = {}) => {
     let mainHtml = '';
     templateStructure.forEach((section, sIdx) => {
         const secId = `sec-${sIdx}`;
-        // Use H2 for main section headers, centered
+        // Use H2 for main section headers, using .content-header which now lacks a border
         mainHtml += `<div class="section" id="${secId}"><h2 class="content-header">${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
         if (section.description) {
             mainHtml += `<p class="section-desc">${escapeHtml(section.description)}</p>`;
@@ -1376,7 +1368,7 @@ const generateReportHtml = (auditInstance = {}) => {
 
     const summariesHtml = (Array.isArray(summaries) && summaries.length > 0)
         ? summaries.map(s => `<div class="summary"><p><strong>${escapeHtml(s.auditor?.firstName || '')} ${escapeHtml(s.auditor?.lastName || '')}</strong></p><p>${escapeHtml(s.text || '')}</p></div>`).join('')
-        : '<p>No summaries provided.</p>';
+        : ''; // No HTML if no summaries
 
     const introductionText = `
         <p>When we speak about Cyber, Information, and IT Security, it is important to recognize that it is not only a technical matter. Technology plays a key role, but security is always the result of three dimensions working together:</p>
@@ -1412,6 +1404,15 @@ const generateReportHtml = (auditInstance = {}) => {
         <p>This report is based on the information, data, and evidence made available during the audit process. While every effort has been made to provide accurate and reliable findings, the results and recommendations are limited to the scope of the audit and the time of its execution.</p>
         <p>The report should not be considered a guarantee against future risks or incidents. Security threats evolve constantly, and continuous monitoring, improvement, and adaptation remain essential.</p>
         <p>The auditor and auditing organization do not assume liability for direct or indirect damages that may result from the use of this report. The responsibility for implementing and maintaining effective security measures lies with the audited organization.</p>
+    `;
+
+    const executiveSummaryContent = `
+        <p>This report provides a comprehensive overview of the cybersecurity posture for <strong>${escapeHtml(company.name || 'Test Company')}</strong> based on the "<strong>${escapeHtml(template.name || 'Name of the audit')}</strong>".</p>
+        <p>The audit covered key areas including Information Security Policies, Access Control, and other critical domains as defined in the selected template.</p>
+        <p>Overall, the assessment indicates a compliance score of <strong>${roundedOverallScore}%</strong>. Detailed findings and observations are provided in the subsequent sections, along with specific recommendations for improvement.</p>
+        <p>It is crucial to address identified areas of non-compliance and implement recommended remediation actions to strengthen the overall security posture and ensure continuous adherence to best practices.</p>
+        
+        ${summariesHtml ? `<h2 style="margin-top: 30px;">Summary</h2>${summariesHtml}` : ''}
     `;
 
     const handoverText = `
@@ -1475,21 +1476,21 @@ const generateReportHtml = (auditInstance = {}) => {
                 font-size: 12pt; 
                 color: #2c3e50; 
                 -webkit-print-color-adjust: exact; 
-                padding-top: 0; /* Remove body top margin */
+                padding-top: 0; 
             }
             
             /* Container for page content and footer */
             .page-wrapper {
-                min-height: 100vh; /* For screen view */
-                height: 100%; /* For print layout */
+                min-height: 100vh; 
+                height: 100%; 
                 position: relative;
-                padding-bottom: 0.4in; /* Space for the footer */
+                padding-bottom: 0.4in; 
             }
 
             .container { 
                 padding: 0.6in; 
                 box-sizing: border-box;
-                padding-bottom: 0.8in; /* Adjust for footer margin */
+                padding-bottom: 0.8in; 
             }
 
             /* Cover Page Styles */
@@ -1497,47 +1498,48 @@ const generateReportHtml = (auditInstance = {}) => {
                 text-align: center; 
                 padding-top: 20px; 
                 padding-bottom: 10px; 
-                height: 100%; /* Ensure cover fills the page */
+                height: 100%; 
                 display: flex;
                 flex-direction: column;
-                justify-content: center; /* Center content vertically */
+                justify-content: center; 
             }
             .logo { 
-                max-width: 250px; /* Bigger logo */
-                margin-bottom: 15px; 
+                max-width: 300px; /* INCREASED logo size and centered */
+                margin: 0 auto 15px auto; 
+                display: block;
             }
             
-            /* Headers - Increased Size */
+            /* Headers */
             h1 { 
                 margin: 0; 
-                font-size: 40pt; /* Bigger header */
+                font-size: 40pt; 
                 color: #014f65; 
                 text-align: center; 
                 font-weight: 700; 
             }
             h2 { 
                 margin: 40px 0 10px 0; 
-                font-size: 20pt; /* Bigger header */
-                color: #014f65; 
-                text-align: center; 
-                padding-bottom: 5px; 
-                font-weight: 700;
-            }
-            /* Content H2 - Main Section Headers */
-            .content-header { 
-                margin: 0; /* Adjusted for better flow in content */
                 font-size: 20pt; 
                 color: #014f65; 
                 text-align: center; 
                 padding-bottom: 5px; 
                 font-weight: 700;
-                border-bottom: 2px solid #014f65; /* Optional separator */
+            }
+            /* Content H2 - Main Section Headers - LINE REMOVED */
+            .content-header { 
+                margin: 0; 
+                font-size: 20pt; 
+                color: #014f65; 
+                text-align: center; 
+                padding-bottom: 5px; 
+                font-weight: 700;
+                /* line removed: border-bottom: none; */
             }
             h3 { 
                 margin: 25px 0 8px 0; 
-                font-size: 16pt; /* Bigger header */
+                font-size: 16pt; 
                 color: #2c3e50; 
-                text-align: left; /* Subsection title left aligned */
+                text-align: left; 
                 padding-bottom: 3px; 
                 font-weight: 700;
             }
@@ -1549,23 +1551,23 @@ const generateReportHtml = (auditInstance = {}) => {
             /* Cover Metadata */
             .meta { 
                 margin: 15px 0 30px 0; 
-                font-size: 16pt; /* Increased font size */
+                font-size: 16pt; 
                 line-height: 1.6; 
             }
             .meta p { margin: 8px 0; }
             .for-company { margin-top: 20px; line-height: 1.6; }
-            .cover-quote { margin-top: 15px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.5; font-size: 14pt; }
+            .cover-quote { margin-top: 15px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.5; font-size: 14pt; } /* Maintained size for impact */
 
-            /* Table of Contents - Remove automatic numbering */
+            /* Table of Contents - Remove automatic numbering and link underlines */
             ul { margin: 10px 0 20px 0; padding-left: 0; }
             ul li { list-style-type: none; margin-left: 0; }
             .toc-root { counter-reset: none; list-style-type: none; padding-left: 0; }
             .toc-root > li { margin-top: 8px; list-style: none; padding-left: 0; font-size: 14pt; }
-            .toc-root > li:before { content: none; } /* Remove custom numbering */
+            .toc-root > li:before { content: none; } 
             .toc-root > li ul { list-style: none; padding-left: 20px; }
             .toc-root > li li { counter-increment: none; font-size: 12pt; margin-top: 4px; }
-            .toc-root > li li:before { content: none; } /* Remove custom numbering */
-            .toc-root a { text-decoration: none; color: #003340; }
+            .toc-root > li li:before { content: none; } 
+            .toc-root a { text-decoration: none; color: #003340; } /* Specific TOC link styling */
 
             /* Content Sections */
             .section { margin-top: 40px; }
@@ -1584,15 +1586,11 @@ const generateReportHtml = (auditInstance = {}) => {
             .handover { width: 100%; margin-top: 15px; border-collapse: collapse; }
             .handover td { padding: 8px; vertical-align: top; }
             .contact { margin-top: 15px; font-size: 14pt; }
-            .contact a { text-decoration: none; color: #003340; }
-            .slogan-center { text-align: center; margin-top: 25px; font-style: italic; color: #014f65; font-size: 20pt; }
-            a { color: #003340; }
+            
+            /* Global link styling: Removed underline */
+            a { text-decoration: none; color: #003340; }
 
-            /* Static Content Text Font Size Increase */
-            .static-content-page p, .static-content-page ul li {
-                font-size: 14pt; /* Increased font size for static text */
-                line-height: 1.5;
-            }
+            .slogan-center { text-align: center; margin-top: 25px; font-style: italic; color: #014f65; font-size: 20pt; }
 
             /* Page Break and Alignment */
             .page-break { 
@@ -1603,8 +1601,13 @@ const generateReportHtml = (auditInstance = {}) => {
                 page-break-before: auto; 
             }
             
+            /* Static Content Text Font Size Reduced */
+            .static-content-page p, .static-content-page ul li {
+                font-size: 12pt; /* Reduced font size for static text */
+                line-height: 1.5;
+            }
+
             /* Page Numbering Footer */
-            /* Using the standard @page bottom-center block for reliable cross-browser printing */
             @page {
                 @bottom-center {
                     content: counter(page) "/" counter(pages);
@@ -1648,18 +1651,14 @@ const generateReportHtml = (auditInstance = {}) => {
             </div>
         </div>
 
+        <!-- Combined Page: Introduction and About Companies -->
         <div class="page-break page-wrapper">
             <div class="container">
                 <h2>Introduction</h2>
                 <div class="static-content-page">
                     ${introductionText}
                 </div>
-            </div>
-        </div>
-
-        <div class="page-break page-wrapper">
-            <div class="container">
-                <h2>About the Auditing Company</h2>
+                <h2 style="margin-top: 30px;">About the Auditing Company</h2>
                 <div class="static-content-page">
                     ${aboutCompanyHardcoded}
                 </div>
@@ -1670,6 +1669,7 @@ const generateReportHtml = (auditInstance = {}) => {
             </div>
         </div>
 
+        <!-- Combined Page: Preface, Disclaimer, and Environment -->
         <div class="page-break page-wrapper">
             <div class="container">
                 <h2>Preface</h2>
@@ -1680,34 +1680,26 @@ const generateReportHtml = (auditInstance = {}) => {
                 <div class="static-content-page">
                     ${disclaimerText}
                 </div>
+                <h2 style="margin-top: 30px;">Examination environment</h2>
+                <div class="static-content-page">
+                    ${envHtml}
+                </div>
             </div>
         </div>
 
+        <!-- Conditional Page: Executive Summary & Summaries -->
+        ${(roundedOverallScore > 0 || summaries.length > 0) ? `
         <div class="page-break page-wrapper">
             <div class="container">
                 <h2>Executive Summary</h2>
                 <div class="static-content-page">
-                    <p>This report provides a comprehensive overview of the cybersecurity posture for <strong>${escapeHtml(company.name || 'Test Company')}</strong> based on the "<strong>${escapeHtml(template.name || 'Name of the audit')}</strong>".</p>
-                    <p>The audit covered key areas including Information Security Policies, Access Control, and other critical domains as defined in the selected template.</p>
-                    <p>Overall, the assessment indicates a compliance score of <strong>${Number(overallScore).toFixed(2)}%</strong>. Detailed findings and observations are provided in the subsequent sections, along with specific recommendations for improvement.</p>
-                    <p>It is crucial to address identified areas of non-compliance and implement recommended remediation actions to strengthen the overall security posture and ensure continuous adherence to best practices.</p>
+                    ${executiveSummaryContent}
                 </div>
-                ${(Array.isArray(summaries) && summaries.length > 0) ? `
-                <h2 style="margin-top: 30px;">Summary</h2>
-                <div class="static-content-page">
-                    ${summariesHtml}
-                </div>
-                ` : ''}
             </div>
         </div>
+        ` : ''}
 
-        <div class="page-break page-wrapper">
-            <div class="container">
-                <h2>Examination environment</h2>
-                ${envHtml}
-            </div>
-        </div>
-
+        <!-- Main Content Section -->
         <div class="page-break page-wrapper">
             <div class="container">
                 <h2 class="content-header">Content</h2>
@@ -1715,6 +1707,7 @@ const generateReportHtml = (auditInstance = {}) => {
             </div>
         </div>
 
+        <!-- Final Pages -->
         <div class="page-break page-wrapper">
             <div class="container">
                 <h2>Handover</h2>
