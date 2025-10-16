@@ -1436,44 +1436,76 @@ class AuditInstanceService {
                 return false;
         }
     }
+async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
+    try {
+        console.log('[assignAuditors] Starting assignment process...');
+        console.log('[assignAuditors] auditInstanceId:', auditInstanceId);
+        console.log('[assignAuditors] auditorIds:', auditorIds);
+        console.log('[assignAuditors] requestingUserId:', requestingUserId);
+        console.log('[assignAuditors] requestingUserRole:', requestingUserRole);
 
-    async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
-        try {
-            const audit = await AuditInstance.findById(auditInstanceId);
-            if (!audit) throw new Error('Audit Instance not found.');
-
-            const isAuthorizedAdmin = requestingUserRole === 'super_admin' || (requestingUserRole === 'admin' && audit.createdBy.toString() === requestingUserId);
-            if (!isAuthorizedAdmin) throw new Error('Access denied. Only the creator Admin or Super Admin can assign/reassign auditors.');
-
-            if (auditorIds.length > 1) throw new Error('You cannot assign more than one auditor.');
-
-            if (['Completed', 'Archived'].includes(audit.status)) throw new Error(`Cannot modify auditors on a ${audit.status} audit.`);
-
-            const users = await User.find({ _id: { $in: auditorIds }, role: 'auditor', isActive: true }).select('_id');
-            if (auditorIds.length > 0 && users.length !== auditorIds.length) throw new Error('One or more IDs are invalid or inactive.');
-
-            let newStatus = audit.status;
-            if (auditorIds.length > 0 && audit.status === 'Draft') newStatus = 'In Progress';
-            if (auditorIds.length === 0 && audit.status === 'In Progress') newStatus = 'Draft';
-
-            return await AuditInstance.findByIdAndUpdate(
-                auditInstanceId,
-                { assignedAuditors: auditorIds, status: newStatus, lastModifiedBy: requestingUserId },
-                { new: true }
-            )
-            .populate([
-                { path: 'company', select: 'name' },
-                { path: 'template', select: 'name version' },
-                { path: 'assignedAuditors', select: 'firstName lastName email role' },
-                { path: 'createdBy', select: 'firstName lastName email' },
-                { path: 'lastModifiedBy', select: 'firstName lastName email' }
-            ]);
-
-        } catch (error) {
-            console.error('[assignAuditors] ERROR:', error.message);
-            throw error;
+        const audit = await AuditInstance.findById(auditInstanceId);
+        if (!audit) {
+            console.error('[assignAuditors] Audit Instance not found.');
+            throw new Error('Audit Instance not found.');
         }
+
+        console.log('[assignAuditors] Audit fetched:', audit._id.toString());
+        console.log('[assignAuditors] Audit status:', audit.status);
+        console.log('[assignAuditors] Audit createdBy:', audit.createdBy.toString());
+
+        // Only creator check, ignoring role for now
+        if (audit.createdBy.toString() !== requestingUserId) {
+            console.error('[assignAuditors] Access denied. Only creator can assign auditors.');
+            throw new Error('Access denied. Only the creator can assign/reassign auditors.');
+        }
+        console.log('[assignAuditors] Authorization check passed.');
+
+        if (auditorIds.length > 1) {
+            console.error('[assignAuditors] Attempt to assign more than one auditor.');
+            throw new Error('You cannot assign more than one auditor.');
+        }
+
+        if (['Completed', 'Archived'].includes(audit.status)) {
+            console.error(`[assignAuditors] Cannot modify auditors on a ${audit.status} audit.`);
+            throw new Error(`Cannot modify auditors on a ${audit.status} audit.`);
+        }
+
+        const users = await User.find({ _id: { $in: auditorIds }, role: 'auditor', isActive: true }).select('_id');
+        console.log('[assignAuditors] Valid auditors found:', users.map(u => u._id.toString()));
+
+        if (auditorIds.length > 0 && users.length !== auditorIds.length) {
+            console.error('[assignAuditors] One or more auditor IDs are invalid or inactive.');
+            throw new Error('One or more IDs are invalid or inactive.');
+        }
+
+        let newStatus = audit.status;
+        if (auditorIds.length > 0 && audit.status === 'Draft') newStatus = 'In Progress';
+        if (auditorIds.length === 0 && audit.status === 'In Progress') newStatus = 'Draft';
+        console.log('[assignAuditors] New status will be:', newStatus);
+
+        const updatedAudit = await AuditInstance.findByIdAndUpdate(
+            auditInstanceId,
+            { assignedAuditors: auditorIds, status: newStatus, lastModifiedBy: requestingUserId },
+            { new: true }
+        )
+        .populate([
+            { path: 'company', select: 'name' },
+            { path: 'template', select: 'name version' },
+            { path: 'assignedAuditors', select: 'firstName lastName email role' },
+            { path: 'createdBy', select: 'firstName lastName email' },
+            { path: 'lastModifiedBy', select: 'firstName lastName email' }
+        ]);
+
+        console.log('[assignAuditors] Auditor assignment successful:', updatedAudit._id.toString());
+        return updatedAudit;
+
+    } catch (error) {
+        console.error('[assignAuditors] ERROR:', error.message);
+        throw error;
     }
+}
+
 
     async submitResponses(auditInstanceId, responsesData, requestingUser) {
         const audit = await AuditInstance.findById(auditInstanceId).populate('createdBy');
