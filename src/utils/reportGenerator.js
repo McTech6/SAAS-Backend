@@ -1439,7 +1439,7 @@ const generateReportHtml = (auditInstance = {}) => {
         </div>
 
         <div class="container page-break">
-            // <h2 class="header-spacing">Thank You</h2>
+            
             ${thankYouText}
         </div>
 
