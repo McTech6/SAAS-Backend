@@ -467,10 +467,7 @@
 //     return html;
 // };
 
-// export default generateReportHtml;
-
-
-const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
+// export default generateReportHtml;const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 /**
  * Escapes HTML to prevent XSS vulnerabilities.
@@ -487,8 +484,9 @@ const escapeHtml = (str) => {
 };
 
 const formatDate = (d) => {
-    if (!d) return null;
+    if (!d) return null; // Return null if date is not available
     try {
+        // Return null if date is not a valid date
         if (isNaN(new Date(d).getTime())) return null;
         return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     } catch {
@@ -496,12 +494,20 @@ const formatDate = (d) => {
     }
 };
 
+/**
+ * Determine status category and color from a response value.
+ */
 const getStatusInfo = (selectedValue) => {
     const raw = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
-    const color = '#014f65';
+    const color = '#014f65'; // Primary green color
+
+    // Return the raw value as the label, removing the opinionated logic
     return { label: raw || 'N/A', color: color };
 };
 
+/**
+ * Build table of contents HTML from templateStructureSnapshot with numbering
+ */
 const buildToc = (templateStructure) => {
     if (!Array.isArray(templateStructure) || templateStructure.length === 0) return '<p>(No content)</p>';
     let tocHtml = '<ul class="toc-root">';
@@ -523,6 +529,11 @@ const buildToc = (templateStructure) => {
 };
 
 const generateReportHtml = (auditInstance = {}) => {
+    console.log('[generateReportHtml] Received audit instance:', JSON.stringify({
+        company: auditInstance.company,
+        examinationEnvironment: auditInstance.examinationEnvironment
+    }, null, 2));
+
     const company = auditInstance.company || {};
     const template = auditInstance.template || {};
     const responses = auditInstance.responses || [];
@@ -530,10 +541,17 @@ const generateReportHtml = (auditInstance = {}) => {
     const overallScore = (typeof auditInstance.overallScore === 'number') ? auditInstance.overallScore : 0;
     const createdBy = auditInstance.createdBy || {};
     const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
+
+    // Get examination environment data
     const examinationEnvironment = company.examinationEnvironment || auditInstance.examinationEnvironment || {};
+
+    console.log('[generateReportHtml] Final examination environment data:', JSON.stringify(examinationEnvironment, null, 2));
+
     const summaries = auditInstance.summaries || [];
 
     const reportDate = formatDate(new Date());
+
+    // Corrected Audit Date Range Logic
     const startDateFormatted = formatDate(auditInstance.startDate);
     const endDateFormatted = formatDate(auditInstance.endDate);
 
@@ -543,6 +561,7 @@ const generateReportHtml = (auditInstance = {}) => {
     } else if (startDateFormatted) {
         auditDateRange = startDateFormatted;
     }
+    // End of Corrected Audit Date Range Logic
 
     const auditorLines = auditorsToDisplay.map(u => `${escapeHtml(u.firstName || '')} ${escapeHtml(u.lastName || '')} (${escapeHtml(u.email || '')})`).join('<br/>') || `${escapeHtml(createdBy.firstName || '')} ${escapeHtml(createdBy.lastName || '')} (${escapeHtml(createdBy.email || '')})`;
 
@@ -554,6 +573,7 @@ const generateReportHtml = (auditInstance = {}) => {
     let mainHtml = '';
     templateStructure.forEach((section, sIdx) => {
         const secId = `sec-${sIdx}`;
+        // Added 'header-spacing' class
         mainHtml += `<div class="section" id="${secId}"><h2 class="header-spacing">${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
         if (section.description) {
             mainHtml += `<p class="section-desc">${escapeHtml(section.description)}</p>`;
@@ -561,6 +581,7 @@ const generateReportHtml = (auditInstance = {}) => {
 
         (section.subSections || []).forEach((subSection, ssIdx) => {
             const subId = `sec-${sIdx}-sub-${ssIdx}`;
+            // Added 'header-spacing' class
             mainHtml += `<div class="subsection" id="${subId}"><h3 class="header-spacing">${escapeHtml(subSection.name || 'Unnamed Subsection')}</h3>`;
             if (subSection.description) {
                 mainHtml += `<p class="subsection-desc">${escapeHtml(subSection.description)}</p>`;
@@ -578,6 +599,7 @@ const generateReportHtml = (auditInstance = {}) => {
                     <div class="question-block">
                         <div class="question-header" style="border-left:3px solid ${status.color};">
                             <p class="question-title" style="color:${status.color};"><strong>${escapeHtml(question.text || 'Untitled question')}</strong></p>
+                            
                         </div>
                         <div class="answer-row"><strong>Answer:</strong> ${answerText}</div>
                         ${recommendationHtml}
@@ -681,7 +703,7 @@ const generateReportHtml = (auditInstance = {}) => {
             <p class="static-text" style="margin-top: 15px;">For further discussions or to schedule a follow-up consultation, please contact us:</p>
             <div class="contact">
                 <p class="static-text"><strong>Email:</strong> <a href="mailto:info@cybersecurityaudit360.com">info@cybersecurityaudit360.com</a></p>
-                <p class="static-text"><strong>Website:</strong> <a href="https://www.cybersecurityaudit360.com ">www.cybersecurityaudit360.com</a></p>
+                <p class="static-text"><strong>Website:</strong> <a href="https://www.cybersecurityaudit360.com">www.cybersecurityaudit360.com</a></p>
             </div>
             <h3 class="slogan-center">"Securing Your Digital Horizon, Together."</h3>
         </div>
@@ -693,28 +715,42 @@ const generateReportHtml = (auditInstance = {}) => {
     <head>
         <meta charset="utf-8">
         <title>Audit Report - ${escapeHtml(company.name || 'Unknown Company')}</title>
-        <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400 ;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;700&display=swap" rel="stylesheet">
         <style>
-            @page { margin: 0.35in; }
+            @page { 
+                margin: 0.35in;
+                @bottom-center {
+                    content: counter(page) "/" counter(pages);
+                    font-family: 'Arial', Helvetica, sans-serif;
+                    font-size: 10pt;
+                    color: #666;
+                }
+            }
             body { 
                 font-family: 'Arial', Helvetica, sans-serif; 
-                font-size: 14pt;
+                font-size: 14pt; /* Base font size for general content */
                 color: #2c3e50; 
                 margin: 0; 
                 -webkit-print-color-adjust: exact; 
-                position: relative;
+                counter-reset: page;
             } 
-            .container { padding: 0.35in; box-sizing: border-box; }
-
-            /* Page numbering */
-            .page-number {
-                position: fixed;
-                bottom: 0.35in;
-                left: 50%;
-                transform: translateX(-50%);
-                font-size: 12pt;
-                color: #2c3e50;
+            .container { 
+                padding: 0.35in; 
+                box-sizing: border-box;
+                position: relative;
             }
+
+            /* Hide page number on cover page */
+            .cover-page {
+                counter-increment: page;
+            }
+            .cover-page::after {
+                display: none;
+            }
+
+            /* ========================================================= */
+            /* Global Styles: Headers and Static Text */
+            /* ========================================================= */
 
             /* Lexend Font and 26pt for Headers */
             h2, .cover-title h1, .cover-title h2 { 
@@ -725,15 +761,15 @@ const generateReportHtml = (auditInstance = {}) => {
             }
             h3 { 
                 font-family: 'Lexend', sans-serif !important; 
-                font-size: 20pt !important;
+                font-size: 20pt !important; /* Slightly smaller for subsections */
                 color: #2c3e50;
                 text-align: left;
             }
 
             /* 16pt Spacing Below Headers */
             .header-spacing { 
-                margin-top: 25px !important;
-                margin-bottom: 16px !important;
+                margin-top: 25px !important; /* Ensure separation from preceding content */
+                margin-bottom: 16px !important; /* 16pts space between header and text */
                 padding-bottom: 0 !important;
             }
             
@@ -743,9 +779,11 @@ const generateReportHtml = (auditInstance = {}) => {
             }
             .justify-text { text-align: justify; }
 
-            p { margin: 3px 0; line-height: 1.4; }
+            p { margin: 3px 0; line-height: 1.4; } /* Default is tighter, overridden by .static-text */
 
+            /* ========================================================= */
             /* Cover Page Styles */
+            /* ========================================================= */
             .cover { 
                 text-align: center; 
                 padding-top: 15px; 
@@ -761,19 +799,25 @@ const generateReportHtml = (auditInstance = {}) => {
             .cover-title h1 { font-size: 40pt !important; line-height: 1.1; margin: 0; }
             .cover-title h2 { font-size: 30pt !important; padding-bottom: 5px; font-weight: normal; margin-top: 5px;}
 
+            /* Cover Meta (First Page Content) - 16pt and 16pt space */
             .meta { 
                 margin: 20px 0 30px 0; 
-                font-size: 16pt;
+                font-size: 16pt; /* 16pt font size */
                 line-height: 1.5;
             }
-            .meta p { margin: 16px 0; }
+            .meta p { margin: 16px 0; } /* 16pts space between meta lines */
             .for-company { 
                 margin-top: 15px; 
                 line-height: 1.5; 
-                font-size: 16pt;
+                font-size: 16pt; /* 16pt font size */
             }
             .cover-quote { margin-top: 20px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.5; font-size: 14pt; }
 
+
+            /* ========================================================= */
+            /* Content Section Styles (where smaller font is requested) */
+            /* ========================================================= */
+            
             /* TOC Styling */
             .toc-root { counter-reset: section; padding-left: 0; margin-top: 8px; font-size: 14pt; }
             .toc-root > li { counter-increment: section; margin-top: 4px; list-style: none; } 
@@ -783,7 +827,7 @@ const generateReportHtml = (auditInstance = {}) => {
             .toc-root > li li:before { content: counter(section) "." counter(subsection) ". "; font-weight: normal; }
             .toc-root a { text-decoration: none; color: #003340; }
             
-            /* Question/Answer blocks */
+            /* Question/Answer blocks retain original (smaller) font size as requested */
             .question-block { margin-bottom: 6px; padding: 6px 10px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; }
             .question-header { display: flex; align-items: flex-start; margin-bottom: 2px; border-left: 3px solid; padding-left: 10px; }
             .question-header .question-title { font-size: 11pt; margin: 0; font-family: 'Arial', Helvetica, sans-serif !important; }
@@ -795,12 +839,12 @@ const generateReportHtml = (auditInstance = {}) => {
             .evidence ul { margin:3px 0 0 18px; font-size: 11pt; }
             .section-desc, .subsection-desc { font-size: 12pt; color: #444; margin-bottom: 5px; text-align: justify; }
 
-            /* Environment Table */
+            /* Environment Table (smaller font) */
             .env { width: 100%; border-collapse: collapse; margin: 8px 0 15px 0; table-layout: fixed; }
             .env td { padding: 5px 8px; border: 1px solid #e6e6e6; font-size: 12pt; } 
             .env td:first-child { width: 30%; font-weight: bold; background: #f5f5f5; }
 
-            /* Summary & Handover */
+            /* Summary & Handover (smaller font) */
             .summary { margin:5px 0; padding:8px; background:#f6f6f6; border-radius:4px; font-size: 12pt; } 
             .handover-heading { margin-bottom: 5px; font-size: 14pt; color: #014f65; text-align: left; font-weight: bold; font-family: 'Arial', Helvetica, sans-serif !important;}
             .handover-table { width: 100%; margin-top: 5px; border-collapse: collapse; font-size: 12pt; } 
@@ -822,7 +866,7 @@ const generateReportHtml = (auditInstance = {}) => {
         </style>
     </head>
     <body>
-        <div class="container">
+        <div class="container cover-page">
             <div class="cover">
                 <div>
                     <img class="logo" src="${LOGO_URL}" alt="Logo" />
@@ -904,19 +948,6 @@ const generateReportHtml = (auditInstance = {}) => {
             <h2 class="header-spacing">Thank You</h2>
             ${thankYouText}
         </div>
-
-        <script>
-            // Add page numbers after DOM is loaded
-            window.addEventListener('DOMContentLoaded', () => {
-                const totalPages = document.querySelectorAll('.container').length;
-                document.querySelectorAll('.container').forEach((container, index) => {
-                    const pageNum = document.createElement('div');
-                    pageNum.className = 'page-number';
-                    pageNum.textContent = \`\${index + 1}/\${totalPages}\`;
-                    container.appendChild(pageNum);
-                });
-            });
-        </script>
 
     </body>
     </html>
