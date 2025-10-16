@@ -1651,8 +1651,7 @@
 
 
 
-// src/services/auditInstance.service.js
-import AuditInstance from '../models/auditInstance.model.js';
+// src/services/auditInstance.service.jsimport AuditInstance from '../models/auditInstance.model.js';
 import Company from '../models/company.model.js';
 import AuditTemplate from '../models/auditTemplate.model.js';
 import User from '../models/user.model.js';
@@ -1692,7 +1691,6 @@ class AuditInstanceService {
 
             const auditTemplate = await AuditTemplate.findById(auditTemplateId);
             if (!auditTemplate) throw new Error('Audit Template not found.');
-            // Ensure auditTemplate.sections is not null/undefined before stringifying
             const templateStructureSnapshot = JSON.parse(JSON.stringify(auditTemplate.sections || []));
 
             const initialResponses = [];
@@ -1714,8 +1712,11 @@ class AuditInstanceService {
                 });
             });
 
-            // Initial status is Draft, regardless of auditor assignment
-            const initialStatus = 'Draft';
+            // --- FIX: Determine status based on assigned auditors ---
+            let initialStatus = 'Draft';
+            if (finalAuditorIds.length > 0) {
+                initialStatus = 'In Progress';
+            }
 
             const newAuditInstance = new AuditInstance({
                 company: companyId,
@@ -1728,8 +1729,7 @@ class AuditInstanceService {
                 endDate: endDate || null,
                 status: initialStatus,
                 responses: initialResponses,
-                // The overallScore is 0 initially, updated on response submission
-                overallScore: 0, 
+                overallScore: 0,
                 createdBy: requestingUser.id,
                 lastModifiedBy: requestingUser.id,
                 examinationEnvironment: examinationEnvironment || {}
@@ -1800,17 +1800,12 @@ class AuditInstanceService {
         }
     }
 
-    // Only used by submitResponses for editing responses
     _canEdit(audit, user) {
         if (!audit || !user) return false;
-
-        // Note: For Draft/In Progress, we will now require an auditor to be assigned to edit responses.
         const isAssignedAuditor = audit.assignedAuditors.some(a => a.toString() === user.id.toString()) && user.role === 'auditor';
-
         switch (audit.status) {
             case 'Draft':
             case 'In Progress':
-                // Only assigned auditors can submit responses in Draft/In Progress.
                 return isAssignedAuditor;
             case 'In Review':
             case 'Completed':
@@ -1820,21 +1815,16 @@ class AuditInstanceService {
                 return false;
         }
     }
-    
+
     async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
         console.log('[assignAuditors] Starting assignment process...');
         try {
             const audit = await AuditInstance.findById(auditInstanceId);
             if (!audit) throw new Error('Audit Instance not found.');
-
-            // Only Admin/SuperAdmin can assign auditors. 
             if (requestingUserRole !== 'super_admin' && requestingUserRole !== 'admin') {
                 throw new Error('Access denied. Only administrators can assign auditors.');
             }
-            
-            // Only one auditor can be assigned
             if (auditorIds.length > 1) throw new Error('You cannot assign more than one auditor.');
-            
             if (['Completed', 'Archived', 'In Review'].includes(audit.status)) {
                 throw new Error(`Cannot modify auditors on a ${audit.status} audit.`);
             }
@@ -1850,18 +1840,12 @@ class AuditInstanceService {
             }
 
             let newStatus = audit.status;
-            // If auditors are assigned and status is Draft -> In Progress
             if (auditorIds.length > 0 && audit.status === 'Draft') newStatus = 'In Progress';
-            // If auditors are unassigned and status is In Progress -> Draft
             if (auditorIds.length === 0 && audit.status === 'In Progress') newStatus = 'Draft';
 
             const updatedAudit = await AuditInstance.findByIdAndUpdate(
                 auditInstanceId,
-                {
-                    assignedAuditors: auditorIds,
-                    status: newStatus,
-                    lastModifiedBy: requestingUserId
-                },
+                { assignedAuditors: auditorIds, status: newStatus, lastModifiedBy: requestingUserId },
                 { new: true }
             ).populate([
                 { path: 'company', select: 'name' },
@@ -1905,7 +1889,6 @@ class AuditInstanceService {
                 continue;
             }
 
-            // --- SCORE LOGIC EXECUTION ---
             const score = this._calcScore(questionFromSnapshot, selectedValue);
 
             if (existingResponse) {
@@ -1927,62 +1910,43 @@ class AuditInstanceService {
                 });
             }
         }
-        
-        // --- OVERALL SCORE CALCULATION ---
+
         audit.overallScore = this._calculateOverallScore(audit);
-        
         audit.lastModifiedBy = requestingUser.id;
         await audit.save();
         console.log('[submitResponses] SUCCESS');
         return audit;
     }
-    
-    // Core function to calculate the overall percentage score
+
     _calculateOverallScore(audit) {
         let totalAchievedScore = 0;
         let totalPossibleScore = 0;
-    
+
         for (const section of audit.templateStructureSnapshot) {
             for (const subSection of section.subSections) {
                 for (const question of subSection.questions) {
                     const response = audit.responses.find(r => r.questionId.toString() === question._id.toString());
-    
-                    // Ensure weight is treated as 0 if missing (robustness added)
-                    totalPossibleScore += question.weight || 0; 
-    
-                    if (response) {
-                        // Ensure response.score is treated as 0 if missing (robustness added)
-                        totalAchievedScore += response.score || 0;
-                    }
+                    totalPossibleScore += question.weight || 0;
+                    if (response) totalAchievedScore += response.score || 0;
                 }
             }
         }
-    
-        if (totalPossibleScore === 0) {
-            return 0;
-        }
-    
-        const overallPercentage = (totalAchievedScore / totalPossibleScore) * 100;
-        return parseFloat(overallPercentage.toFixed(2));
+
+        if (totalPossibleScore === 0) return 0;
+        return parseFloat(((totalAchievedScore / totalPossibleScore) * 100).toFixed(2));
     }
 
-    // Core function to calculate the score for a single question
     _calcScore(question, value) {
         if (!question) return 0;
         if (question.type === 'single_choice' || question.type === 'multi_choice') {
             const selectedValues = Array.isArray(value) ? value : [value];
             let questionScore = 0;
             question.answerOptions.forEach(opt => {
-                if (selectedValues.includes(opt.value)) {
-                    // Ensure opt.score is treated as 0 if missing (robustness added)
-                    questionScore += opt.score || 0; 
-                }
+                if (selectedValues.includes(opt.value)) questionScore += opt.score || 0;
             });
             return questionScore;
         }
-        if (question.type === 'numeric' && typeof value === 'number') {
-            return value;
-        }
+        if (question.type === 'numeric' && typeof value === 'number') return value;
         return 0;
     }
 
@@ -2002,33 +1966,25 @@ class AuditInstanceService {
         const isSuperAdmin = requestingUser.role === 'super_admin';
         const isAdmin = requestingUser.role === 'admin';
         
-        // Super Admins can always change status for manual correction/override
-        if (isSuperAdmin) {
-            canChangeStatus = true;
-        } else {
+        if (isSuperAdmin) canChangeStatus = true;
+        else {
             switch (currentStatus) {
                 case 'Draft':
-                    // Draft to In Progress: Creator/Admin can initiate if auditor is assigned
                     if (newStatus === 'In Progress' && (isCreator || isAdmin) && audit.assignedAuditors.length > 0) canChangeStatus = true;
                     break;
                 case 'In Progress':
-                    // In Progress to In Review: ONLY ASSIGNED AUDITOR can do this
                     if (newStatus === 'In Review' && isAssigned && requestingUser.role === 'auditor') canChangeStatus = true;
                     break;
                 case 'In Review':
-                    // In Review to Completed: ONLY CREATOR can do this (regardless of their admin role)
                     if (newStatus === 'Completed' && isCreator) canChangeStatus = true;
                     break;
                 case 'Completed':
-                    // Completed to Archived: Creator/Admin/SuperAdmin
                     if (newStatus === 'Archived' && (isCreator || isAdmin)) canChangeStatus = true;
                     break;
             }
         }
         
-        if (!canChangeStatus) {
-            throw new Error(`You are not authorized to change status from ${currentStatus} to ${newStatus}.`);
-        }
+        if (!canChangeStatus) throw new Error(`You are not authorized to change status from ${currentStatus} to ${newStatus}.`);
 
         audit.status = newStatus;
         if (newStatus === 'Completed' && !audit.actualCompletionDate) audit.actualCompletionDate = new Date();
@@ -2058,9 +2014,7 @@ class AuditInstanceService {
             if (!audit) throw new Error('Audit Instance not found.');
             if (audit.status !== 'Completed') throw new Error(`Report can only be generated for completed audits.`);
 
-            // --- NEW REPORT AUTHORIZATION LOGIC ---
             const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
-            // Report generation is now restricted to the creator
             if (!isCreator) throw new Error('Not authorized to generate report. Only the creator of the audit can generate the final report.');
             
             console.log('[generateReport] Authorization passed (isCreator)');
@@ -2069,7 +2023,6 @@ class AuditInstanceService {
             const auditObj = audit.toObject();
             auditObj.auditorsToDisplay = auditorsToDisplay;
 
-            // Debug: Check if score is present before generating report
             console.log(`[generateReport] Audit overallScore: ${auditObj.overallScore}`);
 
             const html = generateReportHtml(auditObj);
