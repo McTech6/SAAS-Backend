@@ -496,18 +496,12 @@ const formatDate = (d) => {
     }
 };
 
-/**
- * Determine status category and color from a response value.
- */
 const getStatusInfo = (selectedValue) => {
     const raw = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
     const color = '#014f65';
     return { label: raw || 'N/A', color: color };
 };
 
-/**
- * Build table of contents HTML from templateStructureSnapshot with numbering
- */
 const buildToc = (templateStructure) => {
     if (!Array.isArray(templateStructure) || templateStructure.length === 0) return '<p>(No content)</p>';
     let tocHtml = '<ul class="toc-root">';
@@ -529,11 +523,6 @@ const buildToc = (templateStructure) => {
 };
 
 const generateReportHtml = (auditInstance = {}) => {
-    console.log('[generateReportHtml] Received audit instance:', JSON.stringify({
-        company: auditInstance.company,
-        examinationEnvironment: auditInstance.examinationEnvironment
-    }, null, 2));
-
     const company = auditInstance.company || {};
     const template = auditInstance.template || {};
     const responses = auditInstance.responses || [];
@@ -541,15 +530,10 @@ const generateReportHtml = (auditInstance = {}) => {
     const overallScore = (typeof auditInstance.overallScore === 'number') ? auditInstance.overallScore : 0;
     const createdBy = auditInstance.createdBy || {};
     const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
-
     const examinationEnvironment = company.examinationEnvironment || auditInstance.examinationEnvironment || {};
-
-    console.log('[generateReportHtml] Final examination environment data:', JSON.stringify(examinationEnvironment, null, 2));
-
     const summaries = auditInstance.summaries || [];
 
     const reportDate = formatDate(new Date());
-
     const startDateFormatted = formatDate(auditInstance.startDate);
     const endDateFormatted = formatDate(auditInstance.endDate);
 
@@ -690,13 +674,14 @@ const generateReportHtml = (auditInstance = {}) => {
 
     const thankYouText = `
         <div style="text-align: center;">
+            <h2 style="border-bottom: none; margin-bottom: 5px; font-size: 26pt; color: #014f65; margin-top: 0; font-family: 'Lexend', sans-serif;">Thank You</h2>
             <p style="font-size: 16pt; margin-bottom: 15px; margin-top: 5px; font-weight: bold; line-height: 1.5;">for Choosing Cybersecurity Audit 360</p>
             <p class="justify-text static-text">We are committed to enhancing your organization's security posture and ensuring compliance in an ever evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
             <p class="justify-text static-text">Our team is dedicated to supporting your journey beyond this audit. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
             <p class="static-text" style="margin-top: 15px;">For further discussions or to schedule a follow-up consultation, please contact us:</p>
             <div class="contact">
                 <p class="static-text"><strong>Email:</strong> <a href="mailto:info@cybersecurityaudit360.com">info@cybersecurityaudit360.com</a></p>
-                <p class="static-text"><strong>Website:</strong> <a href="https://www.cybersecurityaudit360.com">www.cybersecurityaudit360.com</a></p>
+                <p class="static-text"><strong>Website:</strong> <a href="https://www.cybersecurityaudit360.com ">www.cybersecurityaudit360.com</a></p>
             </div>
             <h3 class="slogan-center">"Securing Your Digital Horizon, Together."</h3>
         </div>
@@ -708,27 +693,30 @@ const generateReportHtml = (auditInstance = {}) => {
     <head>
         <meta charset="utf-8">
         <title>Audit Report - ${escapeHtml(company.name || 'Unknown Company')}</title>
-        <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400 ;700&display=swap" rel="stylesheet">
         <style>
-            @page { 
-                margin: 0.35in;
-                @bottom-center {
-                    content: counter(page) " / " counter(pages);
-                    font-family: 'Arial', Helvetica, sans-serif;
-                    font-size: 10pt;
-                    color: #555;
-                }
-            }
+            @page { margin: 0.35in; }
             body { 
                 font-family: 'Arial', Helvetica, sans-serif; 
                 font-size: 14pt;
                 color: #2c3e50; 
                 margin: 0; 
                 -webkit-print-color-adjust: exact; 
+                position: relative;
             } 
             .container { padding: 0.35in; box-sizing: border-box; }
 
-            /* Headers and Static Text */
+            /* Page numbering */
+            .page-number {
+                position: fixed;
+                bottom: 0.35in;
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 12pt;
+                color: #2c3e50;
+            }
+
+            /* Lexend Font and 26pt for Headers */
             h2, .cover-title h1, .cover-title h2 { 
                 font-family: 'Lexend', sans-serif !important; 
                 font-size: 26pt !important;
@@ -742,12 +730,14 @@ const generateReportHtml = (auditInstance = {}) => {
                 text-align: left;
             }
 
+            /* 16pt Spacing Below Headers */
             .header-spacing { 
                 margin-top: 25px !important;
                 margin-bottom: 16px !important;
                 padding-bottom: 0 !important;
             }
             
+            /* Line Height 1.5 for all static text */
             .static-text, .static-text > *, ul li, .justify-text, .cover-quote p { 
                 line-height: 1.5 !important; 
             }
@@ -914,6 +904,19 @@ const generateReportHtml = (auditInstance = {}) => {
             <h2 class="header-spacing">Thank You</h2>
             ${thankYouText}
         </div>
+
+        <script>
+            // Add page numbers after DOM is loaded
+            window.addEventListener('DOMContentLoaded', () => {
+                const totalPages = document.querySelectorAll('.container').length;
+                document.querySelectorAll('.container').forEach((container, index) => {
+                    const pageNum = document.createElement('div');
+                    pageNum.className = 'page-number';
+                    pageNum.textContent = \`\${index + 1}/\${totalPages}\`;
+                    container.appendChild(pageNum);
+                });
+            });
+        </script>
 
     </body>
     </html>
