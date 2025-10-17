@@ -957,8 +957,7 @@
 //     return html;
 // };
 
-// export default generateReportHtml;
-const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
+// export default generateReportHtml;const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 /**
  * Escapes HTML to prevent XSS vulnerabilities.
@@ -1005,23 +1004,22 @@ const getStatusInfo = (selectedValue, questionType) => {
     // Logic for choice-based questions
     if (questionType === 'single_choice' || questionType === 'multi_choice') {
         if (rawValue.includes('implemented') || rawValue.includes('yes')) {
-            color = '#059669'; // Green - Implemented / Yes
+            // GREEN: The color previously used for the border/primary color
+            color = '#014f65'; 
         } else if (rawValue.includes('partially implemented') || rawValue.includes('partial')) {
-            color = '#f97316'; // Orange - Partially Implemented
+            // ORANGE: Partially implemented
+            color = '#f59e0b'; 
         } else if (rawValue.includes('not implemented') || rawValue.includes('no')) {
-            color = '#ef4444'; // Red - Not Implemented / No
+            // RED: Not implemented
+            color = '#ef4444'; 
         } else {
-             // Treat unselected choice options as Superfluous/Grey in the absence of a clear status
+             // Fallback for choice-based with no matching status or no answer
              color = '#a3a3a3'; 
         }
     } else {
         // For non-choice types (text, numeric, date, file)
-        // Use Grey and label it 'Superfluous' if the value is empty, otherwise just Grey.
-        if (!rawValue || rawValue === 'n/a') {
-             color = '#a3a3a3'; // Grey - Superfluous / N/A
-        } else {
-             color = '#a3a3a3'; // Grey - Text/Numeric/File (non-MCQ)
-        }
+        // GREY: Superfluous (as these types aren't scored for implementation status)
+        color = '#a3a3a3'; 
     }
 
     // The answer label displayed in the report
