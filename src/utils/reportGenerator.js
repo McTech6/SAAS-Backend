@@ -958,7 +958,6 @@
 // };
 
 // export default generateReportHtml;
-
 const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 /**
@@ -988,36 +987,48 @@ const formatDate = (d) => {
 
 /**
  * Determine status category and color from a response value and question type.
- * @param {string} selectedValue - The string value of the selected answer.
+ * @param {string|string[]} selectedValue - The value(s) of the selected answer(s).
  * @param {string} questionType - The type of the question.
  * @returns {{label: string, color: string}} Status info with color.
  */
 const getStatusInfo = (selectedValue, questionType) => {
-    const rawValue = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
-    let color = '#a3a3a3'; // Default to Grey for N/A or Text
-
-    // Determine color based on common answer values for choice-based questions
-    if (questionType === 'single_choice' || questionType === 'multi_choice') {
-        if (rawValue.includes('implemented') || rawValue.includes('yes')) {
-            color = '#014f65'; // Green (Primary) - Implemented / Yes
-        } else if (rawValue.includes('partially implemented') || rawValue.includes('partial')) {
-            color = '#f59e0b'; // Orange - Partially Implemented
-        } else if (rawValue.includes('not implemented') || rawValue.includes('no')) {
-            color = '#ef4444'; // Red - Not Implemented / No
-        }
-    }
+    let rawValue = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
     
-    // For non-choice types (text, numeric, date, file) or unselected choice, use grey
-    if (questionType !== 'single_choice' && questionType !== 'multi_choice') {
-        color = '#a3a3a3'; // Grey - Text/Numeric/File (non-MCQ)
+    // Handle array values (for multi-choice) by joining them for a general status check
+    if (Array.isArray(selectedValue)) {
+        rawValue = selectedValue.map(v => String(v).trim().toLowerCase()).join(', ');
     }
 
-    // Fallback label
+    let color = '#a3a3a3'; // Default to Grey for non-MCQ / Superfluous
     const label = rawValue || 'N/A';
 
-    // The color of the answer text is defined by the status logic, 
-    // but the `getStatusInfo` color is primarily used for the border in the current template logic.
-    return { label: label, color: color };
+    // Logic for choice-based questions
+    if (questionType === 'single_choice' || questionType === 'multi_choice') {
+        if (rawValue.includes('implemented') || rawValue.includes('yes')) {
+            color = '#059669'; // Green - Implemented / Yes
+        } else if (rawValue.includes('partially implemented') || rawValue.includes('partial')) {
+            color = '#f97316'; // Orange - Partially Implemented
+        } else if (rawValue.includes('not implemented') || rawValue.includes('no')) {
+            color = '#ef4444'; // Red - Not Implemented / No
+        } else {
+             // Treat unselected choice options as Superfluous/Grey in the absence of a clear status
+             color = '#a3a3a3'; 
+        }
+    } else {
+        // For non-choice types (text, numeric, date, file)
+        // Use Grey and label it 'Superfluous' if the value is empty, otherwise just Grey.
+        if (!rawValue || rawValue === 'n/a') {
+             color = '#a3a3a3'; // Grey - Superfluous / N/A
+        } else {
+             color = '#a3a3a3'; // Grey - Text/Numeric/File (non-MCQ)
+        }
+    }
+
+    // The answer label displayed in the report
+    return { 
+        label: label, 
+        color: color 
+    };
 };
 
 /**
@@ -1044,31 +1055,22 @@ const buildToc = (templateStructure) => {
 };
 
 const generateReportHtml = (auditInstance = {}) => {
-    console.log('[generateReportHtml] Received audit instance:', JSON.stringify({
-        company: auditInstance.company,
-        examinationEnvironment: auditInstance.examinationEnvironment
-    }, null, 2));
+    console.log('[generateReportHtml] Received audit instance: [Company/Environment details omitted for brevity]');
 
     const company = auditInstance.company || {};
     const template = auditInstance.template || {};
     const responses = auditInstance.responses || [];
     const templateStructure = auditInstance.templateStructureSnapshot || [];
-    // MODIFICATION START: Round the overall score to the nearest whole number.
     const overallScore = (typeof auditInstance.overallScore === 'number') ? Math.round(auditInstance.overallScore) : 0;
-    // MODIFICATION END
     const createdBy = auditInstance.createdBy || {};
     const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
 
-    // Get examination environment data
     const examinationEnvironment = company.examinationEnvironment || auditInstance.examinationEnvironment || {};
-
-    console.log('[generateReportHtml] Final examination environment data:', JSON.stringify(examinationEnvironment, null, 2));
 
     const summaries = auditInstance.summaries || [];
 
     const reportDate = formatDate(new Date());
 
-    // Corrected Audit Date Range Logic
     const startDateFormatted = formatDate(auditInstance.startDate);
     const endDateFormatted = formatDate(auditInstance.endDate);
 
@@ -1078,7 +1080,6 @@ const generateReportHtml = (auditInstance = {}) => {
     } else if (startDateFormatted) {
         auditDateRange = startDateFormatted;
     }
-    // End of Corrected Audit Date Range Logic
 
     const auditorLines = auditorsToDisplay.map(u => `${escapeHtml(u.firstName || '')} ${escapeHtml(u.lastName || '')} (${escapeHtml(u.email || '')})`).join('<br/>') || `${escapeHtml(createdBy.firstName || '')} ${escapeHtml(createdBy.lastName || '')} (${escapeHtml(createdBy.email || '')})`;
 
@@ -1090,7 +1091,6 @@ const generateReportHtml = (auditInstance = {}) => {
     let mainHtml = '';
     templateStructure.forEach((section, sIdx) => {
         const secId = `sec-${sIdx}`;
-        // Added 'header-spacing' class
         mainHtml += `<div class="section" id="${secId}"><h2 class="header-spacing">${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
         if (section.description) {
             mainHtml += `<p class="section-desc">${escapeHtml(section.description)}</p>`;
@@ -1098,7 +1098,6 @@ const generateReportHtml = (auditInstance = {}) => {
 
         (section.subSections || []).forEach((subSection, ssIdx) => {
             const subId = `sec-${sIdx}-sub-${ssIdx}`;
-            // Added 'header-spacing' class
             mainHtml += `<div class="subsection" id="${subId}"><h3 class="header-spacing">${escapeHtml(subSection.name || 'Unnamed Subsection')}</h3>`;
             if (subSection.description) {
                 mainHtml += `<p class="subsection-desc">${escapeHtml(subSection.description)}</p>`;
@@ -1107,15 +1106,21 @@ const generateReportHtml = (auditInstance = {}) => {
             (subSection.questions || []).forEach((question, qIdx) => {
                 const resp = responses.find(r => r.questionId?.toString() === question._id?.toString()) || {};
                 
-                // --- MODIFICATION START: Use question type in getStatusInfo and apply color to answer text ---
-                const questionType = resp.questionTypeSnapshot || question.type || 'text_input'; // Fallback to text_input
+                // Get answer value, falling back to 'N/A' for display
+                let selectedValueDisplay = resp.selectedValue;
+                if (Array.isArray(resp.selectedValue)) {
+                     selectedValueDisplay = resp.selectedValue.join(', ');
+                } else if (resp.selectedValue === undefined || resp.selectedValue === null) {
+                     selectedValueDisplay = 'N/A';
+                }
+
+                const questionType = resp.questionTypeSnapshot || question.type || 'text_input';
                 const status = getStatusInfo(resp.selectedValue, questionType);
                 
-                const answerText = escapeHtml(resp.selectedValue === undefined || resp.selectedValue === null ? 'N/A' : String(resp.selectedValue));
+                const answerText = escapeHtml(String(selectedValueDisplay));
                 
                 // Apply the status color to the answer text
                 const answerHtml = `<span style="color: ${status.color};"><strong>${answerText}</strong></span>`;
-                // --- MODIFICATION END ---
                 
                 const commentHtml = resp.comment ? `<div class="comment"><strong>Comment:</strong><div>${escapeHtml(resp.comment)}</div></div>` : '';
                 const evidenceHtml = (Array.isArray(resp.evidenceUrls) && resp.evidenceUrls.length > 0) ? `<div class="evidence"><strong>Evidence:</strong><ul>${resp.evidenceUrls.map(u => `<li><a href="${escapeHtml(u)}">${escapeHtml(u)}</a></li>`).join('')}</ul></div>` : '';
@@ -1254,7 +1259,7 @@ const generateReportHtml = (auditInstance = {}) => {
             }
             body { 
                 font-family: 'Arial', Helvetica, sans-serif; 
-                font-size: 14pt; /* Base font size for general content */
+                font-size: 14pt;
                 color: #2c3e50; 
                 margin: 0; 
                 -webkit-print-color-adjust: exact; 
@@ -1278,7 +1283,6 @@ const generateReportHtml = (auditInstance = {}) => {
             /* Global Styles: Headers and Static Text */
             /* ========================================================= */
 
-            /* Lexend Font and 26pt for Headers */
             h2, .cover-title h1, .cover-title h2 { 
                 font-family: 'Lexend', sans-serif !important; 
                 font-size: 26pt !important;
@@ -1287,25 +1291,23 @@ const generateReportHtml = (auditInstance = {}) => {
             }
             h3 { 
                 font-family: 'Lexend', sans-serif !important; 
-                font-size: 20pt !important; /* Slightly smaller for subsections */
+                font-size: 20pt !important;
                 color: #2c3e50;
                 text-align: left;
             }
 
-            /* 16pt Spacing Below Headers */
             .header-spacing { 
-                margin-top: 25px !important; /* Ensure separation from preceding content */
-                margin-bottom: 16px !important; /* 16pts space between header and text */
+                margin-top: 25px !important;
+                margin-bottom: 16px !important;
                 padding-bottom: 0 !important;
             }
             
-            /* Line Height 1.5 for all static text */
             .static-text, .static-text > *, ul li, .justify-text, .cover-quote p { 
                 line-height: 1.5 !important; 
             }
             .justify-text { text-align: justify; }
 
-            p { margin: 3px 0; line-height: 1.4; } /* Default is tighter, overridden by .static-text */
+            p { margin: 3px 0; line-height: 1.4; }
 
             /* ========================================================= */
             /* Cover Page Styles */
@@ -1325,26 +1327,24 @@ const generateReportHtml = (auditInstance = {}) => {
             .cover-title h1 { font-size: 40pt !important; line-height: 1.1; margin: 0; }
             .cover-title h2 { font-size: 30pt !important; padding-bottom: 5px; font-weight: normal; margin-top: 5px;}
 
-            /* Cover Meta (First Page Content) - 16pt and 16pt space */
             .meta { 
                 margin: 20px 0 30px 0; 
-                font-size: 16pt; /* 16pt font size */
+                font-size: 16pt;
                 line-height: 1.5;
             }
-            .meta p { margin: 16px 0; } /* 16pts space between meta lines */
+            .meta p { margin: 16px 0; }
             .for-company { 
                 margin-top: 15px; 
                 line-height: 1.5; 
-                font-size: 16pt; /* 16pt font size */
+                font-size: 16pt;
             }
             .cover-quote { margin-top: 20px; font-style: italic; color: #555; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.5; font-size: 14pt; }
 
 
             /* ========================================================= */
-            /* Content Section Styles (where smaller font is requested) */
+            /* Content Section Styles */
             /* ========================================================= */
             
-            /* TOC Styling */
             .toc-root { counter-reset: section; padding-left: 0; margin-top: 8px; font-size: 14pt; }
             .toc-root > li { counter-increment: section; margin-top: 4px; list-style: none; } 
             .toc-root > li:before { content: counter(section) ". "; font-weight: bold; }
@@ -1353,12 +1353,10 @@ const generateReportHtml = (auditInstance = {}) => {
             .toc-root > li li:before { content: counter(section) "." counter(subsection) ". "; font-weight: normal; }
             .toc-root a { text-decoration: none; color: #003340; }
             
-            /* Question/Answer blocks retain original (smaller) font size as requested */
             .question-block { margin-bottom: 6px; padding: 6px 10px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; }
             .question-header { display: flex; align-items: flex-start; margin-bottom: 2px; border-left: 3px solid; padding-left: 10px; }
             .question-header .question-title { font-size: 11pt; margin: 0; font-family: 'Arial', Helvetica, sans-serif !important; }
             .answer-row { margin: 3px 0; font-size: 11pt; }
-            /* The answer text color is now set inline in generateReportHtml, but keeping the row font size */
             .answer-row strong { font-weight: normal !important; }
             .comment, .recommendation, .evidence { margin-top: 4px; padding: 5px; border-left: 3px solid #014f65; font-size: 11pt; }
             .comment { background:#e6f7f6; }
@@ -1367,12 +1365,10 @@ const generateReportHtml = (auditInstance = {}) => {
             .evidence ul { margin:3px 0 0 18px; font-size: 11pt; }
             .section-desc, .subsection-desc { font-size: 12pt; color: #444; margin-bottom: 5px; text-align: justify; }
 
-            /* Environment Table (smaller font) */
             .env { width: 100%; border-collapse: collapse; margin: 8px 0 15px 0; table-layout: fixed; }
             .env td { padding: 5px 8px; border: 1px solid #e6e6e6; font-size: 12pt; } 
             .env td:first-child { width: 30%; font-weight: bold; background: #f5f5f5; }
 
-            /* Summary & Handover (smaller font) */
             .summary { margin:5px 0; padding:8px; background:#f6f6f6; border-radius:4px; font-size: 12pt; } 
             .handover-heading { margin-bottom: 5px; font-size: 14pt; color: #014f65; text-align: left; font-weight: bold; font-family: 'Arial', Helvetica, sans-serif !important;}
             .handover-table { width: 100%; margin-top: 5px; border-collapse: collapse; font-size: 12pt; } 
@@ -1383,7 +1379,6 @@ const generateReportHtml = (auditInstance = {}) => {
             .signature-line { display: inline-block; border-bottom: 1px solid #000; width: 250px; height: 1em; margin-left: 5px;}
             .handover-section { margin-bottom: 25px; }
             
-            /* Footer/Thank You */
             .contact { margin-top: 12px; font-size: 14pt; } 
             .contact a { text-decoration: none; color: #003340; }
             .slogan-center { text-align: center; margin-top: 25px; font-style: italic; color: #014f65; font-size: 20pt; font-family: 'Lexend', sans-serif !important;}
