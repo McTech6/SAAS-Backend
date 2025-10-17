@@ -987,14 +987,37 @@ const formatDate = (d) => {
 };
 
 /**
- * Determine status category and color from a response value.
+ * Determine status category and color from a response value and question type.
+ * @param {string} selectedValue - The string value of the selected answer.
+ * @param {string} questionType - The type of the question.
+ * @returns {{label: string, color: string}} Status info with color.
  */
-const getStatusInfo = (selectedValue) => {
-    const raw = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
-    const color = '#014f65'; // Primary green color
+const getStatusInfo = (selectedValue, questionType) => {
+    const rawValue = (selectedValue === undefined || selectedValue === null) ? '' : String(selectedValue).trim().toLowerCase();
+    let color = '#a3a3a3'; // Default to Grey for N/A or Text
 
-    // Return the raw value as the label, removing the opinionated logic
-    return { label: raw || 'N/A', color: color };
+    // Determine color based on common answer values for choice-based questions
+    if (questionType === 'single_choice' || questionType === 'multi_choice') {
+        if (rawValue.includes('implemented') || rawValue.includes('yes')) {
+            color = '#014f65'; // Green (Primary) - Implemented / Yes
+        } else if (rawValue.includes('partially implemented') || rawValue.includes('partial')) {
+            color = '#f59e0b'; // Orange - Partially Implemented
+        } else if (rawValue.includes('not implemented') || rawValue.includes('no')) {
+            color = '#ef4444'; // Red - Not Implemented / No
+        }
+    }
+    
+    // For non-choice types (text, numeric, date, file) or unselected choice, use grey
+    if (questionType !== 'single_choice' && questionType !== 'multi_choice') {
+        color = '#a3a3a3'; // Grey - Text/Numeric/File (non-MCQ)
+    }
+
+    // Fallback label
+    const label = rawValue || 'N/A';
+
+    // The color of the answer text is defined by the status logic, 
+    // but the `getStatusInfo` color is primarily used for the border in the current template logic.
+    return { label: label, color: color };
 };
 
 /**
@@ -1083,8 +1106,17 @@ const generateReportHtml = (auditInstance = {}) => {
 
             (subSection.questions || []).forEach((question, qIdx) => {
                 const resp = responses.find(r => r.questionId?.toString() === question._id?.toString()) || {};
-                const status = getStatusInfo(resp.selectedValue);
+                
+                // --- MODIFICATION START: Use question type in getStatusInfo and apply color to answer text ---
+                const questionType = resp.questionTypeSnapshot || question.type || 'text_input'; // Fallback to text_input
+                const status = getStatusInfo(resp.selectedValue, questionType);
+                
                 const answerText = escapeHtml(resp.selectedValue === undefined || resp.selectedValue === null ? 'N/A' : String(resp.selectedValue));
+                
+                // Apply the status color to the answer text
+                const answerHtml = `<span style="color: ${status.color};"><strong>${answerText}</strong></span>`;
+                // --- MODIFICATION END ---
+                
                 const commentHtml = resp.comment ? `<div class="comment"><strong>Comment:</strong><div>${escapeHtml(resp.comment)}</div></div>` : '';
                 const evidenceHtml = (Array.isArray(resp.evidenceUrls) && resp.evidenceUrls.length > 0) ? `<div class="evidence"><strong>Evidence:</strong><ul>${resp.evidenceUrls.map(u => `<li><a href="${escapeHtml(u)}">${escapeHtml(u)}</a></li>`).join('')}</ul></div>` : '';
                 const recommendationHtml = resp.recommendation ? `<div class="recommendation"><strong>Recommendation:</strong><div>${escapeHtml(resp.recommendation)}</div></div>` : '';
@@ -1092,10 +1124,10 @@ const generateReportHtml = (auditInstance = {}) => {
                 mainHtml += `
                     <div class="question-block">
                         <div class="question-header" style="border-left:3px solid ${status.color};">
-                            <p class="question-title" style="color:${status.color};"><strong>${escapeHtml(question.text || 'Untitled question')}</strong></p>
+                            <p class="question-title"><strong>${escapeHtml(question.text || 'Untitled question')}</strong></p>
                             
                         </div>
-                        <div class="answer-row"><strong>Answer:</strong> ${answerText}</div>
+                        <div class="answer-row"><strong>Answer:</strong> ${answerHtml}</div>
                         ${recommendationHtml}
                         ${commentHtml}
                         ${evidenceHtml}
@@ -1326,6 +1358,8 @@ const generateReportHtml = (auditInstance = {}) => {
             .question-header { display: flex; align-items: flex-start; margin-bottom: 2px; border-left: 3px solid; padding-left: 10px; }
             .question-header .question-title { font-size: 11pt; margin: 0; font-family: 'Arial', Helvetica, sans-serif !important; }
             .answer-row { margin: 3px 0; font-size: 11pt; }
+            /* The answer text color is now set inline in generateReportHtml, but keeping the row font size */
+            .answer-row strong { font-weight: normal !important; }
             .comment, .recommendation, .evidence { margin-top: 4px; padding: 5px; border-left: 3px solid #014f65; font-size: 11pt; }
             .comment { background:#e6f7f6; }
             .recommendation { background: #f0f8ff; }
