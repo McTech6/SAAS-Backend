@@ -27,7 +27,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 */
 
-// Middleware to parse JSON bodies from incoming requests
+// // Middleware to parse JSON bodies from incoming requests
 app.use(express.json({ limit: '50mb' }));
 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
