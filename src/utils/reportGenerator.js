@@ -570,14 +570,14 @@ const getStatusInfo = (selectedValue, questionType) => {
 
     // Logic for choice-based questions
     if (questionType === 'single_choice' || questionType === 'multi_choice') {
-        if (rawValue.includes('implemented') || rawValue.includes('yes')) {
-            // ✅ UPDATED TO A TRUE GREEN COLOR (distinct from the border/primary #014f65)
+        if (rawValue.includes('implemented') || rawValue.includes('yes') || rawValue.includes('compliant')) {
+            // GREEN: Implemented / Yes / Compliant
             color = '#16a34a'; 
         } else if (rawValue.includes('partially implemented') || rawValue.includes('partial')) {
             // ORANGE: Partially implemented
             color = '#f59e0b'; 
-        } else if (rawValue.includes('not implemented') || rawValue.includes('no')) {
-            // RED: Not implemented
+        } else if (rawValue.includes('not implemented') || rawValue.includes('no') || rawValue.includes('non-compliant') || rawValue.includes('absent') || rawValue.includes('non-compliant/absent')) {
+            // RED: Not implemented / No / Non-compliant / Absent / Non-compliant/Absent
             color = '#ef4444'; 
         } else {
              // Fallback for choice-based with no matching status or no answer
@@ -945,7 +945,7 @@ const generateReportHtml = (auditInstance = {}) => {
             .handover-section { margin-bottom: 25px; }
             
             .contact { margin-top: 12px; font-size: 14pt; } 
-            .contact a { text-decoration: none; color: #003340; }
+            .contact a { color: #003340; }
             .slogan-center { text-align: center; margin-top: 25px; font-style: italic; color: #014f65; font-size: 20pt; font-family: 'Lexend', sans-serif !important;}
             
             /* Utilities */
