@@ -28,7 +28,9 @@ app.use(cors(corsOptions));
 */
 
 // Middleware to parse JSON bodies from incoming requests
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Basic route for the root URL to confirm the server is running
 app.get('/', (req, res) => {
