@@ -523,8 +523,7 @@
 
 const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
-/**
- * Escapes HTML to prevent XSS vulnerabilities.
+/** * Escapes HTML to prevent XSS vulnerabilities. 
  * @param {string} str - The string to escape.
  * @returns {string} The escaped string.
  */
@@ -538,9 +537,8 @@ const escapeHtml = (str) => {
 };
 
 const formatDate = (d) => {
-    if (!d) return null; // Return null if date is not available
+    if (!d) return null;
     try {
-        // Return null if date is not a valid date
         if (isNaN(new Date(d).getTime())) return null;
         return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     } catch {
@@ -548,72 +546,81 @@ const formatDate = (d) => {
     }
 };
 
-/**
- * Determine status category and color from a response value and question type.
+/** * FIXED: Properly detects compliant/yes/implemented as GREEN 
  * @param {string|string[]} selectedValue - The value(s) of the selected answer(s).
  * @param {string} questionType - The type of the question.
  * @returns {{label: string, color: string}} Status info with color.
  */
 const getStatusInfo = (selectedValue, questionType) => {
-    let rawValue = selectedValue;
-    let label = 'N/A';
-    let color = '#a3a3a3'; // Default to Grey for N/A or non-scored types
-
-    // Standardize input into an array of lower-case strings for checking
-    const values = Array.isArray(rawValue) ? 
-        rawValue.map(v => String(v).trim().toLowerCase()) : 
-        (rawValue === undefined || rawValue === null || rawValue === '') ? 
-        [] : 
-        [String(rawValue).trim().toLowerCase()];
-
-    // Determine the label for display
-    if (values.length > 0) {
-        label = values.join(', ');
+    // Handle empty/null values
+    if (selectedValue === undefined || selectedValue === null || selectedValue === '') {
+        return { label: 'N/A', color: '#a3a3a3' };
     }
     
+    let rawValue = '';
+    let values = [];
+        
+    // Handle array values (for multi-choice)
+    if (Array.isArray(selectedValue)) {
+        values = selectedValue.map(v => String(v).trim().toLowerCase());
+        if (values.length === 0) {
+            return { label: 'N/A', color: '#a3a3a3' };
+        }
+        rawValue = values.join(', ');
+    } else {
+        rawValue = String(selectedValue).trim().toLowerCase();
+        values = [rawValue];
+    }
+    
+    let color = '#a3a3a3'; // Default Grey
+    const label = rawValue || 'N/A';
+
     // Logic for choice-based questions
     if (questionType === 'single_choice' || questionType === 'multi_choice') {
         
-        if (values.length === 0) {
-            // No answer selected (N/A)
-            color = '#a3a3a3'; 
+        // Define keywords (use .includes() for robustness against combined strings in multi-choice)
+        const implementedKeywords = ['implemented', 'yes', 'compliant'];
+        const partialKeywords = ['partially implemented', 'partial'];
+        const negativeKeywords = ['not implemented', 'no', 'non-compliant', 'absent'];
+
+        // Normalize rawValue for check (important for multi-choice strings like "yes, compliant")
+        const normalizedRawValue = rawValue.split(',').map(s => s.trim());
+
+        // 1. Check for RED (Non-Compliant/Negative)
+        const isNegative = normalizedRawValue.some(v => negativeKeywords.includes(v)) || rawValue.includes('non-compliant');
+
+        // 2. Check for ORANGE (Partial)
+        const isPartial = normalizedRawValue.some(v => partialKeywords.includes(v)) || rawValue.includes('partially');
+        
+        // 3. Check for GREEN (Compliant/Implemented) - Must NOT be negative or partial
+        const isImplemented = normalizedRawValue.some(v => implementedKeywords.includes(v)) || 
+                              (rawValue.includes('implemented') && !rawValue.includes('not implemented') && !rawValue.includes('partially')) ||
+                              (rawValue.includes('compliant') && !rawValue.includes('non-compliant'));
+                              
+        if (isNegative) {
+            color = '#ef4444'; // RED
+        } else if (isPartial) {
+            color = '#f59e0b'; // ORANGE
+        } else if (isImplemented) {
+             // Use GREEN if any positive keyword is present and no negative/partial override.
+             color = '#16a34a'; // GREEN
         } else {
-            // Define negative and partial keywords
-            const negativeKeywords = ['not implemented', 'no', 'non-compliant', 'absent', 'non-compliant/absent'];
-            const partialKeywords = ['partially implemented', 'partial'];
-
-            const isNegative = values.some(v => negativeKeywords.includes(v));
-            const isPartial = values.some(v => partialKeywords.includes(v));
-
-            if (isNegative) {
-                // RED: Not implemented / Non-compliant (most severe)
-                color = '#ef4444'; 
-            } else if (isPartial) {
-                // ORANGE: Partially implemented (medium severity)
-                color = '#f59e0b'; 
-            } else {
-                // GREEN: Implemented / Yes / Compliant (default for choice-based if no negative/partial are present)
-                // We use includes('implemented') etc. in the original for the green case, but here we can just default to green 
-                // if there are answers and no red/orange keywords are present. This simplifies the logic and assumes an answer 
-                // is positive unless marked otherwise. The original was flawed in the 'else' case.
-                color = '#16a34a'; 
-            }
+             // Fallback for custom or unrecognized choice-based answers
+             color = '#a3a3a3'; 
         }
+
     } else {
-        // For non-choice types (text, numeric, date, file)
-        // GREY: Superfluous (as these types aren't scored for implementation status)
-        color = '#a3a3a3'; 
+        // For non-choice types - always grey
+        color = '#a3a3a3';
     }
 
-    // The answer label displayed in the report
     return { 
         label: label, 
         color: color 
     };
 };
 
-/**
- * Build table of contents HTML from templateStructureSnapshot with numbering
+/** * Build table of contents HTML 
  */
 const buildToc = (templateStructure) => {
     if (!Array.isArray(templateStructure) || templateStructure.length === 0) return '<p>(No content)</p>';
@@ -636,8 +643,8 @@ const buildToc = (templateStructure) => {
 };
 
 const generateReportHtml = (auditInstance = {}) => {
-    console.log('[generateReportHtml] Received audit instance: [Company/Environment details omitted for brevity]');
-
+    console.log('[generateReportHtml] Received audit instance');
+    
     const company = auditInstance.company || {};
     const template = auditInstance.template || {};
     const responses = auditInstance.responses || [];
@@ -645,16 +652,12 @@ const generateReportHtml = (auditInstance = {}) => {
     const overallScore = (typeof auditInstance.overallScore === 'number') ? Math.round(auditInstance.overallScore) : 0;
     const createdBy = auditInstance.createdBy || {};
     const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
-
     const examinationEnvironment = company.examinationEnvironment || auditInstance.examinationEnvironment || {};
-
     const summaries = auditInstance.summaries || [];
-
     const reportDate = formatDate(new Date());
 
     const startDateFormatted = formatDate(auditInstance.startDate);
     const endDateFormatted = formatDate(auditInstance.endDate);
-
     let auditDateRange = 'N/A';
     if (startDateFormatted && endDateFormatted) {
         auditDateRange = `${startDateFormatted} - ${endDateFormatted}`;
@@ -669,21 +672,28 @@ const generateReportHtml = (auditInstance = {}) => {
 
     const tocHtml = buildToc(templateStructure);
 
+    // Build main content with sections starting on new pages
     let mainHtml = '';
-    
-    // --- MAIN CONTENT GENERATION ---
     templateStructure.forEach((section, sIdx) => {
-        // Add class 'content-section-break' to apply page break logic *before* the section if needed
-        // This is a CSS approach to prevent orphaned pages, not a perfect programmatic solution.
         const secId = `sec-${sIdx}`;
-        mainHtml += `<div class="section ${sIdx > 0 ? 'content-section-break' : ''}" id="${secId}"><h2 class="header-spacing">${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
+        
+        // Each section starts on a new page (except the first one)
+        const sectionClass = sIdx === 0 ? 'section' : 'section section-page-break';
+        
+        mainHtml += `<div class="${sectionClass}" id="${secId}">`;
+        mainHtml += `<h2 class="header-spacing">${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
+        
         if (section.description) {
             mainHtml += `<p class="section-desc">${escapeHtml(section.description)}</p>`;
         }
 
         (section.subSections || []).forEach((subSection, ssIdx) => {
             const subId = `sec-${sIdx}-sub-${ssIdx}`;
-            mainHtml += `<div class="subsection" id="${subId}"><h3 class="header-spacing">${escapeHtml(subSection.name || 'Unnamed Subsection')}</h3>`;
+            
+            // Subsections keep together intelligently (via CSS page-break-inside: avoid on .subsection)
+            mainHtml += `<div class="subsection" id="${subId}">`;
+            mainHtml += `<h3 class="header-spacing">${escapeHtml(subSection.name || 'Unnamed Subsection')}</h3>`;
+            
             if (subSection.description) {
                 mainHtml += `<p class="subsection-desc">${escapeHtml(subSection.description)}</p>`;
             }
@@ -691,23 +701,17 @@ const generateReportHtml = (auditInstance = {}) => {
             (subSection.questions || []).forEach((question, qIdx) => {
                 const resp = responses.find(r => r.questionId?.toString() === question._id?.toString()) || {};
                 
-                // Get answer value for display
                 let selectedValueDisplay = resp.selectedValue;
                 if (Array.isArray(resp.selectedValue)) {
-                    // Display multi-choice answers as a comma-separated list
                     selectedValueDisplay = resp.selectedValue.join(', ');
-                } else if (resp.selectedValue === undefined || resp.selectedValue === null) {
+                } else if (resp.selectedValue === undefined || resp.selectedValue === null || resp.selectedValue === '') {
                     selectedValueDisplay = 'N/A';
                 }
 
                 const questionType = resp.questionTypeSnapshot || question.type || 'text_input';
-                
-                // *** Use the FIXED getStatusInfo here ***
                 const status = getStatusInfo(resp.selectedValue, questionType);
                 
                 const answerText = escapeHtml(String(selectedValueDisplay));
-                
-                // Apply the status color to the answer text
                 const answerHtml = `<span style="color: ${status.color};"><strong>${answerText}</strong></span>`;
                 
                 const commentHtml = resp.comment ? `<div class="comment"><strong>Comment:</strong><div>${escapeHtml(resp.comment)}</div></div>` : '';
@@ -718,7 +722,6 @@ const generateReportHtml = (auditInstance = {}) => {
                     <div class="question-block">
                         <div class="question-header" style="border-left:3px solid ${status.color};">
                             <p class="question-title"><strong>${escapeHtml(question.text || 'Untitled question')}</strong></p>
-                            
                         </div>
                         <div class="answer-row"><strong>Answer:</strong> ${answerHtml}</div>
                         ${recommendationHtml}
@@ -728,14 +731,12 @@ const generateReportHtml = (auditInstance = {}) => {
                 `;
             });
 
-            mainHtml += `</div>`;
+            mainHtml += `</div>`; // Close subsection
         });
 
-        mainHtml += `</div>`;
+        mainHtml += `</div>`; // Close section
     });
 
-    // --- STATIC CONTENT (omitted for brevity, remains the same) ---
-    // ... [Introduction, About Company, Preface, Disclaimer, Executive Summary, Examination Environment, Handover, Thank You] ...
     const envHtml = `
         <table class="env">
             <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examinationEnvironment.locations || 'N/A'))}</td></tr>
@@ -830,9 +831,6 @@ const generateReportHtml = (auditInstance = {}) => {
         </div>
     `;
 
-
-    // --- FINAL HTML STRUCTURE ---
-
     const html = `
     <!doctype html>
     <html>
@@ -903,6 +901,36 @@ const generateReportHtml = (auditInstance = {}) => {
             p { margin: 3px 0; line-height: 1.4; }
 
             /* ========================================================= */
+            /* PAGE BREAK MANAGEMENT - TARGETED FIXES */
+            /* ========================================================= */
+            
+            /* Start main report sections on a new page */
+            .page-break { page-break-before: always; }
+            
+            /* Start all content sections on a new page (except the first one) */
+            .section-page-break {
+                page-break-before: always;
+            }
+            
+            /* Keep subsections together intelligently */
+            .subsection {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            
+            /* Prevent orphaned headers and widows */
+            h2, h3 {
+                page-break-after: avoid;
+                orphans: 3;
+                widows: 3;
+            }
+            
+            /* Try to keep question blocks together */
+            .question-block {
+                page-break-inside: avoid;
+            }
+            
+            /* ========================================================= */
             /* Cover Page Styles */
             /* ========================================================= */
             .cover { 
@@ -941,7 +969,7 @@ const generateReportHtml = (auditInstance = {}) => {
             .toc-root { counter-reset: section; padding-left: 0; margin-top: 8px; font-size: 14pt; }
             .toc-root > li { counter-increment: section; margin-top: 4px; list-style: none; } 
             .toc-root > li:before { content: counter(section) ". "; font-weight: bold; }
-            .toc-root > li ul { list-style: none; padding-left: 30px; margin-top: 2px; }
+            .toc-root > li ul { list-style: none; padding-left: 30px; margin-top: 2px; counter-reset: subsection; }
             .toc-root > li li { counter-increment: subsection; margin-top: 2px; }
             .toc-root > li li:before { content: counter(section) "." counter(subsection) ". "; font-weight: normal; }
             .toc-root a { text-decoration: none; color: #003340; }
@@ -975,19 +1003,6 @@ const generateReportHtml = (auditInstance = {}) => {
             .contact { margin-top: 12px; font-size: 14pt; } 
             .contact a { color: #003340; }
             .slogan-center { text-align: center; margin-top: 25px; font-style: italic; color: #014f65; font-size: 20pt; font-family: 'Lexend', sans-serif !important;}
-            
-            /* Utilities */
-            a { color: #003340; }
-            .page-break { page-break-before: always; }
-            
-            /* New class for content section breaks */
-            .content-section-break {
-                page-break-before: auto; /* Allow the break to be automatic */
-                page-break-inside: avoid; /* Prevent a page break from occurring *inside* a section */
-            }
-            .content-section-break h2 {
-                page-break-after: avoid; /* Prevent a page break immediately after a section header */
-            }
         </style>
     </head>
     <body>
