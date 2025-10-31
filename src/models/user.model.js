@@ -96,10 +96,6 @@
 // const User = mongoose.model('User', userSchema);
 
 // export default User;
-
-
-// src/models/user.model.js
-
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { hashPassword } from '../utils/helpers.js';
@@ -176,21 +172,26 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
-    // Existing field: managerId to link users to their managing admin/super_admin
     managerId: {
         type: mongoose.Schema.ObjectId,
         ref: 'User',
         default: null
     },
-    // New fields for Admin Quotas (only relevant if role is 'admin')
-    maxManagedAdmins: { 
-        type: Number,
-        default: 0
+    // --- NEW SUBSCRIPTION FIELDS ---
+    // Links this user to the specific Subscription instance (owned by the Tenant Admin)
+    subscriptionId: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'Subscription',
+        default: null
     },
-    maxManagedAuditors: {
-        type: Number,
-        default: 0
+    // The ID of the primary Admin user (Tenant Admin) responsible for this subscription
+    // This is used for quota counting and group filtering.
+    tenantAdminId: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'User',
+        default: null
     }
+    // --- REMOVED: maxManagedAdmins, maxManagedAuditors ---
 }, { timestamps: true });
 
 userSchema.methods.getResetPasswordToken = function() {

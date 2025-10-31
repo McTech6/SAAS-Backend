@@ -1,6 +1,4 @@
  
-
-// // export default generateReportHtml;
 // const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 // /**
@@ -47,14 +45,14 @@
 
 //     // Logic for choice-based questions
 //     if (questionType === 'single_choice' || questionType === 'multi_choice') {
-//         if (rawValue.includes('implemented') || rawValue.includes('yes')) {
-//             // GREEN: The color previously used for the border/primary color
-//             color = '#014f65'; 
+//         if (rawValue.includes('implemented') || rawValue.includes('yes') || rawValue.includes('compliant')) {
+//             // GREEN: Implemented / Yes / Compliant
+//             color = '#16a34a'; 
 //         } else if (rawValue.includes('partially implemented') || rawValue.includes('partial')) {
 //             // ORANGE: Partially implemented
 //             color = '#f59e0b'; 
-//         } else if (rawValue.includes('not implemented') || rawValue.includes('no')) {
-//             // RED: Not implemented
+//         } else if (rawValue.includes('not implemented') || rawValue.includes('no') || rawValue.includes('non-compliant') || rawValue.includes('absent') || rawValue.includes('non-compliant/absent')) {
+//             // RED: Not implemented / No / Non-compliant / Absent / Non-compliant/Absent
 //             color = '#ef4444'; 
 //         } else {
 //              // Fallback for choice-based with no matching status or no answer
@@ -151,9 +149,9 @@
 //                 // Get answer value, falling back to 'N/A' for display
 //                 let selectedValueDisplay = resp.selectedValue;
 //                 if (Array.isArray(resp.selectedValue)) {
-//                      selectedValueDisplay = resp.selectedValue.join(', ');
+//                     selectedValueDisplay = resp.selectedValue.join(', ');
 //                 } else if (resp.selectedValue === undefined || resp.selectedValue === null) {
-//                      selectedValueDisplay = 'N/A';
+//                     selectedValueDisplay = 'N/A';
 //                 }
 
 //                 const questionType = resp.questionTypeSnapshot || question.type || 'text_input';
@@ -422,7 +420,7 @@
 //             .handover-section { margin-bottom: 25px; }
             
 //             .contact { margin-top: 12px; font-size: 14pt; } 
-//             .contact a { text-decoration: none; color: #003340; }
+//             .contact a { color: #003340; }
 //             .slogan-center { text-align: center; margin-top: 25px; font-style: italic; color: #014f65; font-size: 20pt; font-family: 'Lexend', sans-serif !important;}
             
 //             /* Utilities */
@@ -523,7 +521,7 @@
 
 // export default generateReportHtml;
 
-// export default generateReportHtml;
+
 const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1757777319/DV-Koch-Logo_0225_Logo_Farbe-rgb_bzefrw.jpg';
 
 /**
@@ -566,26 +564,29 @@ const getStatusInfo = (selectedValue, questionType) => {
     }
 
     let color = '#a3a3a3'; // Default to Grey for non-MCQ / Superfluous
-    const label = rawValue || 'N/A';
+    let label = rawValue || 'N/A';
 
     // Logic for choice-based questions
     if (questionType === 'single_choice' || questionType === 'multi_choice') {
-        if (rawValue.includes('implemented') || rawValue.includes('yes') || rawValue.includes('compliant')) {
-            // GREEN: Implemented / Yes / Compliant
-            color = '#16a34a'; 
-        } else if (rawValue.includes('partially implemented') || rawValue.includes('partial')) {
-            // ORANGE: Partially implemented
+        
+        // 1. RED: Not implemented / No / Non-compliant (Prioritize non-compliance)
+        if (rawValue.includes('not implemented') || rawValue.includes('no') || rawValue.includes('non-compliant') || rawValue.includes('absent') || rawValue.includes('non-compliant/absent')) {
+            color = '#ef4444'; // Confirmed Red
+        } 
+        // 2. ORANGE: Partially implemented
+        else if (rawValue.includes('partially implemented') || rawValue.includes('partial')) {
             color = '#f59e0b'; 
-        } else if (rawValue.includes('not implemented') || rawValue.includes('no') || rawValue.includes('non-compliant') || rawValue.includes('absent') || rawValue.includes('non-compliant/absent')) {
-            // RED: Not implemented / No / Non-compliant / Absent / Non-compliant/Absent
-            color = '#ef4444'; 
-        } else {
-             // Fallback for choice-based with no matching status or no answer
+        } 
+        // 3. GREEN: Implemented / Yes / Compliant
+        else if (rawValue.includes('implemented') || rawValue.includes('yes') || rawValue.includes('compliant')) {
+            color = '#16a34a'; // Confirmed Green
+        } 
+        // 4. Fallback/N/A
+        else {
              color = '#a3a3a3'; 
         }
     } else {
         // For non-choice types (text, numeric, date, file)
-        // GREY: Superfluous (as these types aren't scored for implementation status)
         color = '#a3a3a3'; 
     }
 
@@ -653,9 +654,31 @@ const generateReportHtml = (auditInstance = {}) => {
 
     const tocHtml = buildToc(templateStructure);
 
+    // --- Logic for determining if the audit is complete ---
+    let totalQuestions = 0;
+    let answeredQuestions = 0;
+    const allQuestions = [];
+    templateStructure.forEach(section => {
+        (section.subSections || []).forEach(subSection => {
+            (subSection.questions || []).forEach(question => {
+                allQuestions.push(question);
+                totalQuestions++;
+                const resp = responses.find(r => r.questionId?.toString() === question._id?.toString());
+                if (resp && resp.selectedValue !== undefined && resp.selectedValue !== null && String(resp.selectedValue).trim() !== '') {
+                    answeredQuestions++;
+                }
+            });
+        });
+    });
+
+    const isAuditComplete = totalQuestions > 0 && answeredQuestions === totalQuestions;
+    // --- End Logic for determining if the audit is complete ---
+
+
     let mainHtml = '';
     templateStructure.forEach((section, sIdx) => {
         const secId = `sec-${sIdx}`;
+        // Section includes page-break-inside: avoid; via CSS
         mainHtml += `<div class="section" id="${secId}"><h2 class="header-spacing">${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
         if (section.description) {
             mainHtml += `<p class="section-desc">${escapeHtml(section.description)}</p>`;
@@ -663,6 +686,7 @@ const generateReportHtml = (auditInstance = {}) => {
 
         (section.subSections || []).forEach((subSection, ssIdx) => {
             const subId = `sec-${sIdx}-sub-${ssIdx}`;
+            // Subsection includes page-break-inside: avoid; via CSS
             mainHtml += `<div class="subsection" id="${subId}"><h3 class="header-spacing">${escapeHtml(subSection.name || 'Unnamed Subsection')}</h3>`;
             if (subSection.description) {
                 mainHtml += `<p class="subsection-desc">${escapeHtml(subSection.description)}</p>`;
@@ -805,6 +829,26 @@ const generateReportHtml = (auditInstance = {}) => {
         </div>
     `;
 
+    // --- Conditional Content Section ---
+    const contentSection = isAuditComplete ? `
+        <div class="container page-break">
+            <h2 class="header-spacing">Content</h2>
+            ${mainHtml}
+        </div>
+        <div class="container page-break">
+            <h2 class="header-spacing">Handover</h2>
+            ${handoverText}
+        </div>
+        ` : `
+        <div class="container page-break">
+            <h2 class="header-spacing">Audit Incomplete</h2>
+            <p class="justify-text static-text">The detailed content section of this report is currently unavailable because the audit is not yet complete.</p>
+            <p class="justify-text static-text"><strong>${answeredQuestions} out of ${totalQuestions} questions have been answered.</strong> The full report content, including question-by-question findings, recommendations, and the Handover section, will be generated once the audit reaches 100% completion.</p>
+            <p class="justify-text static-text">Please finalize all responses to generate the complete report.</p>
+        </div>
+    `;
+    // --- End Conditional Content Section ---
+
     const html = `
     <!doctype html>
     <html>
@@ -918,7 +962,23 @@ const generateReportHtml = (auditInstance = {}) => {
             .toc-root > li li:before { content: counter(section) "." counter(subsection) ". "; font-weight: normal; }
             .toc-root a { text-decoration: none; color: #003340; }
             
-            .question-block { margin-bottom: 6px; padding: 6px 10px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; }
+            /* --- Page Break Improvement Logic (Section/Subsection/Question) --- */
+            .section { 
+                /* Ensures the top-level section stays together where possible, avoiding break within */
+                page-break-inside: avoid; 
+            }
+            .subsection {
+                /* Ensures a subsection block, including its header, stays together where possible */
+                page-break-inside: avoid;
+            }
+
+            .question-block { 
+                margin-bottom: 6px; padding: 6px 10px; background: #fafafa; border: 1px solid #eee; border-radius: 4px; 
+                /* Prevents question blocks from being split across a page */
+                page-break-inside: avoid;
+            }
+            /* --- End Page Break Improvement Logic --- */
+            
             .question-header { display: flex; align-items: flex-start; margin-bottom: 2px; border-left: 3px solid; padding-left: 10px; }
             .question-header .question-title { font-size: 11pt; margin: 0; font-family: 'Arial', Helvetica, sans-serif !important; }
             .answer-row { margin: 3px 0; font-size: 11pt; }
@@ -1022,15 +1082,7 @@ const generateReportHtml = (auditInstance = {}) => {
             ${envHtml}
         </div>
 
-        <div class="container page-break">
-            <h2 class="header-spacing">Content</h2>
-            ${mainHtml}
-        </div>
-
-        <div class="container page-break">
-            <h2 class="header-spacing">Handover</h2>
-            ${handoverText}
-        </div>
+        ${contentSection}
 
         <div class="container page-break">
             

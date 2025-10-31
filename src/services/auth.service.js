@@ -261,12 +261,8 @@
 // }
 
 // export default new AuthService();
-
-
-
-// src/services/auth.service.js
-
 import User from '../models/user.model.js';
+import Subscription from '../models/subscription.model.js'; // <-- NEW IMPORT
 import generateOTP from '../utils/otpGenerator.js';
 import sendEmail from '../utils/emailSender.js';
 import { hashPassword, comparePassword } from '../utils/helpers.js';
@@ -274,10 +270,18 @@ import authConfig from '../config/auth.config.js';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { MESSAGES } from '../utils/messages.js'; 
-import userService from './user.service.js'; // <-- IMPORTED
+import userService from './user.service.js';
+
+// Hardcoded dummy plans for Super Admin usage.
+const DEFAULT_PLANS = {
+    Basic: { maxAdmins: 1, maxAuditors: 5, templateAccess: ['tpl-basic-1', 'tpl-basic-2'] },
+    Professional: { maxAdmins: 3, maxAuditors: 20, templateAccess: ['tpl-basic-1', 'tpl-basic-2', 'tpl-pro-3', 'tpl-pro-4'] },
+    Enterprise: { maxAdmins: 10, maxAuditors: 100, templateAccess: [] } // [] means access to all public templates
+};
 
 class AuthService {
-    async inviteUser(email, role, frontendRegisterUrl, inviterUser, maxManagedAdmins, maxManagedAuditors, lang) {
+    // maxManagedAdmins, maxManagedAuditors REMOVED from signature, planName ADDED
+    async inviteUser(email, role, frontendRegisterUrl, inviterUser, planName, lang) {
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             if (existingUser.isVerified) {
@@ -290,49 +294,82 @@ class AuthService {
         const inviterRole = inviterUser.role;
         const managerId = inviterUser.id;
         
-        // --- 1. Quota Enforcement Logic ---
-        if (inviterRole !== 'super_admin') {
-            // Admin inviting another Admin (A invites C)
-            if (role === 'admin') {
-                const currentAdminCount = await userService.countManagedUsersInHierarchy(managerId, 'admin');
-                if (currentAdminCount >= inviterUser.maxManagedAdmins) {
-                    throw new Error(MESSAGES.MAX_ADMIN_LIMIT_REACHED.EN);
-                }
-            } 
-            // Admin inviting an Auditor (A invites D, or C invites G)
-            else if (role === 'auditor') {
-                const currentAuditorCount = await userService.countManagedUsersInHierarchy(managerId, 'auditor');
-                if (currentAuditorCount >= inviterUser.maxManagedAuditors) {
-                    throw new Error(MESSAGES.MAX_AUDITOR_LIMIT_REACHED.EN);
-                }
-            }
-        }
-        
-        // --- 2. User Creation ---
-        const inviteToken = crypto.randomBytes(32).toString('hex');
-        const inviteTokenExpires = new Date(Date.now() + authConfig.inviteTokenExpiresInHours * 60 * 60 * 1000);
-        
-        const userData = { 
+        // Prepare base user data
+        let userData = { 
             email, 
             role, 
-            inviteToken, 
-            inviteTokenExpires, 
+            inviteToken: crypto.randomBytes(32).toString('hex'),
+            inviteTokenExpires: new Date(Date.now() + authConfig.inviteTokenExpiresInHours * 60 * 60 * 1000), 
             isVerified: false, 
             profileCompleted: false, 
             managerId: managerId 
         };
 
-        // Only Super Admin sets these limits on a new Admin
+        // --- Subscription & Quota Logic ---
         if (inviterRole === 'super_admin' && role === 'admin') {
-            userData.maxManagedAdmins = maxManagedAdmins;
-            userData.maxManagedAuditors = maxManagedAuditors;
-        }
+            // SCENARIO 1: Super Admin invites a new Tenant Admin -> Needs new Subscription
+            if (!planName || !DEFAULT_PLANS[planName]) {
+                 throw new Error(MESSAGES.INVALID_PLAN_NAME.EN);
+            }
 
+            const planData = DEFAULT_PLANS[planName];
+            
+            // Create the new user first to get the Owner ID
+            const tempUser = new User(userData);
+            const newUser = await tempUser.save();
+            
+            // Create the new Subscription instance
+            const newSubscription = new Subscription({
+                name: planName,
+                maxAdmins: planData.maxAdmins,
+                maxAuditors: planData.maxAuditors,
+                templateAccess: planData.templateAccess,
+                ownerId: newUser._id
+            });
+            await newSubscription.save();
+
+            // Update the user with their own subscription details
+            newUser.subscriptionId = newSubscription._id;
+            newUser.tenantAdminId = newUser._id;
+            await newUser.save();
+            
+            const userObject = newUser.toObject();
+            delete userObject.inviteToken;
+            delete userObject.inviteTokenExpires;
+            return { user: userObject, messageKey: 'INVITE_SUCCESS' };
+
+        } else if (inviterRole === 'admin') {
+            // SCENARIO 2: Admin invites a sub-user (Admin or Auditor) -> Checks quota on existing Subscription
+            const subId = inviterUser.subscriptionId;
+            const tenantAdminId = inviterUser.tenantAdminId || inviterUser.id; // Fallback to inviter ID if missing
+
+            if (!subId) {
+                throw new Error(MESSAGES.ADMIN_MISSING_SUBSCRIPTION.EN);
+            }
+            
+            // Quota Check
+            const { count, maxLimit } = await userService.checkSubscriptionQuota(tenantAdminId, role, subId);
+
+            if (count >= maxLimit) {
+                const messageKey = role === 'admin' ? 'MAX_ADMIN_LIMIT_REACHED' : 'MAX_AUDITOR_LIMIT_REACHED';
+                throw new Error(MESSAGES[messageKey].EN);
+            }
+
+            // Link the new user to the existing subscription
+            userData.subscriptionId = subId;
+            userData.tenantAdminId = tenantAdminId;
+        } else {
+            // SCENARIO 3: Super Admin invites non-Admin (e.g., Auditor/Super Admin) -> No subscription linkage
+            userData.subscriptionId = undefined;
+            userData.tenantAdminId = undefined;
+        }
+        
+        // --- User Creation (for Scenarios 2 and 3) ---
         const user = new User(userData);
         await user.save();
         
         // Email content is in English (Source)
-        const registrationLink = `${frontendRegisterUrl}?token=${inviteToken}`;
+        const registrationLink = `${frontendRegisterUrl}?token=${userData.inviteToken}`;
         const emailSubject = 'Invitation to SaaS Cybersecurity Audit Platform';
         const emailText = `You have been invited to join the SaaS Cybersecurity Audit Platform. Please complete your registration using this link: ${registrationLink}`;
         const emailHtml = `<p>You have been invited to join the SaaS Cybersecurity Audit Platform.</p><p>Please complete your registration by clicking the link below:</p><p><a href="${registrationLink}">Complete Registration</a></p><p>This link is valid for ${authConfig.inviteTokenExpiresInHours} hours.</p>`;
@@ -446,7 +483,7 @@ class AuthService {
         await user.save();
 
         const token = jwt.sign(
-            { id: user._id, role: user.role },
+            { id: user._id, role: user.role, subscriptionId: user.subscriptionId, tenantAdminId: user.tenantAdminId }, // Added subscription details to token
             authConfig.jwtSecret,
             { expiresIn: authConfig.jwtExpiresIn }
         );
@@ -461,7 +498,8 @@ class AuthService {
             throw new Error(MESSAGES.USER_NOT_FOUND.EN);
         }
 
-        const resetToken = user.getResetPasswordToken();
+        // NOTE: getResetPasswordToken must be defined on the User model
+        const resetToken = user.getResetPasswordToken(); 
         await user.save();
 
         // Email content is in English (Source)
@@ -532,7 +570,7 @@ class AuthService {
     }
 
     async resendOtp(email, lang) {
-        const user = await User.findOne({ email }).select('+isVerified +otp +otpExpires');
+        const user = await User.findOne({ email }).select('+isVerified +otp +otpExpires +profileCompleted');
 
         if (!user) {
             throw new Error(MESSAGES.USER_NOT_FOUND.EN);
