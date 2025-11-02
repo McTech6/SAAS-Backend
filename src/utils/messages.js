@@ -280,6 +280,11 @@ AUDIT_INSTANCE_DELETED: {
     FR: "Instance d'audit supprimée avec succès.",
     DE: "Audit-Instanz erfolgreich gelöscht."
 },
+  MARK_COMPLETED_UNAUTHORIZED: {
+    EN: "You do not have permission to mark this audit as completed.",
+    FR: "Vous n'êtes pas autorisé à marquer cet audit comme terminé.",
+    DE: "Sie sind nicht berechtigt, diesen Audit als abgeschlossen zu markieren."
+  },
 
 // --- Validation/Error Messages ---
 RESPONSES_NOT_ARRAY: {
