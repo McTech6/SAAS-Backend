@@ -64,6 +64,10 @@
 // // We don't export a model directly from this file.
 // export default questionSchema;
 
+// src/models/question.model.js
+
+import mongoose from 'mongoose';
+import answerOptionSchema from './answerOption.model.js';
 
 const questionSchema = new mongoose.Schema({
     text: {
