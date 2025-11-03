@@ -281,73 +281,169 @@ const DEFAULT_PLANS = {
 
 class AuthService {
     // maxManagedAdmins, maxManagedAuditors REMOVED from signature, planName ADDED
-    async inviteUser(email, role, frontendRegisterUrl, inviterUser, planName, lang) {
+    // async inviteUser(email, role, frontendRegisterUrl, inviterUser, planName, lang) {
+    //     const existingUser = await User.findOne({ email });
+    //     if (existingUser) {
+    //         if (existingUser.isVerified) {
+    //             throw new Error(MESSAGES.USER_EXISTS.EN); 
+    //         } else {
+    //             throw new Error(MESSAGES.USER_ALREADY_INVITED.EN);
+    //         }
+    //     }
+        
+    //     const inviterRole = inviterUser.role;
+    //     const managerId = inviterUser.id;
+        
+    //     // Prepare base user data
+    //     let userData = { 
+    //         email, 
+    //         role, 
+    //         inviteToken: crypto.randomBytes(32).toString('hex'),
+    //         inviteTokenExpires: new Date(Date.now() + authConfig.inviteTokenExpiresInHours * 60 * 60 * 1000), 
+    //         isVerified: false, 
+    //         profileCompleted: false, 
+    //         managerId: managerId 
+    //     };
+
+    //     // --- Subscription & Quota Logic ---
+    //     if (inviterRole === 'super_admin' && role === 'admin') {
+    //         // SCENARIO 1: Super Admin invites a new Tenant Admin -> Needs new Subscription
+    //         if (!planName || !DEFAULT_PLANS[planName]) {
+    //              throw new Error(MESSAGES.INVALID_PLAN_NAME.EN);
+    //         }
+
+    //         const planData = DEFAULT_PLANS[planName];
+            
+    //         // Create the new user first to get the Owner ID
+    //         const tempUser = new User(userData);
+    //         const newUser = await tempUser.save();
+            
+    //         // Create the new Subscription instance
+    //         const newSubscription = new Subscription({
+    //             name: planName,
+    //             maxAdmins: planData.maxAdmins,
+    //             maxAuditors: planData.maxAuditors,
+    //             templateAccess: planData.templateAccess,
+    //             ownerId: newUser._id
+    //         });
+    //         await newSubscription.save();
+
+    //         // Update the user with their own subscription details
+    //         newUser.subscriptionId = newSubscription._id;
+    //         newUser.tenantAdminId = newUser._id;
+    //         await newUser.save();
+            
+    //         const userObject = newUser.toObject();
+    //         delete userObject.inviteToken;
+    //         delete userObject.inviteTokenExpires;
+    //         return { user: userObject, messageKey: 'INVITE_SUCCESS' };
+
+    //     } else if (inviterRole === 'admin') {
+    //         // SCENARIO 2: Admin invites a sub-user (Admin or Auditor) -> Checks quota on existing Subscription
+    //         const subId = inviterUser.subscriptionId;
+    //         const tenantAdminId = inviterUser.tenantAdminId || inviterUser.id; // Fallback to inviter ID if missing
+
+    //         if (!subId) {
+    //             throw new Error(MESSAGES.ADMIN_MISSING_SUBSCRIPTION.EN);
+    //         }
+            
+    //         // Quota Check
+    //         const { count, maxLimit } = await userService.checkSubscriptionQuota(tenantAdminId, role, subId);
+
+    //         if (count >= maxLimit) {
+    //             const messageKey = role === 'admin' ? 'MAX_ADMIN_LIMIT_REACHED' : 'MAX_AUDITOR_LIMIT_REACHED';
+    //             throw new Error(MESSAGES[messageKey].EN);
+    //         }
+
+    //         // Link the new user to the existing subscription
+    //         userData.subscriptionId = subId;
+    //         userData.tenantAdminId = tenantAdminId;
+    //     } else {
+    //         // SCENARIO 3: Super Admin invites non-Admin (e.g., Auditor/Super Admin) -> No subscription linkage
+    //         userData.subscriptionId = undefined;
+    //         userData.tenantAdminId = undefined;
+    //     }
+        
+    //     // --- User Creation (for Scenarios 2 and 3) ---
+    //     const user = new User(userData);
+    //     await user.save();
+        
+    //     // Email content is in English (Source)
+    //     const registrationLink = `${frontendRegisterUrl}?token=${userData.inviteToken}`;
+    //     const emailSubject = 'Invitation to SaaS Cybersecurity Audit Platform';
+    //     const emailText = `You have been invited to join the SaaS Cybersecurity Audit Platform. Please complete your registration using this link: ${registrationLink}`;
+    //     const emailHtml = `<p>You have been invited to join the SaaS Cybersecurity Audit Platform.</p><p>Please complete your registration by clicking the link below:</p><p><a href="${registrationLink}">Complete Registration</a></p><p>This link is valid for ${authConfig.inviteTokenExpiresInHours} hours.</p>`;
+
+    //     // Pass lang for translation
+    //     await sendEmail(email, emailSubject, emailText, emailHtml, lang);
+
+    //     const userObject = user.toObject();
+    //     delete userObject.inviteToken;
+    //     delete userObject.inviteTokenExpires;
+        
+    //     return { user: userObject, messageKey: 'INVITE_SUCCESS' }; 
+    // }
+
+     async inviteUser(email, role, frontendRegisterUrl, inviterUser, planDetails = {}, lang) {
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             if (existingUser.isVerified) {
-                throw new Error(MESSAGES.USER_EXISTS.EN); 
+                throw new Error(MESSAGES.USER_EXISTS.EN);
             } else {
                 throw new Error(MESSAGES.USER_ALREADY_INVITED.EN);
             }
         }
-        
+
         const inviterRole = inviterUser.role;
         const managerId = inviterUser.id;
-        
-        // Prepare base user data
-        let userData = { 
-            email, 
-            role, 
+
+        let userData = {
+            email,
+            role,
             inviteToken: crypto.randomBytes(32).toString('hex'),
-            inviteTokenExpires: new Date(Date.now() + authConfig.inviteTokenExpiresInHours * 60 * 60 * 1000), 
-            isVerified: false, 
-            profileCompleted: false, 
-            managerId: managerId 
+            inviteTokenExpires: new Date(Date.now() + authConfig.inviteTokenExpiresInHours * 60 * 60 * 1000),
+            isVerified: false,
+            profileCompleted: false,
+            managerId: managerId
         };
 
-        // --- Subscription & Quota Logic ---
+        // Super Admin inviting Tenant Admin -> Custom plan creation
         if (inviterRole === 'super_admin' && role === 'admin') {
-            // SCENARIO 1: Super Admin invites a new Tenant Admin -> Needs new Subscription
-            if (!planName || !DEFAULT_PLANS[planName]) {
-                 throw new Error(MESSAGES.INVALID_PLAN_NAME.EN);
+            const { planName, maxAdmins, maxAuditors, templateAccess } = planDetails;
+
+            if (!planName) {
+                throw new Error(MESSAGES.INVALID_PLAN_NAME.EN);
             }
 
-            const planData = DEFAULT_PLANS[planName];
-            
-            // Create the new user first to get the Owner ID
+            // Create user first
             const tempUser = new User(userData);
             const newUser = await tempUser.save();
-            
-            // Create the new Subscription instance
+
             const newSubscription = new Subscription({
                 name: planName,
-                maxAdmins: planData.maxAdmins,
-                maxAuditors: planData.maxAuditors,
-                templateAccess: planData.templateAccess,
+                maxAdmins: maxAdmins ?? 1,
+                maxAuditors: maxAuditors ?? 5,
+                templateAccess: templateAccess ?? [],
                 ownerId: newUser._id
             });
             await newSubscription.save();
 
-            // Update the user with their own subscription details
             newUser.subscriptionId = newSubscription._id;
             newUser.tenantAdminId = newUser._id;
             await newUser.save();
-            
+
             const userObject = newUser.toObject();
             delete userObject.inviteToken;
             delete userObject.inviteTokenExpires;
             return { user: userObject, messageKey: 'INVITE_SUCCESS' };
 
         } else if (inviterRole === 'admin') {
-            // SCENARIO 2: Admin invites a sub-user (Admin or Auditor) -> Checks quota on existing Subscription
+            // Admin inviting sub-user -> check quota
             const subId = inviterUser.subscriptionId;
-            const tenantAdminId = inviterUser.tenantAdminId || inviterUser.id; // Fallback to inviter ID if missing
+            const tenantAdminId = inviterUser.tenantAdminId || inviterUser.id;
 
-            if (!subId) {
-                throw new Error(MESSAGES.ADMIN_MISSING_SUBSCRIPTION.EN);
-            }
-            
-            // Quota Check
+            if (!subId) throw new Error(MESSAGES.ADMIN_MISSING_SUBSCRIPTION.EN);
+
             const { count, maxLimit } = await userService.checkSubscriptionQuota(tenantAdminId, role, subId);
 
             if (count >= maxLimit) {
@@ -355,33 +451,30 @@ class AuthService {
                 throw new Error(MESSAGES[messageKey].EN);
             }
 
-            // Link the new user to the existing subscription
             userData.subscriptionId = subId;
             userData.tenantAdminId = tenantAdminId;
         } else {
-            // SCENARIO 3: Super Admin invites non-Admin (e.g., Auditor/Super Admin) -> No subscription linkage
+            // Non-admin invites
             userData.subscriptionId = undefined;
             userData.tenantAdminId = undefined;
         }
-        
-        // --- User Creation (for Scenarios 2 and 3) ---
+
+        // Create user
         const user = new User(userData);
         await user.save();
-        
-        // Email content is in English (Source)
+
         const registrationLink = `${frontendRegisterUrl}?token=${userData.inviteToken}`;
         const emailSubject = 'Invitation to SaaS Cybersecurity Audit Platform';
-        const emailText = `You have been invited to join the SaaS Cybersecurity Audit Platform. Please complete your registration using this link: ${registrationLink}`;
-        const emailHtml = `<p>You have been invited to join the SaaS Cybersecurity Audit Platform.</p><p>Please complete your registration by clicking the link below:</p><p><a href="${registrationLink}">Complete Registration</a></p><p>This link is valid for ${authConfig.inviteTokenExpiresInHours} hours.</p>`;
+        const emailText = `You have been invited. Complete registration: ${registrationLink}`;
+        const emailHtml = `<p>You have been invited.</p><p><a href="${registrationLink}">Complete Registration</a></p>`;
 
-        // Pass lang for translation
         await sendEmail(email, emailSubject, emailText, emailHtml, lang);
 
         const userObject = user.toObject();
         delete userObject.inviteToken;
         delete userObject.inviteTokenExpires;
-        
-        return { user: userObject, messageKey: 'INVITE_SUCCESS' }; 
+
+        return { user: userObject, messageKey: 'INVITE_SUCCESS' };
     }
 
     async completeRegistration(inviteToken, userData, lang) {

@@ -302,37 +302,52 @@ class UserService {
      * @param {string} subscriptionId - The ID of the subscription instance.
      * @returns {{count: number, maxLimit: number}} The count and the subscription limit.
      */
-    async checkSubscriptionQuota(tenantAdminId, roleToCount, subscriptionId) {
-        if (!subscriptionId) {
-            return { count: 0, maxLimit: 0 }; 
-        }
+    // async checkSubscriptionQuota(tenantAdminId, roleToCount, subscriptionId) {
+    //     if (!subscriptionId) {
+    //         return { count: 0, maxLimit: 0 }; 
+    //     }
+
+    //     const subscription = await Subscription.findById(subscriptionId);
+    //     if (!subscription) {
+    //         throw new Error(MESSAGES.SUBSCRIPTION_NOT_FOUND.EN);
+    //     }
+
+    //     // 1. Get the max limit from the subscription plan
+    //     const maxLimitField = roleToCount === 'admin' ? 'maxAdmins' : 'maxAuditors';
+    //     const maxLimit = subscription[maxLimitField];
+
+    //     // 2. Count ALL existing users linked to this tenantAdminId and role.
+    //     const filter = {
+    //         tenantAdminId: tenantAdminId,
+    //         role: roleToCount,
+    //     };
+        
+    //     // If counting Admins, ensure we exclude the ownerId from the count 
+    //     // as the limit is for *managed* Admins.
+    //     if (roleToCount === 'admin') {
+    //         filter._id = { $ne: subscription.ownerId };
+    //     }
+
+    //     const count = await User.countDocuments(filter);
+        
+    //     return { count, maxLimit };
+    // }
+
+        async checkSubscriptionQuota(tenantAdminId, roleToCount, subscriptionId) {
+        if (!subscriptionId) return { count: 0, maxLimit: 0 };
 
         const subscription = await Subscription.findById(subscriptionId);
-        if (!subscription) {
-            throw new Error(MESSAGES.SUBSCRIPTION_NOT_FOUND.EN);
-        }
+        if (!subscription) throw new Error(MESSAGES.SUBSCRIPTION_NOT_FOUND.EN);
 
-        // 1. Get the max limit from the subscription plan
         const maxLimitField = roleToCount === 'admin' ? 'maxAdmins' : 'maxAuditors';
         const maxLimit = subscription[maxLimitField];
 
-        // 2. Count ALL existing users linked to this tenantAdminId and role.
-        const filter = {
-            tenantAdminId: tenantAdminId,
-            role: roleToCount,
-        };
-        
-        // If counting Admins, ensure we exclude the ownerId from the count 
-        // as the limit is for *managed* Admins.
-        if (roleToCount === 'admin') {
-            filter._id = { $ne: subscription.ownerId };
-        }
+        const filter = { tenantAdminId, role: roleToCount };
+        if (roleToCount === 'admin') filter._id = { $ne: subscription.ownerId };
 
         const count = await User.countDocuments(filter);
-        
         return { count, maxLimit };
     }
-
     async getAllUsers(requestingUser) { 
         let query = {};
         if (requestingUser.role === 'super_admin') {
@@ -348,12 +363,28 @@ class UserService {
         return { users, messageKey: 'USERS_RETRIEVED' };
     }
 
-    async getUserById(userId) {
+    // async getUserById(userId) {
+    //     const user = await User.findById(userId).select('-password -otp -otpExpires -inviteToken -inviteTokenExpires -passwordResetToken -passwordResetExpires');
+    //     if (!user) {
+    //         throw new Error(MESSAGES.USER_NOT_FOUND.EN);
+    //     }
+    //     return { user: user.toObject(), messageKey: 'PROFILE_RETRIEVED' };
+    // }
+        async getUserById(userId) {
         const user = await User.findById(userId).select('-password -otp -otpExpires -inviteToken -inviteTokenExpires -passwordResetToken -passwordResetExpires');
-        if (!user) {
-            throw new Error(MESSAGES.USER_NOT_FOUND.EN);
+        if (!user) throw new Error(MESSAGES.USER_NOT_FOUND.EN);
+
+        let subscription = null;
+        if (user.subscriptionId) {
+            subscription = await Subscription.findById(user.subscriptionId);
+            if (subscription) {
+                const adminCount = await User.countDocuments({ tenantAdminId: user._id, role: 'admin' });
+                const auditorCount = await User.countDocuments({ tenantAdminId: user._id, role: 'auditor' });
+                subscription = { ...subscription.toObject(), currentAdminCount: adminCount, currentAuditorCount: auditorCount };
+            }
         }
-        return { user: user.toObject(), messageKey: 'PROFILE_RETRIEVED' };
+
+        return { user: { ...user.toObject(), subscription }, messageKey: 'PROFILE_RETRIEVED' };
     }
 
     async getUserProfileById(userId) {

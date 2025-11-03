@@ -1,48 +1,122 @@
-// src/models/subscription.model.js
+// import mongoose from 'mongoose';
+
+// const subscriptionSchema = new mongoose.Schema({
+//     // Name of the subscription plan (e.g., Basic, Professional, Enterprise)
+//     name: {
+//         type: String,
+//         enum: ['Basic', 'Professional', 'Enterprise'],
+//         required: true,
+//         unique: false // Multiple active subscriptions can exist, but only one per owner
+//     },
+//     // The maximum number of 'admin' users allowed under this subscription (excluding the owner)
+//     maxAdmins: {
+//         type: Number,
+//         required: true,
+//         min: 0
+//     },
+//     // The maximum number of 'auditor' users allowed under this subscription
+//     maxAuditors: {
+//         type: Number,
+//         required: true,
+//         min: 0
+//     },
+//     // Array of AuditTemplate IDs that users under this plan are allowed to access
+//     templateAccess: {
+//         type: [mongoose.Schema.ObjectId],
+//         ref: 'AuditTemplate',
+//         default: []
+//     },
+//     // Reference to the main 'admin' user who owns this subscription (the Tenant Admin).
+//     ownerId: {
+//         type: mongoose.Schema.ObjectId,
+//         ref: 'User',
+//         required: true,
+//         unique: true // A subscription should only have one owner
+//     },
+//     // Status of the subscription
+//     status: {
+//         type: String,
+//         enum: ['Active', 'Trial', 'Suspended', 'Expired'],
+//         default: 'Active'
+//     }
+// }, {
+//     timestamps: true 
+// });
+
+// const Subscription = mongoose.model('Subscription', subscriptionSchema);
+
+// export default Subscription;
+
 
 import mongoose from 'mongoose';
 
+// Predefined plans with default maxAdmins and maxAuditors
+const predefinedPlans = {
+    Basic: { maxAdmins: 0, maxAuditors: 1 },
+    Professional: { maxAdmins: 0, maxAuditors: 5 },
+    Enterprise: { maxAdmins: null, maxAuditors: null } // Flexible, super admin can define
+};
+
 const subscriptionSchema = new mongoose.Schema({
-    // Name of the subscription plan (e.g., Basic, Professional)
     name: {
         type: String,
         enum: ['Basic', 'Professional', 'Enterprise'],
-        required: true,
-        unique: true
+        required: true
     },
-    // The maximum number of 'admin' users allowed under this subscription
     maxAdmins: {
         type: Number,
-        required: true,
         min: 0
     },
-    // The maximum number of 'auditor' users allowed under this subscription
     maxAuditors: {
         type: Number,
-        required: true,
         min: 0
     },
-    // Array of AuditTemplate IDs that users under this plan are allowed to access
     templateAccess: {
         type: [mongoose.Schema.ObjectId],
         ref: 'AuditTemplate',
         default: []
     },
-    // Reference to the main 'admin' user who owns this subscription.
     ownerId: {
         type: mongoose.Schema.ObjectId,
         ref: 'User',
         required: true,
-        unique: true // A subscription should only have one owner
+        unique: true
     },
-    // Status of the subscription
     status: {
         type: String,
         enum: ['Active', 'Trial', 'Suspended', 'Expired'],
         default: 'Active'
     }
 }, {
-    timestamps: true 
+    timestamps: true
+});
+
+// Pre-save hook to assign default maxAdmins and maxAuditors based on plan
+subscriptionSchema.pre('save', function(next) {
+    const plan = predefinedPlans[this.name];
+    if (plan) {
+        if (this.maxAdmins === undefined || this.maxAdmins === null) {
+            this.maxAdmins = plan.maxAdmins;
+        }
+        if (this.maxAuditors === undefined || this.maxAuditors === null) {
+            this.maxAuditors = plan.maxAuditors;
+        }
+    }
+    next();
+});
+
+// Validation to ensure plan limits are respected for Basic and Professional
+subscriptionSchema.pre('save', function(next) {
+    const plan = predefinedPlans[this.name];
+    if (plan) {
+        if (plan.maxAdmins !== null && this.maxAdmins > plan.maxAdmins) {
+            return next(new Error(`Max admins for ${this.name} plan is ${plan.maxAdmins}`));
+        }
+        if (plan.maxAuditors !== null && this.maxAuditors > plan.maxAuditors) {
+            return next(new Error(`Max auditors for ${this.name} plan is ${plan.maxAuditors}`));
+        }
+    }
+    next();
 });
 
 const Subscription = mongoose.model('Subscription', subscriptionSchema);

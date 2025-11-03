@@ -153,6 +153,23 @@ class AuditTemplateController {
             sendErrorResponse(res, statusCode, getMessage(error.message, lang));
         }
     }
+     async getAssignedTemplates(req, res, next) {
+        try {
+            const user = req.user; // req.user set by `protect` middleware
+            const lang = req.headers['accept-language'] || 'en';
+
+            // Use the same service method to get filtered templates
+            const result = await AuditTemplateService.getAllAuditTemplates(user, lang);
+
+            res.status(200).json({
+                success: true,
+                data: result.templates,
+                messageKey: 'TEMPLATES_RETRIEVED'
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 
     /**
      * Updates an existing audit template. Accessible only by Super Admin.
