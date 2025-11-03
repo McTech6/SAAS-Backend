@@ -311,23 +311,24 @@ class AuditTemplateService {
     /**
      * Retrieves all audit templates visible to the user based on their subscription.
      */
-    async getAllAuditTemplates(requestingUser, lang) { 
-        const filter = await this.getTemplateFilter(requestingUser);
+   async getAllAuditTemplates(requestingUser, lang) { 
+    const filter = await this.getTemplateFilter(requestingUser);
 
-        const templates = await AuditTemplate.find(filter) // <-- APPLY FILTER
-            .populate([
-                { path: 'createdBy', select: 'firstName lastName email' },
-                { path: 'lastModifiedBy', select: 'firstName lastName email' }
-            ])
-            .lean();
+    const templates = await AuditTemplate.find(filter) // <-- APPLY FILTER
+        .populate([
+            { path: 'createdBy', select: 'firstName lastName email' },
+            { path: 'lastModifiedBy', select: 'firstName lastName email' }
+        ])
+        .lean();
 
-        // Translate all templates concurrently
-        const translatedTemplates = await Promise.all(
-            templates.map(template => translateAuditTemplate(template, lang))
-        );
+    // Translate all templates concurrently
+    const translatedTemplates = await Promise.all(
+        templates.map(template => translateAuditTemplate(template, lang))
+    );
 
-        return { templates: translatedTemplates, messageKey: 'TEMPLATES_RETRIEVED' };
-    }
+    return { templates: translatedTemplates, messageKey: 'TEMPLATES_RETRIEVED' };
+}
+
 
     /**
      * Retrieves a single audit template by its ID, after checking subscription eligibility.

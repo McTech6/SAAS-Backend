@@ -15,6 +15,6 @@ router.patch('/:id', authorize('super_admin'), auditTemplateController.updateAud
 router.delete('/:id', authorize('super_admin'), auditTemplateController.deleteAuditTemplate);
 
 // NEW ROUTE: Admins get only assigned templates
-router.get('/assigned/my-templates', authorize('admin'), auditTemplateController.getAssignedTemplates);
+//router.get('/assigned/my-templates', authorize('admin'), auditTemplateController.getAssignedTemplates);
 
 export default router;

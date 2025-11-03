@@ -526,27 +526,185 @@ import Company from '../models/company.model.js';
 import AuditTemplate from '../models/auditTemplate.model.js';
 import User from '../models/user.model.js';
 import companyService from './company.service.js';
+import auditTemplateService from './auditTemplate.service.js';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 import generateReportHtml from '../utils/reportGenerator.js';
 import { translateAuditTemplate } from '../utils/dataTranslator.js';   // <-- NEW
 
 class AuditInstanceService {
-  async createAuditInstance(data, requestingUser, lang) {               // <-- added lang
-    console.log('[createAuditInstance] START - Data received:', data);
-    console.log('[createAuditInstance] Requesting user:', requestingUser?.id);
+  // async createAuditInstance(data, requestingUser, lang) {               // <-- added lang
+  //   console.log('[createAuditInstance] START - Data received:', data);
+  //   console.log('[createAuditInstance] Requesting user:', requestingUser?.id);
 
+  //   try {
+  //     const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate, examinationEnvironment } = data;
+
+  //     const finalAuditorIds = Array.isArray(assignedAuditorIds) ? assignedAuditorIds : [];
+  //     if (finalAuditorIds.length > 1) throw new Error('You cannot assign more than one auditor.');
+
+  //     if (finalAuditorIds.length > 0) {
+  //       const users = await User.find({ _id: { $in: finalAuditorIds }, role: 'auditor', isActive: true }).select('_id');
+  //       if (users.length !== finalAuditorIds.length) throw new Error('One or more assigned auditor IDs are invalid or inactive.');
+  //     }
+
+  //     let companyId;
+  //     if (companyDetails) {
+  //       if (examinationEnvironment) companyDetails.examinationEnvironment = examinationEnvironment;
+  //       const newCompany = await companyService.createCompany(companyDetails, requestingUser.id);
+  //       companyId = newCompany._id;
+  //     } else if (existingCompanyId) {
+  //       const existingCompany = await companyService.getCompanyById(existingCompanyId, requestingUser.id, requestingUser.role);
+  //       if (!existingCompany) throw new Error('Existing company not found or inaccessible.');
+  //       companyId = existingCompany._id;
+  //       if (examinationEnvironment) {
+  //         await Company.findByIdAndUpdate(companyId, { $set: { examinationEnvironment }, lastModifiedBy: requestingUser.id });
+  //       }
+  //     } else {
+  //       throw new Error('Either companyDetails or existingCompanyId must be provided.');
+  //     }
+
+  //     const auditTemplate = await AuditTemplate.findById(auditTemplateId);
+  //     if (!auditTemplate) throw new Error('Audit Template not found.');
+
+  //     // Translate template before snapshotting
+  //     const translatedTemplate = await translateAuditTemplate(auditTemplate, lang);
+  //     const templateStructureSnapshot = JSON.parse(JSON.stringify(translatedTemplate.sections || []));
+
+  //     const initialResponses = [];
+  //     templateStructureSnapshot.forEach(section => {
+  //       (section.subSections || []).forEach(subSection => {
+  //         (subSection.questions || []).forEach(question => {
+  //           initialResponses.push({
+  //             questionId: question._id,
+  //             questionTextSnapshot: question.text || '',
+  //             questionTypeSnapshot: question.type || '',
+  //             answerOptionsSnapshot: question.answerOptions || [],
+  //             comment: '',
+  //             includeCommentInReport: question.includeCommentInReportDefault || false,
+  //             score: 0,
+  //             auditorId: requestingUser.id,
+  //             lastUpdated: new Date()
+  //           });
+  //         });
+  //       });
+  //     });
+
+  //     const initialStatus = finalAuditorIds.length > 0 ? 'In Progress' : 'Draft';
+
+  //     const newAuditInstance = new AuditInstance({
+  //       company: companyId,
+  //       template: auditTemplateId,
+  //       templateNameSnapshot: translatedTemplate.name || '',          // <-- translated
+  //       templateVersionSnapshot: auditTemplate.version || '',
+  //       templateStructureSnapshot,
+  //       assignedAuditors: finalAuditorIds,
+  //       startDate: startDate || new Date(),
+  //       endDate: endDate || null,
+  //       status: initialStatus,
+  //       responses: initialResponses,
+  //       overallScore: 0,
+  //       createdBy: requestingUser.id,
+  //       lastModifiedBy: requestingUser.id,
+  //       examinationEnvironment: examinationEnvironment || {}
+  //     });
+
+  //     await newAuditInstance.save();
+  //     console.log('[createAuditInstance] SUCCESS with ID:', newAuditInstance._id);
+  //     return await newAuditInstance.populate([
+  //       { path: 'company', select: 'name industry contactPerson examinationEnvironment' },
+  //       { path: 'template', select: 'name version' },
+  //       { path: 'assignedAuditors', select: 'firstName lastName email' },
+  //       { path: 'createdBy', select: 'firstName lastName email' }
+  //     ]);
+  //   } catch (error) {
+  //     console.error('[createAuditInstance] ERROR:', error.message);
+  //     throw error;
+  //   }
+  // }
+
+  // async getAllAuditInstances(requestingUser, lang) {                      // <-- added lang
+  //   let query = {};
+  //   try {
+  //     if (requestingUser.role === 'super_admin' || requestingUser.role === 'admin') {
+  //       const managedAuditors = await User.find({ managerId: requestingUser.id }).select('_id');
+  //       const managedAuditorIds = (managedAuditors || []).map(a => a._id);
+  //       query = { $or: [{ createdBy: requestingUser.id }, { assignedAuditors: { $in: [requestingUser.id, ...managedAuditorIds] } }] };
+  //     } else if (requestingUser.role === 'auditor') {
+  //       query = { $or: [{ createdBy: requestingUser.id }, { assignedAuditors: requestingUser.id }] };
+  //     } else {
+  //       throw new Error('You are not authorized to view audit instances.');
+  //     }
+
+  //     const audits = await AuditInstance.find(query)
+  //       .populate('company', 'name industry')
+  //       .populate('template', 'name version')
+  //       .populate('assignedAuditors', 'firstName lastName email')
+  //       .populate('createdBy', 'firstName lastName email')
+  //       .populate('lastModifiedBy', 'firstName lastName email')
+  //       .lean();
+
+  //     // Translate each audit's template snapshot
+  //     return Promise.all(audits.map(async audit => ({
+  //       ...audit,
+  //       templateNameSnapshot: audit.templateNameSnapshot, // already translated at creation
+  //       templateStructureSnapshot: await translateAuditTemplate(
+  //         { sections: audit.templateStructureSnapshot },
+  //         lang
+  //       ).then(t => t.sections)
+  //     })));
+  //   } catch (error) {
+  //     console.error('[getAllAuditInstances] ERROR:', error.message);
+  //     throw error;
+  //   }
+  // }
+
+  // async getAuditInstanceById(auditInstanceId, requestingUser, lang) {     // <-- added lang
+  //   const audit = await AuditInstance.findById(auditInstanceId)
+  //     .populate('company', 'name industry contactPerson address website')
+  //     .populate('template', 'name version')
+  //     .populate('assignedAuditors', 'firstName lastName email')
+  //     .populate('createdBy', 'firstName lastName email')
+  //     .populate('lastModifiedBy', 'firstName lastName email')
+  //     .lean();
+
+  //   if (!audit) throw new Error('Audit Instance not found.');
+
+  //   const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
+  //   const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
+  //   const isAdminOrSuperAdmin = ['admin', 'super_admin'].includes(requestingUser.role);
+
+  //   if (!isCreator && !isAssigned && !isAdminOrSuperAdmin) {
+  //     throw new Error('You are not authorized to view this audit instance.');
+  //   }
+
+  //   // Translate template snapshot on-the-fly
+  //   const translatedSections = await translateAuditTemplate(
+  //     { sections: audit.templateStructureSnapshot },
+  //     lang
+  //   ).then(t => t.sections);
+
+  //   return { ...audit, templateStructureSnapshot: translatedSections };
+  // }
+
+    /**
+   * Create an audit instance
+   */
+  async createAuditInstance(data, requestingUser, lang) {
     try {
       const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate, examinationEnvironment } = data;
 
+      // Only one auditor allowed
       const finalAuditorIds = Array.isArray(assignedAuditorIds) ? assignedAuditorIds : [];
       if (finalAuditorIds.length > 1) throw new Error('You cannot assign more than one auditor.');
 
+      // Validate auditor IDs
       if (finalAuditorIds.length > 0) {
         const users = await User.find({ _id: { $in: finalAuditorIds }, role: 'auditor', isActive: true }).select('_id');
         if (users.length !== finalAuditorIds.length) throw new Error('One or more assigned auditor IDs are invalid or inactive.');
       }
 
+      // Handle company creation or existing company
       let companyId;
       if (companyDetails) {
         if (examinationEnvironment) companyDetails.examinationEnvironment = examinationEnvironment;
@@ -563,13 +721,16 @@ class AuditInstanceService {
         throw new Error('Either companyDetails or existingCompanyId must be provided.');
       }
 
-      const auditTemplate = await AuditTemplate.findById(auditTemplateId);
-      if (!auditTemplate) throw new Error('Audit Template not found.');
+      // Check template access based on subscription
+      const templateFilter = await auditTemplateService.getTemplateFilter(requestingUser);
+      const auditTemplate = await AuditTemplate.findOne({ _id: auditTemplateId, ...templateFilter });
+      if (!auditTemplate) throw new Error('You are not authorized to use this audit template.');
 
       // Translate template before snapshotting
       const translatedTemplate = await translateAuditTemplate(auditTemplate, lang);
       const templateStructureSnapshot = JSON.parse(JSON.stringify(translatedTemplate.sections || []));
 
+      // Prepare initial responses
       const initialResponses = [];
       templateStructureSnapshot.forEach(section => {
         (section.subSections || []).forEach(subSection => {
@@ -591,10 +752,11 @@ class AuditInstanceService {
 
       const initialStatus = finalAuditorIds.length > 0 ? 'In Progress' : 'Draft';
 
+      // Create audit instance
       const newAuditInstance = new AuditInstance({
         company: companyId,
         template: auditTemplateId,
-        templateNameSnapshot: translatedTemplate.name || '',          // <-- translated
+        templateNameSnapshot: translatedTemplate.name || '',
         templateVersionSnapshot: auditTemplate.version || '',
         templateStructureSnapshot,
         assignedAuditors: finalAuditorIds,
@@ -609,23 +771,27 @@ class AuditInstanceService {
       });
 
       await newAuditInstance.save();
-      console.log('[createAuditInstance] SUCCESS with ID:', newAuditInstance._id);
+
       return await newAuditInstance.populate([
         { path: 'company', select: 'name industry contactPerson examinationEnvironment' },
         { path: 'template', select: 'name version' },
         { path: 'assignedAuditors', select: 'firstName lastName email' },
         { path: 'createdBy', select: 'firstName lastName email' }
       ]);
+
     } catch (error) {
       console.error('[createAuditInstance] ERROR:', error.message);
       throw error;
     }
   }
 
-  async getAllAuditInstances(requestingUser, lang) {                      // <-- added lang
-    let query = {};
+  /**
+   * Get all audit instances for the user
+   */
+  async getAllAuditInstances(requestingUser, lang) {
     try {
-      if (requestingUser.role === 'super_admin' || requestingUser.role === 'admin') {
+      let query = {};
+      if (['super_admin', 'admin'].includes(requestingUser.role)) {
         const managedAuditors = await User.find({ managerId: requestingUser.id }).select('_id');
         const managedAuditorIds = (managedAuditors || []).map(a => a._id);
         query = { $or: [{ createdBy: requestingUser.id }, { assignedAuditors: { $in: [requestingUser.id, ...managedAuditorIds] } }] };
@@ -643,22 +809,33 @@ class AuditInstanceService {
         .populate('lastModifiedBy', 'firstName lastName email')
         .lean();
 
-      // Translate each audit's template snapshot
-      return Promise.all(audits.map(async audit => ({
+      // Filter templates by subscription for non-super-admins
+      const templateFilter = await auditTemplateService.getTemplateFilter(requestingUser);
+      const allowedTemplateIds = requestingUser.role === 'super_admin' ? null : Object.values(templateFilter._id || {});
+
+      const filteredAudits = audits.filter(audit => {
+        if (requestingUser.role === 'super_admin') return true;
+        return allowedTemplateIds.includes(audit.template._id.toString());
+      });
+
+      return Promise.all(filteredAudits.map(async audit => ({
         ...audit,
-        templateNameSnapshot: audit.templateNameSnapshot, // already translated at creation
         templateStructureSnapshot: await translateAuditTemplate(
           { sections: audit.templateStructureSnapshot },
           lang
         ).then(t => t.sections)
       })));
+
     } catch (error) {
       console.error('[getAllAuditInstances] ERROR:', error.message);
       throw error;
     }
   }
 
-  async getAuditInstanceById(auditInstanceId, requestingUser, lang) {     // <-- added lang
+  /**
+   * Get a single audit instance
+   */
+  async getAuditInstanceById(auditInstanceId, requestingUser, lang) {
     const audit = await AuditInstance.findById(auditInstanceId)
       .populate('company', 'name industry contactPerson address website')
       .populate('template', 'name version')
@@ -669,6 +846,13 @@ class AuditInstanceService {
 
     if (!audit) throw new Error('Audit Instance not found.');
 
+    // Check template subscription access
+    if (requestingUser.role !== 'super_admin') {
+      const templateFilter = await auditTemplateService.getTemplateFilter(requestingUser);
+      const allowedTemplate = await AuditTemplate.findOne({ _id: audit.template._id, ...templateFilter });
+      if (!allowedTemplate) throw new Error('You are not authorized to access this audit template.');
+    }
+
     const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
     const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
     const isAdminOrSuperAdmin = ['admin', 'super_admin'].includes(requestingUser.role);
@@ -677,7 +861,6 @@ class AuditInstanceService {
       throw new Error('You are not authorized to view this audit instance.');
     }
 
-    // Translate template snapshot on-the-fly
     const translatedSections = await translateAuditTemplate(
       { sections: audit.templateStructureSnapshot },
       lang
