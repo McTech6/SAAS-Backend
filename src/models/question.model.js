@@ -124,3 +124,6 @@ const questionSchema = new mongoose.Schema({
 }, {
     _id: true
 });
+
+
+export default questionSchema;
