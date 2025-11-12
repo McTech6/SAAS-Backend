@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors'; // Import the cors middleware
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
+import deeplRoutes from './routes/deepl.routes.js';
 import companyRoutes from './routes/company.routes.js';
 import auditTemplateRoutes from './routes/auditTemplate.routes.js';
 import auditInstanceRoutes from './routes/auditInstance.routes.js'; 
@@ -40,6 +41,10 @@ app.get('/', (req, res) => {
 // Use authentication routes with the /api/v1/auth prefix
 app.use('/api/v1/auth', authRoutes);
 
+//proxy setup
+
+app.use('/api/v1/deepl', deeplRoutes);
+
 // Use user management routes with the /api/v1/users prefix
 app.use('/api/v1/users', userRoutes);
 
@@ -55,5 +60,6 @@ app.use('/api/v1/audit-instances', auditInstanceRoutes);
 // Use upload routes with the /api/v1/uploads prefix
 app.use('/api/v1/uploads', uploadRoutes);
 
+ 
 // Export the Express app instance
 export default app;
