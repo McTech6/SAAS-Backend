@@ -414,6 +414,261 @@
 // export default new AuditTemplateService();
 
 
+// import AuditTemplate from '../models/auditTemplate.model.js';
+// import Subscription from '../models/subscription.model.js';
+// import { translateAuditTemplate } from '../utils/dataTranslator.js';
+// import { MESSAGES } from '../utils/messages.js';
+
+// class AuditTemplateService {
+
+//     /**
+//      * Determine which templates the user is allowed to access.
+//      */
+//     async getTemplateFilter(requestingUser) {
+//         console.log("\n===== [TEMPLATE SERVICE] getTemplateFilter START =====");
+//         console.log("User received:", requestingUser);
+
+//         if (requestingUser.role === 'super_admin') {
+//             console.log("[FILTER] User is super_admin → returning ALL templates.");
+//             return {};
+//         }
+
+//         if (!requestingUser.subscriptionId) {
+//             console.log("[FILTER] User has NO subscriptionId → denying template access.");
+//             return { _id: null };
+//         }
+
+//         console.log("[FILTER] Fetching subscription using ID:", requestingUser.subscriptionId);
+
+//         const subscription = await Subscription.findById(requestingUser.subscriptionId).lean();
+
+//         console.log("[FILTER] Subscription found:", subscription);
+
+//         if (!subscription) {
+//             console.log("[FILTER] No subscription found → denying access.");
+//             return { _id: null };
+//         }
+
+//         const allowedIds = subscription.templateAccess || [];
+//         console.log("[FILTER] Allowed template IDs:", allowedIds);
+
+//         if (allowedIds.length === 0 && subscription.name === 'Enterprise') {
+//             console.log("[FILTER] Enterprise plan with no restrictions → full access.");
+//             return {};
+//         }
+
+//         if (allowedIds.length > 0) {
+//             console.log("[FILTER] Returning filter for specific allowed templates.");
+//             return { _id: { $in: allowedIds } };
+//         }
+
+//         console.log("[FILTER] No access defined → denying access.");
+//         return { _id: null };
+//     }
+
+
+
+//     /**
+//      * Create new template
+//      */
+//     async createAuditTemplate(templateData, createdByUserId) {
+//         console.log("\n===== [TEMPLATE SERVICE] createAuditTemplate START =====");
+//         console.log("Incoming templateData:", templateData);
+//         console.log("Creator User ID:", createdByUserId);
+
+//         const existing = await AuditTemplate.findOne({ name: templateData.name });
+
+//         console.log("Existing template with same name:", existing);
+
+//         if (existing) {
+//             console.log("[ERROR] Template name already exists!");
+//             throw new Error('TEMPLATE_NAME_EXISTS');
+//         }
+
+//         const newTemplate = new AuditTemplate({
+//             ...templateData,
+//             createdBy: createdByUserId,
+//             lastModifiedBy: createdByUserId
+//         });
+
+//         console.log("Saving new template...");
+//         await newTemplate.save();
+
+//         console.log("Populating createdBy and lastModifiedBy...");
+//         const populated = await newTemplate.populate([
+//             { path: 'createdBy', select: 'firstName lastName email' },
+//             { path: 'lastModifiedBy', select: 'firstName lastName email' }
+//         ]);
+
+//         console.log("[SUCCESS] Template created:", populated);
+
+//         return { newTemplate: populated, messageKey: 'TEMPLATE_CREATED' };
+//     }
+
+
+
+//     /**
+//      * Get ALL templates visible to the user
+//      */
+//     async getAllAuditTemplates(requestingUser, lang) {
+//         console.log("\n===== [TEMPLATE SERVICE] getAllAuditTemplates START =====");
+//         console.log("Requester:", requestingUser, "Language:", lang);
+
+//         const filter = await this.getTemplateFilter(requestingUser);
+
+//         console.log("[GET ALL] Final filter applied:", filter);
+
+//         console.log("[GET ALL] Querying AuditTemplate...");
+//         const templates = await AuditTemplate.find(filter)
+//             .populate([
+//                 { path: 'createdBy', select: 'firstName lastName email' },
+//                 { path: 'lastModifiedBy', select: 'firstName lastName email' }
+//             ])
+//             .lean();
+
+//         console.log("[GET ALL] Raw templates result:", templates);
+
+//         console.log("[GET ALL] Translating templates...");
+//         const translated = await Promise.all(
+//             templates.map(tmp => translateAuditTemplate(tmp, lang))
+//         );
+
+//         console.log("[GET ALL] Final translated templates:", translated);
+
+//         return { templates: translated, messageKey: 'TEMPLATES_RETRIEVED' };
+//     }
+
+
+
+//     /**
+//      * Get a single template with subscription validation
+//      */
+//     async getAuditTemplateById(templateId, requestingUser, lang) {
+//         console.log("\n===== [TEMPLATE SERVICE] getAuditTemplateById START =====");
+//         console.log("Template ID:", templateId);
+//         console.log("Requester:", requestingUser);
+
+//         const filter = await this.getTemplateFilter(requestingUser);
+
+//         console.log("[GET BY ID] Subscription-based filter:", filter);
+
+//         const finalQuery = { ...filter, _id: templateId };
+//         console.log("[GET BY ID] Final query:", finalQuery);
+
+//         const template = await AuditTemplate.findOne(finalQuery)
+//             .populate([
+//                 { path: 'createdBy', select: 'firstName lastName email' },
+//                 { path: 'lastModifiedBy', select: 'firstName lastName email' }
+//             ])
+//             .lean();
+
+//         console.log("[GET BY ID] Query result:", template);
+
+//         if (!template) {
+//             console.log("[GET BY ID] Template not found in filter range → checking if exists...");
+
+//             const exists = await AuditTemplate.findById(templateId);
+//             console.log("Template exists in DB?", exists);
+
+//             if (exists && requestingUser.role !== 'super_admin') {
+//                 console.log("[ERROR] Template found BUT user forbidden to access.");
+//                 throw new Error(MESSAGES.SUBSCRIPTION_FORBIDDEN.EN);
+//             }
+
+//             console.log("[ERROR] Template truly not found.");
+//             throw new Error('TEMPLATE_NOT_FOUND');
+//         }
+
+//         console.log("[GET BY ID] Template found → translating...");
+//         const translated = await translateAuditTemplate(template, lang);
+
+//         console.log("[GET BY ID] Final translated template:", translated);
+
+//         return { template: translated, messageKey: 'TEMPLATE_RETRIEVED' };
+//     }
+
+
+
+//     /**
+//      * Update template
+//      */
+//     async updateAuditTemplate(templateId, updates, requestingUserId) {
+//         console.log("\n===== [TEMPLATE SERVICE] updateAuditTemplate START =====");
+//         console.log("Template ID:", templateId);
+//         console.log("Updates received:", updates);
+
+//         const template = await AuditTemplate.findById(templateId);
+//         console.log("Fetched template:", template);
+
+//         if (!template) {
+//             console.log("[ERROR] Template not found.");
+//             throw new Error('TEMPLATE_NOT_FOUND');
+//         }
+
+//         if (updates.name && updates.name !== template.name) {
+//             console.log("[UPDATE] Checking for name duplicates...");
+//             const existing = await AuditTemplate.findOne({ name: updates.name });
+
+//             console.log("Existing template with new name:", existing);
+
+//             if (existing && !existing._id.equals(templateId)) {
+//                 console.log("[ERROR] Name conflict detected!");
+//                 throw new Error('TEMPLATE_NAME_EXISTS');
+//             }
+//         }
+
+//         console.log("[UPDATE] Applying updates...");
+//         Object.keys(updates).forEach(key => {
+//             if (['name', 'description', 'version', 'status', 'sections'].includes(key)) {
+//                 console.log(`[UPDATE] Setting ${key}:`, updates[key]);
+//                 template[key] = updates[key];
+//             }
+//         });
+
+//         console.log("[UPDATE] Updating lastModifiedBy:", requestingUserId);
+//         template.lastModifiedBy = requestingUserId;
+
+//         console.log("[UPDATE] Saving changes...");
+//         await template.save();
+
+//         console.log("[UPDATE] Populating fields...");
+//         const updated = await template.populate([
+//             { path: 'createdBy', select: 'firstName lastName email' },
+//             { path: 'lastModifiedBy', select: 'firstName lastName email' }
+//         ]);
+
+//         console.log("[SUCCESS] Template updated:", updated);
+
+//         return { updatedTemplate: updated, messageKey: 'TEMPLATE_UPDATED' };
+//     }
+
+
+
+//     /**
+//      * Delete template
+//      */
+//     async deleteAuditTemplate(templateId) {
+//         console.log("\n===== [TEMPLATE SERVICE] deleteAuditTemplate START =====");
+//         console.log("Template ID to delete:", templateId);
+
+//         const template = await AuditTemplate.findByIdAndDelete(templateId);
+
+//         console.log("Delete result:", template);
+
+//         if (!template) {
+//             console.log("[ERROR] Template not found!");
+//             throw new Error('TEMPLATE_NOT_FOUND');
+//         }
+
+//         console.log("[SUCCESS] Template deleted.");
+//         return { messageKey: 'TEMPLATE_DELETED' };
+//     }
+// }
+
+// export default new AuditTemplateService();
+
+
+
 import AuditTemplate from '../models/auditTemplate.model.js';
 import Subscription from '../models/subscription.model.js';
 import { translateAuditTemplate } from '../utils/dataTranslator.js';
@@ -666,4 +921,3 @@ class AuditTemplateService {
 }
 
 export default new AuditTemplateService();
-
