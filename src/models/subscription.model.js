@@ -48,13 +48,90 @@
 // export default Subscription;
 
 
+// import mongoose from 'mongoose';
+
+// // Predefined plans with default maxAdmins and maxAuditors
+// const predefinedPlans = {
+//     Basic: { maxAdmins: 0, maxAuditors: 1 },
+//     Professional: { maxAdmins: 0, maxAuditors: 5 },
+//     Enterprise: { maxAdmins: null, maxAuditors: null } // Flexible, super admin can define
+// };
+
+// const subscriptionSchema = new mongoose.Schema({
+//     name: {
+//         type: String,
+//         enum: ['Basic', 'Professional', 'Enterprise'],
+//         required: true
+//     },
+//     maxAdmins: {
+//         type: Number,
+//         min: 0
+//     },
+//     maxAuditors: {
+//         type: Number,
+//         min: 0
+//     },
+//     templateAccess: {
+//         type: [mongoose.Schema.ObjectId],
+//         ref: 'AuditTemplate',
+//         default: []
+//     },
+//     ownerId: {
+//         type: mongoose.Schema.ObjectId,
+//         ref: 'User',
+//         required: true,
+//         unique: true
+//     },
+//     status: {
+//         type: String,
+//         enum: ['Active', 'Trial', 'Suspended', 'Expired'],
+//         default: 'Active'
+//     }
+// }, {
+//     timestamps: true
+// });
+
+// // Pre-save hook to assign default maxAdmins and maxAuditors based on plan
+// subscriptionSchema.pre('save', function(next) {
+//     const plan = predefinedPlans[this.name];
+//     if (plan) {
+//         if (this.maxAdmins === undefined || this.maxAdmins === null) {
+//             this.maxAdmins = plan.maxAdmins;
+//         }
+//         if (this.maxAuditors === undefined || this.maxAuditors === null) {
+//             this.maxAuditors = plan.maxAuditors;
+//         }
+//     }
+//     next();
+// });
+
+// // Validation to ensure plan limits are respected for Basic and Professional
+// subscriptionSchema.pre('save', function(next) {
+//     const plan = predefinedPlans[this.name];
+//     if (plan) {
+//         if (plan.maxAdmins !== null && this.maxAdmins > plan.maxAdmins) {
+//             return next(new Error(`Max admins for ${this.name} plan is ${plan.maxAdmins}`));
+//         }
+//         if (plan.maxAuditors !== null && this.maxAuditors > plan.maxAuditors) {
+//             return next(new Error(`Max auditors for ${this.name} plan is ${plan.maxAuditors}`));
+//         }
+//     }
+//     next();
+// });
+
+// const Subscription = mongoose.model('Subscription', subscriptionSchema);
+
+// export default Subscription;
+
+
+
 import mongoose from 'mongoose';
 
-// Predefined plans with default maxAdmins and maxAuditors
+// Default plan rules
 const predefinedPlans = {
     Basic: { maxAdmins: 0, maxAuditors: 1 },
     Professional: { maxAdmins: 0, maxAuditors: 5 },
-    Enterprise: { maxAdmins: null, maxAuditors: null } // Flexible, super admin can define
+    Enterprise: { maxAdmins: null, maxAuditors: null } // Enterprise is flexible
 };
 
 const subscriptionSchema = new mongoose.Schema({
@@ -80,7 +157,7 @@ const subscriptionSchema = new mongoose.Schema({
         type: mongoose.Schema.ObjectId,
         ref: 'User',
         required: true,
-        unique: true
+        unique: true // one subscription per tenant admin
     },
     status: {
         type: String,
@@ -91,34 +168,55 @@ const subscriptionSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Pre-save hook to assign default maxAdmins and maxAuditors based on plan
-subscriptionSchema.pre('save', function(next) {
+
+/* ---------------------------------------------
+   FIX #1 – ASSIGN DEFAULTS ONLY FOR NON-ENTERPRISE
+------------------------------------------------- */
+subscriptionSchema.pre('validate', function (next) {
     const plan = predefinedPlans[this.name];
-    if (plan) {
+
+    if (!plan) return next();
+
+    // BASIC & PROFESSIONAL → always use predefined defaults
+    if (this.name !== 'Enterprise') {
+        this.maxAdmins = plan.maxAdmins;
+        this.maxAuditors = plan.maxAuditors;
+    }
+
+    // ENTERPRISE → do NOT override manual values
+    if (this.name === 'Enterprise') {
         if (this.maxAdmins === undefined || this.maxAdmins === null) {
-            this.maxAdmins = plan.maxAdmins;
+            this.maxAdmins = 0; // fallback sensible default
         }
         if (this.maxAuditors === undefined || this.maxAuditors === null) {
-            this.maxAuditors = plan.maxAuditors;
+            this.maxAuditors = 0; // fallback sensible default
         }
     }
+
     next();
 });
 
-// Validation to ensure plan limits are respected for Basic and Professional
-subscriptionSchema.pre('save', function(next) {
+
+/* ---------------------------------------------
+   FIX #2 – VALIDATION FOR BASIC & PROFESSIONAL
+------------------------------------------------- */
+subscriptionSchema.pre('validate', function (next) {
     const plan = predefinedPlans[this.name];
-    if (plan) {
-        if (plan.maxAdmins !== null && this.maxAdmins > plan.maxAdmins) {
-            return next(new Error(`Max admins for ${this.name} plan is ${plan.maxAdmins}`));
+
+    if (!plan) return next();
+
+    if (this.name !== 'Enterprise') {
+        if (this.maxAdmins > plan.maxAdmins) {
+            return next(new Error(`Max admins for ${this.name} is ${plan.maxAdmins}`));
         }
-        if (plan.maxAuditors !== null && this.maxAuditors > plan.maxAuditors) {
-            return next(new Error(`Max auditors for ${this.name} plan is ${plan.maxAuditors}`));
+        if (this.maxAuditors > plan.maxAuditors) {
+            return next(new Error(`Max auditors for ${this.name} is ${plan.maxAuditors}`));
         }
     }
+
     next();
 });
+
 
 const Subscription = mongoose.model('Subscription', subscriptionSchema);
-
 export default Subscription;
