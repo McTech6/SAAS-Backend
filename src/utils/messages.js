@@ -21,6 +21,27 @@ export const MESSAGES = {
         FR: "Email vérifié avec succès. Vous pouvez maintenant vous connecter.",
         DE: "E-Mail erfolgreich bestätigt. Sie können sich jetzt anmelden."
     },
+    INVALID_PLAN_NAME: {
+    EN: "Invalid plan name provided.",
+    FR: "Nom de plan invalide fourni.",
+    DE: "Ungültiger Planname angegeben."
+},
+ADMIN_MISSING_SUBSCRIPTION: {
+    EN: "Admin has no subscription assigned.",
+    FR: "L'administrateur n'a aucun abonnement attribué.",
+    DE: "Admin hat kein zugewiesenes Abonnement."
+},
+MAX_ADMIN_LIMIT_REACHED: {
+    EN: "Maximum number of admins reached for this subscription.",
+    FR: "Nombre maximum d'administrateurs atteint pour cet abonnement.",
+    DE: "Maximale Anzahl von Admins für dieses Abonnement erreicht."
+},
+MAX_AUDITOR_LIMIT_REACHED: {
+    EN: "Maximum number of auditors reached for this subscription.",
+    FR: "Nombre maximum d'auditeurs atteint pour cet abonnement.",
+    DE: "Maximale Anzahl von Prüfern für dieses Abonnement erreicht."
+},
+
     LOGIN_SUCCESS: {
         EN: "Login successful.",
         FR: "Connexion réussie.",
