@@ -102,6 +102,8 @@ const translateAuditTemplate = async (template, lang) => {
     return translatedTemplate;
 };
 
+// src/utils/dataTranslator.js
+
 /**
  * Translates specific descriptive fields within a Company document.
  * @param {object} company - The mongoose company document (or lean object).
@@ -109,8 +111,11 @@ const translateAuditTemplate = async (template, lang) => {
  * @returns {Promise<object>} The company object with translated fields.
  */
 const translateCompany = async (company, lang) => {
-    if (lang.toUpperCase() === 'EN') return company;
-    if (!company || !company.examinationEnvironment) return company;
+    // *** FIX APPLIED HERE ***
+    if (!lang || lang.toUpperCase() === 'EN') return company; 
+    // *************************
+    
+    if (!company || !company.examinationEnvironment) return company;
 
     // Ensure it's a mutable plain object
     const translatedCompany = company.toObject ? company.toObject() : company;
