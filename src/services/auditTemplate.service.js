@@ -981,6 +981,9 @@ import { MESSAGES } from '../utils/messages.js';
 
 class AuditTemplateService {
 
+    /**
+     * Determine which templates the user can access.
+     */
     async getTemplateFilter(requestingUser) {
         if (requestingUser && requestingUser.role === 'super_admin') {
             return {};
@@ -999,14 +1002,17 @@ class AuditTemplateService {
         return { _id: null };
     }
 
+    /**
+     * Create new Audit Template
+     */
     async createAuditTemplate(templateData, createdByUserId) {
         const existing = await AuditTemplate.findOne({ name: templateData.name }).lean();
         if (existing) throw new Error('TEMPLATE_NAME_EXISTS');
 
         const newTemplate = new AuditTemplate({
             ...templateData,
-            createdBy: mongoose.Types.ObjectId(createdByUserId),
-            lastModifiedBy: mongoose.Types.ObjectId(createdByUserId)
+            createdBy: new mongoose.Types.ObjectId(createdByUserId),
+            lastModifiedBy: new mongoose.Types.ObjectId(createdByUserId)
         });
 
         await newTemplate.save();
@@ -1019,6 +1025,9 @@ class AuditTemplateService {
         return { newTemplate: populated, messageKey: 'TEMPLATE_CREATED' };
     }
 
+    /**
+     * Get all templates visible to the user
+     */
     async getAllAuditTemplates(requestingUser, lang = 'EN') {
         if (requestingUser && requestingUser.role === 'super_admin') {
             const templates = await AuditTemplate.find({})
@@ -1043,6 +1052,9 @@ class AuditTemplateService {
         return { templates: translated, messageKey: 'TEMPLATES_RETRIEVED' };
     }
 
+    /**
+     * Get a single template by ID
+     */
     async getAuditTemplateById(templateId, requestingUser, lang = 'EN') {
         if (requestingUser && requestingUser.role === 'super_admin') {
             const template = await AuditTemplate.findById(templateId)
@@ -1051,8 +1063,8 @@ class AuditTemplateService {
                     { path: 'lastModifiedBy', select: 'firstName lastName email' }
                 ])
                 .lean();
-
             if (!template) throw new Error('TEMPLATE_NOT_FOUND');
+
             const translated = await translateAuditTemplate(template, lang);
             return { template: translated, messageKey: 'TEMPLATE_RETRIEVED' };
         }
@@ -1076,6 +1088,9 @@ class AuditTemplateService {
         return { template: translated, messageKey: 'TEMPLATE_RETRIEVED' };
     }
 
+    /**
+     * Update an existing template
+     */
     async updateAuditTemplate(templateId, updates, requestingUserId) {
         const template = await AuditTemplate.findById(templateId);
         if (!template) throw new Error('TEMPLATE_NOT_FOUND');
@@ -1091,7 +1106,7 @@ class AuditTemplateService {
             }
         });
 
-        template.lastModifiedBy = mongoose.Types.ObjectId(requestingUserId);
+        template.lastModifiedBy = new mongoose.Types.ObjectId(requestingUserId);
         await template.save();
 
         const populated = await template.populate([
@@ -1102,6 +1117,9 @@ class AuditTemplateService {
         return { updatedTemplate: populated, messageKey: 'TEMPLATE_UPDATED' };
     }
 
+    /**
+     * Delete template
+     */
     async deleteAuditTemplate(templateId) {
         const template = await AuditTemplate.findByIdAndDelete(templateId);
         if (!template) throw new Error('TEMPLATE_NOT_FOUND');
