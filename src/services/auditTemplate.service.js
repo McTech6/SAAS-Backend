@@ -669,305 +669,613 @@
 
 
 
-// src/services/auditTemplate.service.js
+// // src/services/auditTemplate.service.js
+// import AuditTemplate from '../models/auditTemplate.model.js';
+// import Subscription from '../models/subscription.model.js';
+// import { translateAuditTemplate } from '../utils/dataTranslator.js';
+// import { MESSAGES } from '../utils/messages.js';
+
+// /**
+//  * AuditTemplateService
+//  * Option A: super_admin bypasses all subscription/plan/templateAccess checks
+//  */
+// class AuditTemplateService {
+
+//     /**
+//      * Determine which templates the user is allowed to access.
+//      * NOTE: super_admin gets {} (full access).
+//      */
+//     async getTemplateFilter(requestingUser) {
+//         console.log("\n===== [TEMPLATE SERVICE] getTemplateFilter START =====");
+//         console.log("User received:", requestingUser && { id: requestingUser.id, role: requestingUser.role, subscriptionId: requestingUser.subscriptionId });
+
+//         // SUPER ADMIN BYPASS: full access
+//         if (requestingUser && requestingUser.role === 'super_admin') {
+//             console.log("[FILTER] SUPER ADMIN detected — returning full access (no filter).");
+//             return {};
+//         }
+
+//         // Non-super-admin logic
+//         if (!requestingUser || !requestingUser.subscriptionId) {
+//             console.log("[FILTER] No subscriptionId found on requestingUser -> denying access.");
+//             return { _id: null };
+//         }
+
+//         console.log("[FILTER] Fetching subscription by ID:", requestingUser.subscriptionId);
+//         const subscription = await Subscription.findById(requestingUser.subscriptionId).lean();
+//         console.log("[FILTER] Subscription fetched:", subscription);
+
+//         if (!subscription) {
+//             console.log("[FILTER] Subscription not found -> denying access.");
+//             return { _id: null };
+//         }
+
+//         const allowedIds = subscription.templateAccess || [];
+//         console.log("[FILTER] subscription.templateAccess:", allowedIds, "subscription.name:", subscription.name);
+
+//         if (allowedIds.length === 0 && subscription.name === 'Enterprise') {
+//             console.log("[FILTER] Enterprise with empty templateAccess -> full access for tenant.");
+//             return {};
+//         }
+
+//         if (allowedIds.length > 0) {
+//             console.log("[FILTER] Returning filter for allowed template IDs.");
+//             return { _id: { $in: allowedIds } };
+//         }
+
+//         console.log("[FILTER] No templates allowed -> denying access.");
+//         return { _id: null };
+//     }
+
+//     /**
+//      * Create new template
+//      * Super Admin: allowed regardless of subscription
+//      */
+//     async createAuditTemplate(templateData, createdByUser) {
+//         console.log("\n===== [TEMPLATE SERVICE] createAuditTemplate START =====");
+//         console.log("CreatedBy:", createdByUser && { id: createdByUser.id, role: createdByUser.role });
+//         console.log("Incoming templateData:", templateData);
+
+//         // No subscription checks for create; super_admin or other roles authorized at controller level
+//         const existing = await AuditTemplate.findOne({ name: templateData.name }).lean();
+//         console.log("Existing template check result:", !!existing);
+
+//         if (existing) {
+//             console.error("[CREATE] Template name already exists -> throwing TEMPLATE_NAME_EXISTS");
+//             throw new Error('TEMPLATE_NAME_EXISTS');
+//         }
+
+//         const newTemplate = new AuditTemplate({
+//             ...templateData,
+//             createdBy: createdByUser.id || createdByUser,
+//             lastModifiedBy: createdByUser.id || createdByUser
+//         });
+
+//         console.log("[CREATE] Saving new template...");
+//         await newTemplate.save();
+
+//         console.log("[CREATE] Populating createdBy and lastModifiedBy...");
+//         const populated = await newTemplate.populate([
+//             { path: 'createdBy', select: 'firstName lastName email' },
+//             { path: 'lastModifiedBy', select: 'firstName lastName email' }
+//         ]);
+
+//         console.log("[CREATE] Template created successfully:", { id: populated._id, name: populated.name });
+//         return { newTemplate: populated, messageKey: 'TEMPLATE_CREATED' };
+//     }
+
+//     /**
+//      * Get all templates visible to the user
+//      * Super Admin: returns all templates
+//      */
+//     async getAllAuditTemplates(requestingUser, lang = 'EN') {
+//         console.log("\n===== [TEMPLATE SERVICE] getAllAuditTemplates START =====");
+//         console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
+
+//         // SUPER ADMIN BYPASS: immediate full query
+//         if (requestingUser && requestingUser.role === 'super_admin') {
+//             console.log("[GET ALL] SUPER ADMIN — fetching all templates without filter.");
+//             const templates = await AuditTemplate.find({})
+//                 .populate([
+//                     { path: 'createdBy', select: 'firstName lastName email' },
+//                     { path: 'lastModifiedBy', select: 'firstName lastName email' }
+//                 ])
+//                 .lean();
+
+//             console.log(`[GET ALL] Found ${templates.length} templates for super_admin.`);
+//             const translated = await Promise.all(templates.map(t => translateAuditTemplate(t, lang)));
+//             return { templates: translated, messageKey: 'TEMPLATES_RETRIEVED' };
+//         }
+
+//         // Non-super-admin path
+//         const filter = await this.getTemplateFilter(requestingUser);
+//         console.log("[GET ALL] Using filter:", filter);
+
+//         const templates = await AuditTemplate.find(filter)
+//             .populate([
+//                 { path: 'createdBy', select: 'firstName lastName email' },
+//                 { path: 'lastModifiedBy', select: 'firstName lastName email' }
+//             ])
+//             .lean();
+
+//         console.log(`[GET ALL] Found ${templates.length} templates for user.`);
+//         const translated = await Promise.all(templates.map(t => translateAuditTemplate(t, lang)));
+//         return { templates: translated, messageKey: 'TEMPLATES_RETRIEVED' };
+//     }
+
+//     /**
+//      * Get a single template by ID with subscription validation
+//      * Super Admin: full direct fetch
+//      */
+//     async getAuditTemplateById(templateId, requestingUser, lang = 'EN') {
+//         console.log("\n===== [TEMPLATE SERVICE] getAuditTemplateById START =====");
+//         console.log("Template ID:", templateId);
+//         console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
+
+//         // SUPER ADMIN BYPASS
+//         if (requestingUser && requestingUser.role === 'super_admin') {
+//             console.log("[GET BY ID] SUPER ADMIN — fetching template by ID without filter.");
+//             const template = await AuditTemplate.findById(templateId)
+//                 .populate([
+//                     { path: 'createdBy', select: 'firstName lastName email' },
+//                     { path: 'lastModifiedBy', select: 'firstName lastName email' }
+//                 ])
+//                 .lean();
+
+//             if (!template) {
+//                 console.error("[GET BY ID] SUPER ADMIN requested non-existing template -> TEMPLATE_NOT_FOUND");
+//                 throw new Error('TEMPLATE_NOT_FOUND');
+//             }
+
+//             const translated = await translateAuditTemplate(template, lang);
+//             console.log("[GET BY ID] SUPER ADMIN fetched template:", { id: template._id, name: template.name });
+//             return { template: translated, messageKey: 'TEMPLATE_RETRIEVED' };
+//         }
+
+//         // Non-super-admin path
+//         const filter = await this.getTemplateFilter(requestingUser);
+//         console.log("[GET BY ID] Subscription-based filter:", filter);
+
+//         const finalQuery = { ...filter, _id: templateId };
+//         console.log("[GET BY ID] Final query object:", finalQuery);
+
+//         const template = await AuditTemplate.findOne(finalQuery)
+//             .populate([
+//                 { path: 'createdBy', select: 'firstName lastName email' },
+//                 { path: 'lastModifiedBy', select: 'firstName lastName email' }
+//             ])
+//             .lean();
+
+//         console.log("[GET BY ID] Query result:", !!template);
+
+//         if (!template) {
+//             console.log("[GET BY ID] Not found under allowed filter -> check existence.");
+//             const exists = await AuditTemplate.findById(templateId).lean();
+//             console.log("[GET BY ID] Exists in DB:", !!exists);
+
+//             if (exists && requestingUser.role !== 'super_admin') {
+//                 console.error("[GET BY ID] Exists but forbidden -> throwing SUBSCRIPTION_FORBIDDEN");
+//                 throw new Error(MESSAGES.SUBSCRIPTION_FORBIDDEN.EN);
+//             }
+
+//             console.error("[GET BY ID] Template not found -> throwing TEMPLATE_NOT_FOUND");
+//             throw new Error('TEMPLATE_NOT_FOUND');
+//         }
+
+//         const translated = await translateAuditTemplate(template, lang);
+//         console.log("[GET BY ID] Template retrieved and translated:", { id: template._id, name: template.name });
+//         return { template: translated, messageKey: 'TEMPLATE_RETRIEVED' };
+//     }
+
+//     /**
+//      * Update a template
+//      * Super Admin: allowed to update any template
+//      */
+//     async updateAuditTemplate(templateId, updates, requestingUser) {
+//         console.log("\n===== [TEMPLATE SERVICE] updateAuditTemplate START =====");
+//         console.log("Template ID:", templateId);
+//         console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
+//         console.log("Updates:", updates);
+
+//         // SUPER ADMIN BYPASS: can update without checks
+//         if (requestingUser && requestingUser.role === 'super_admin') {
+//             console.log("[UPDATE] SUPER ADMIN — updating template without subscription checks.");
+//             const template = await AuditTemplate.findById(templateId);
+//             if (!template) {
+//                 console.error("[UPDATE] TEMPLATE_NOT_FOUND");
+//                 throw new Error('TEMPLATE_NOT_FOUND');
+//             }
+
+//             Object.keys(updates).forEach(key => {
+//                 if (['name', 'description', 'version', 'status', 'sections'].includes(key)) {
+//                     template[key] = updates[key];
+//                 }
+//             });
+
+//             template.lastModifiedBy = requestingUser.id || requestingUser;
+//             await template.save();
+
+//             const populated = await template.populate([
+//                 { path: 'createdBy', select: 'firstName lastName email' },
+//                 { path: 'lastModifiedBy', select: 'firstName lastName email' }
+//             ]);
+
+//             console.log("[UPDATE] SUPER ADMIN updated template:", { id: populated._id, name: populated.name });
+//             return { updatedTemplate: populated, messageKey: 'TEMPLATE_UPDATED' };
+//         }
+
+//         // Non-super-admin path: basic checks (name uniqueness etc.)
+//         const template = await AuditTemplate.findById(templateId);
+//         if (!template) {
+//             console.error("[UPDATE] TEMPLATE_NOT_FOUND");
+//             throw new Error('TEMPLATE_NOT_FOUND');
+//         }
+
+//         if (updates.name && updates.name !== template.name) {
+//             const existing = await AuditTemplate.findOne({ name: updates.name }).lean();
+//             if (existing && !existing._id.equals(templateId)) {
+//                 console.error("[UPDATE] TEMPLATE_NAME_EXISTS");
+//                 throw new Error('TEMPLATE_NAME_EXISTS');
+//             }
+//         }
+
+//         Object.keys(updates).forEach(key => {
+//             if (['name', 'description', 'version', 'status', 'sections'].includes(key)) {
+//                 template[key] = updates[key];
+//             }
+//         });
+
+//         template.lastModifiedBy = requestingUser.id || requestingUser;
+//         await template.save();
+
+//         const updatedPopulated = await template.populate([
+//             { path: 'createdBy', select: 'firstName lastName email' },
+//             { path: 'lastModifiedBy', select: 'firstName lastName email' }
+//         ]);
+
+//         console.log("[UPDATE] Template updated by non-super-admin:", { id: updatedPopulated._id, name: updatedPopulated.name });
+//         return { updatedTemplate: updatedPopulated, messageKey: 'TEMPLATE_UPDATED' };
+//     }
+
+//     /**
+//      * Delete template
+//      * Super Admin: allowed to delete any template
+//      */
+//     async deleteAuditTemplate(templateId, requestingUser) {
+//         console.log("\n===== [TEMPLATE SERVICE] deleteAuditTemplate START =====");
+//         console.log("Template ID:", templateId);
+//         console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
+
+//         // SUPER ADMIN BYPASS
+//         if (requestingUser && requestingUser.role === 'super_admin') {
+//             console.log("[DELETE] SUPER ADMIN — deleting without subscription checks.");
+//             const template = await AuditTemplate.findByIdAndDelete(templateId);
+//             if (!template) {
+//                 console.error("[DELETE] TEMPLATE_NOT_FOUND");
+//                 throw new Error('TEMPLATE_NOT_FOUND');
+//             }
+//             console.log("[DELETE] Template deleted by super_admin:", { id: templateId });
+//             return { messageKey: 'TEMPLATE_DELETED' };
+//         }
+
+//         // Non-super-admin path
+//         const template = await AuditTemplate.findByIdAndDelete(templateId);
+//         if (!template) {
+//             console.error("[DELETE] TEMPLATE_NOT_FOUND");
+//             throw new Error('TEMPLATE_NOT_FOUND');
+//         }
+
+//         console.log("[DELETE] Template deleted:", { id: templateId });
+//         return { messageKey: 'TEMPLATE_DELETED' };
+//     }
+// }
+
+// export default new AuditTemplateService();
+
+
 import AuditTemplate from '../models/auditTemplate.model.js';
 import Subscription from '../models/subscription.model.js';
 import { translateAuditTemplate } from '../utils/dataTranslator.js';
 import { MESSAGES } from '../utils/messages.js';
 
 /**
- * AuditTemplateService
- * Option A: super_admin bypasses all subscription/plan/templateAccess checks
- */
+ * AuditTemplateService
+ * Option A: super_admin bypasses all subscription/plan/templateAccess checks
+ */
 class AuditTemplateService {
 
-    /**
-     * Determine which templates the user is allowed to access.
-     * NOTE: super_admin gets {} (full access).
-     */
-    async getTemplateFilter(requestingUser) {
-        console.log("\n===== [TEMPLATE SERVICE] getTemplateFilter START =====");
-        console.log("User received:", requestingUser && { id: requestingUser.id, role: requestingUser.role, subscriptionId: requestingUser.subscriptionId });
+    /**
+     * Determine which templates the user is allowed to access.
+     * NOTE: super_admin gets {} (full access).
+     */
+    async getTemplateFilter(requestingUser) {
+        console.log("\n===== [TEMPLATE SERVICE] getTemplateFilter START =====");
+        console.log("User received:", requestingUser && { id: requestingUser.id, role: requestingUser.role, subscriptionId: requestingUser.subscriptionId });
 
-        // SUPER ADMIN BYPASS: full access
-        if (requestingUser && requestingUser.role === 'super_admin') {
-            console.log("[FILTER] SUPER ADMIN detected — returning full access (no filter).");
-            return {};
-        }
+        // SUPER ADMIN BYPASS: full access
+        if (requestingUser && requestingUser.role === 'super_admin') {
+            console.log("[FILTER] SUPER ADMIN detected — returning full access (no filter).");
+            return {};
+        }
 
-        // Non-super-admin logic
-        if (!requestingUser || !requestingUser.subscriptionId) {
-            console.log("[FILTER] No subscriptionId found on requestingUser -> denying access.");
-            return { _id: null };
-        }
+        // Non-super-admin logic
+        if (!requestingUser || !requestingUser.subscriptionId) {
+            console.log("[FILTER] No subscriptionId found on requestingUser -> denying access.");
+            return { _id: null };
+        }
 
-        console.log("[FILTER] Fetching subscription by ID:", requestingUser.subscriptionId);
-        const subscription = await Subscription.findById(requestingUser.subscriptionId).lean();
-        console.log("[FILTER] Subscription fetched:", subscription);
+        console.log("[FILTER] Fetching subscription by ID:", requestingUser.subscriptionId);
+        const subscription = await Subscription.findById(requestingUser.subscriptionId).lean();
+        console.log("[FILTER] Subscription fetched:", subscription);
 
-        if (!subscription) {
-            console.log("[FILTER] Subscription not found -> denying access.");
-            return { _id: null };
-        }
+        if (!subscription) {
+            console.log("[FILTER] Subscription not found -> denying access.");
+            return { _id: null };
+        }
 
-        const allowedIds = subscription.templateAccess || [];
-        console.log("[FILTER] subscription.templateAccess:", allowedIds, "subscription.name:", subscription.name);
+        const allowedIds = subscription.templateAccess || [];
+        console.log("[FILTER] subscription.templateAccess:", allowedIds, "subscription.name:", subscription.name);
 
-        if (allowedIds.length === 0 && subscription.name === 'Enterprise') {
-            console.log("[FILTER] Enterprise with empty templateAccess -> full access for tenant.");
-            return {};
-        }
+        if (allowedIds.length === 0 && subscription.name === 'Enterprise') {
+            console.log("[FILTER] Enterprise with empty templateAccess -> full access for tenant.");
+            return {};
+        }
 
-        if (allowedIds.length > 0) {
-            console.log("[FILTER] Returning filter for allowed template IDs.");
-            return { _id: { $in: allowedIds } };
-        }
+        if (allowedIds.length > 0) {
+            console.log("[FILTER] Returning filter for allowed template IDs.");
+            return { _id: { $in: allowedIds } };
+        }
 
-        console.log("[FILTER] No templates allowed -> denying access.");
-        return { _id: null };
-    }
+        console.log("[FILTER] No templates allowed -> denying access.");
+        return { _id: null };
+    }
 
-    /**
-     * Create new template
-     * Super Admin: allowed regardless of subscription
-     */
-    async createAuditTemplate(templateData, createdByUser) {
-        console.log("\n===== [TEMPLATE SERVICE] createAuditTemplate START =====");
-        console.log("CreatedBy:", createdByUser && { id: createdByUser.id, role: createdByUser.role });
-        console.log("Incoming templateData:", templateData);
+    /**
+     * Create new template
+     * Super Admin: allowed regardless of subscription
+     */
+    async createAuditTemplate(templateData, createdByUser) {
+        console.log("\n===== [TEMPLATE SERVICE] createAuditTemplate START =====");
+        console.log("CreatedBy:", createdByUser && { id: createdByUser.id, role: createdByUser.role });
+        console.log("Incoming templateData:", templateData);
 
-        // No subscription checks for create; super_admin or other roles authorized at controller level
-        const existing = await AuditTemplate.findOne({ name: templateData.name }).lean();
-        console.log("Existing template check result:", !!existing);
+        // No subscription checks for create; super_admin or other roles authorized at controller level
+        const existing = await AuditTemplate.findOne({ name: templateData.name }).lean();
+        console.log("Existing template check result:", !!existing);
 
-        if (existing) {
-            console.error("[CREATE] Template name already exists -> throwing TEMPLATE_NAME_EXISTS");
-            throw new Error('TEMPLATE_NAME_EXISTS');
-        }
+        if (existing) {
+            console.error("[CREATE] Template name already exists -> throwing TEMPLATE_NAME_EXISTS");
+            throw new Error('TEMPLATE_NAME_EXISTS');
+        }
 
-        const newTemplate = new AuditTemplate({
-            ...templateData,
-            createdBy: createdByUser.id || createdByUser,
-            lastModifiedBy: createdByUser.id || createdByUser
-        });
+        // 👇 FIX: Ensure the userId is a string before assigning to Mongoose ObjectId field
+        const userId = (createdByUser.id || createdByUser).toString();
 
-        console.log("[CREATE] Saving new template...");
-        await newTemplate.save();
+        const newTemplate = new AuditTemplate({
+            ...templateData,
+            createdBy: userId, // <-- Using fixed userId
+            lastModifiedBy: userId // <-- Using fixed userId
+        });
 
-        console.log("[CREATE] Populating createdBy and lastModifiedBy...");
-        const populated = await newTemplate.populate([
-            { path: 'createdBy', select: 'firstName lastName email' },
-            { path: 'lastModifiedBy', select: 'firstName lastName email' }
-        ]);
+        console.log("[CREATE] Saving new template...");
+        await newTemplate.save();
 
-        console.log("[CREATE] Template created successfully:", { id: populated._id, name: populated.name });
-        return { newTemplate: populated, messageKey: 'TEMPLATE_CREATED' };
-    }
+        console.log("[CREATE] Populating createdBy and lastModifiedBy...");
+        const populated = await newTemplate.populate([
+            { path: 'createdBy', select: 'firstName lastName email' },
+            { path: 'lastModifiedBy', select: 'firstName lastName email' }
+        ]);
 
-    /**
-     * Get all templates visible to the user
-     * Super Admin: returns all templates
-     */
-    async getAllAuditTemplates(requestingUser, lang = 'EN') {
-        console.log("\n===== [TEMPLATE SERVICE] getAllAuditTemplates START =====");
-        console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
+        console.log("[CREATE] Template created successfully:", { id: populated._id, name: populated.name });
+        return { newTemplate: populated, messageKey: 'TEMPLATE_CREATED' };
+    }
 
-        // SUPER ADMIN BYPASS: immediate full query
-        if (requestingUser && requestingUser.role === 'super_admin') {
-            console.log("[GET ALL] SUPER ADMIN — fetching all templates without filter.");
-            const templates = await AuditTemplate.find({})
-                .populate([
-                    { path: 'createdBy', select: 'firstName lastName email' },
-                    { path: 'lastModifiedBy', select: 'firstName lastName email' }
-                ])
-                .lean();
+    /**
+     * Get all templates visible to the user
+     * Super Admin: returns all templates
+     */
+    async getAllAuditTemplates(requestingUser, lang = 'EN') {
+        console.log("\n===== [TEMPLATE SERVICE] getAllAuditTemplates START =====");
+        console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
 
-            console.log(`[GET ALL] Found ${templates.length} templates for super_admin.`);
-            const translated = await Promise.all(templates.map(t => translateAuditTemplate(t, lang)));
-            return { templates: translated, messageKey: 'TEMPLATES_RETRIEVED' };
-        }
+        // SUPER ADMIN BYPASS: immediate full query
+        if (requestingUser && requestingUser.role === 'super_admin') {
+            console.log("[GET ALL] SUPER ADMIN — fetching all templates without filter.");
+            const templates = await AuditTemplate.find({})
+                .populate([
+                    { path: 'createdBy', select: 'firstName lastName email' },
+                    { path: 'lastModifiedBy', select: 'firstName lastName email' }
+                ])
+                .lean();
 
-        // Non-super-admin path
-        const filter = await this.getTemplateFilter(requestingUser);
-        console.log("[GET ALL] Using filter:", filter);
+            console.log(`[GET ALL] Found ${templates.length} templates for super_admin.`);
+            const translated = await Promise.all(templates.map(t => translateAuditTemplate(t, lang)));
+            return { templates: translated, messageKey: 'TEMPLATES_RETRIEVED' };
+        }
 
-        const templates = await AuditTemplate.find(filter)
-            .populate([
-                { path: 'createdBy', select: 'firstName lastName email' },
-                { path: 'lastModifiedBy', select: 'firstName lastName email' }
-            ])
-            .lean();
+        // Non-super-admin path
+        const filter = await this.getTemplateFilter(requestingUser);
+        console.log("[GET ALL] Using filter:", filter);
 
-        console.log(`[GET ALL] Found ${templates.length} templates for user.`);
-        const translated = await Promise.all(templates.map(t => translateAuditTemplate(t, lang)));
-        return { templates: translated, messageKey: 'TEMPLATES_RETRIEVED' };
-    }
+        const templates = await AuditTemplate.find(filter)
+            .populate([
+                { path: 'createdBy', select: 'firstName lastName email' },
+                { path: 'lastModifiedBy', select: 'firstName lastName email' }
+            ])
+            .lean();
 
-    /**
-     * Get a single template by ID with subscription validation
-     * Super Admin: full direct fetch
-     */
-    async getAuditTemplateById(templateId, requestingUser, lang = 'EN') {
-        console.log("\n===== [TEMPLATE SERVICE] getAuditTemplateById START =====");
-        console.log("Template ID:", templateId);
-        console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
+        console.log(`[GET ALL] Found ${templates.length} templates for user.`);
+        const translated = await Promise.all(templates.map(t => translateAuditTemplate(t, lang)));
+        return { templates: translated, messageKey: 'TEMPLATES_RETRIEVED' };
+    }
 
-        // SUPER ADMIN BYPASS
-        if (requestingUser && requestingUser.role === 'super_admin') {
-            console.log("[GET BY ID] SUPER ADMIN — fetching template by ID without filter.");
-            const template = await AuditTemplate.findById(templateId)
-                .populate([
-                    { path: 'createdBy', select: 'firstName lastName email' },
-                    { path: 'lastModifiedBy', select: 'firstName lastName email' }
-                ])
-                .lean();
+    /**
+     * Get a single template by ID with subscription validation
+     * Super Admin: full direct fetch
+     */
+    async getAuditTemplateById(templateId, requestingUser, lang = 'EN') {
+        console.log("\n===== [TEMPLATE SERVICE] getAuditTemplateById START =====");
+        console.log("Template ID:", templateId);
+        console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
 
-            if (!template) {
-                console.error("[GET BY ID] SUPER ADMIN requested non-existing template -> TEMPLATE_NOT_FOUND");
-                throw new Error('TEMPLATE_NOT_FOUND');
-            }
+        // SUPER ADMIN BYPASS
+        if (requestingUser && requestingUser.role === 'super_admin') {
+            console.log("[GET BY ID] SUPER ADMIN — fetching template by ID without filter.");
+            const template = await AuditTemplate.findById(templateId)
+                .populate([
+                    { path: 'createdBy', select: 'firstName lastName email' },
+                    { path: 'lastModifiedBy', select: 'firstName lastName email' }
+                ])
+                .lean();
 
-            const translated = await translateAuditTemplate(template, lang);
-            console.log("[GET BY ID] SUPER ADMIN fetched template:", { id: template._id, name: template.name });
-            return { template: translated, messageKey: 'TEMPLATE_RETRIEVED' };
-        }
+            if (!template) {
+                console.error("[GET BY ID] SUPER ADMIN requested non-existing template -> TEMPLATE_NOT_FOUND");
+                throw new Error('TEMPLATE_NOT_FOUND');
+            }
 
-        // Non-super-admin path
-        const filter = await this.getTemplateFilter(requestingUser);
-        console.log("[GET BY ID] Subscription-based filter:", filter);
+            const translated = await translateAuditTemplate(template, lang);
+            console.log("[GET BY ID] SUPER ADMIN fetched template:", { id: template._id, name: template.name });
+            return { template: translated, messageKey: 'TEMPLATE_RETRIEVED' };
+        }
 
-        const finalQuery = { ...filter, _id: templateId };
-        console.log("[GET BY ID] Final query object:", finalQuery);
+        // Non-super-admin path
+        const filter = await this.getTemplateFilter(requestingUser);
+        console.log("[GET BY ID] Subscription-based filter:", filter);
 
-        const template = await AuditTemplate.findOne(finalQuery)
-            .populate([
-                { path: 'createdBy', select: 'firstName lastName email' },
-                { path: 'lastModifiedBy', select: 'firstName lastName email' }
-            ])
-            .lean();
+        const finalQuery = { ...filter, _id: templateId };
+        console.log("[GET BY ID] Final query object:", finalQuery);
 
-        console.log("[GET BY ID] Query result:", !!template);
+        const template = await AuditTemplate.findOne(finalQuery)
+            .populate([
+                { path: 'createdBy', select: 'firstName lastName email' },
+                { path: 'lastModifiedBy', select: 'firstName lastName email' }
+            ])
+            .lean();
 
-        if (!template) {
-            console.log("[GET BY ID] Not found under allowed filter -> check existence.");
-            const exists = await AuditTemplate.findById(templateId).lean();
-            console.log("[GET BY ID] Exists in DB:", !!exists);
+        console.log("[GET BY ID] Query result:", !!template);
 
-            if (exists && requestingUser.role !== 'super_admin') {
-                console.error("[GET BY ID] Exists but forbidden -> throwing SUBSCRIPTION_FORBIDDEN");
-                throw new Error(MESSAGES.SUBSCRIPTION_FORBIDDEN.EN);
-            }
+        if (!template) {
+            console.log("[GET BY ID] Not found under allowed filter -> check existence.");
+            const exists = await AuditTemplate.findById(templateId).lean();
+            console.log("[GET BY ID] Exists in DB:", !!exists);
 
-            console.error("[GET BY ID] Template not found -> throwing TEMPLATE_NOT_FOUND");
-            throw new Error('TEMPLATE_NOT_FOUND');
-        }
+            if (exists && requestingUser.role !== 'super_admin') {
+                console.error("[GET BY ID] Exists but forbidden -> throwing SUBSCRIPTION_FORBIDDEN");
+                throw new Error(MESSAGES.SUBSCRIPTION_FORBIDDEN.EN);
+            }
 
-        const translated = await translateAuditTemplate(template, lang);
-        console.log("[GET BY ID] Template retrieved and translated:", { id: template._id, name: template.name });
-        return { template: translated, messageKey: 'TEMPLATE_RETRIEVED' };
-    }
+            console.error("[GET BY ID] Template not found -> throwing TEMPLATE_NOT_FOUND");
+            throw new Error('TEMPLATE_NOT_FOUND');
+        }
 
-    /**
-     * Update a template
-     * Super Admin: allowed to update any template
-     */
-    async updateAuditTemplate(templateId, updates, requestingUser) {
-        console.log("\n===== [TEMPLATE SERVICE] updateAuditTemplate START =====");
-        console.log("Template ID:", templateId);
-        console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
-        console.log("Updates:", updates);
+        const translated = await translateAuditTemplate(template, lang);
+        console.log("[GET BY ID] Template retrieved and translated:", { id: template._id, name: template.name });
+        return { template: translated, messageKey: 'TEMPLATE_RETRIEVED' };
+    }
 
-        // SUPER ADMIN BYPASS: can update without checks
-        if (requestingUser && requestingUser.role === 'super_admin') {
-            console.log("[UPDATE] SUPER ADMIN — updating template without subscription checks.");
-            const template = await AuditTemplate.findById(templateId);
-            if (!template) {
-                console.error("[UPDATE] TEMPLATE_NOT_FOUND");
-                throw new Error('TEMPLATE_NOT_FOUND');
-            }
+    /**
+     * Update a template
+     * Super Admin: allowed to update any template
+     */
+    async updateAuditTemplate(templateId, updates, requestingUser) {
+        console.log("\n===== [TEMPLATE SERVICE] updateAuditTemplate START =====");
+        console.log("Template ID:", templateId);
+        console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
+        console.log("Updates:", updates);
 
-            Object.keys(updates).forEach(key => {
-                if (['name', 'description', 'version', 'status', 'sections'].includes(key)) {
-                    template[key] = updates[key];
-                }
-            });
+        // SUPER ADMIN BYPASS: can update without checks
+        if (requestingUser && requestingUser.role === 'super_admin') {
+            console.log("[UPDATE] SUPER ADMIN — updating template without subscription checks.");
+            const template = await AuditTemplate.findById(templateId);
+            if (!template) {
+                console.error("[UPDATE] TEMPLATE_NOT_FOUND");
+                throw new Error('TEMPLATE_NOT_FOUND');
+            }
 
-            template.lastModifiedBy = requestingUser.id || requestingUser;
-            await template.save();
+            Object.keys(updates).forEach(key => {
+                if (['name', 'description', 'version', 'status', 'sections'].includes(key)) {
+                    template[key] = updates[key];
+                }
+            });
 
-            const populated = await template.populate([
-                { path: 'createdBy', select: 'firstName lastName email' },
-                { path: 'lastModifiedBy', select: 'firstName lastName email' }
-            ]);
+            // 👇 FIX: Ensure the userId is a string
+            template.lastModifiedBy = (requestingUser.id || requestingUser).toString(); 
+            await template.save();
 
-            console.log("[UPDATE] SUPER ADMIN updated template:", { id: populated._id, name: populated.name });
-            return { updatedTemplate: populated, messageKey: 'TEMPLATE_UPDATED' };
-        }
+            const populated = await template.populate([
+                { path: 'createdBy', select: 'firstName lastName email' },
+                { path: 'lastModifiedBy', select: 'firstName lastName email' }
+            ]);
 
-        // Non-super-admin path: basic checks (name uniqueness etc.)
-        const template = await AuditTemplate.findById(templateId);
-        if (!template) {
-            console.error("[UPDATE] TEMPLATE_NOT_FOUND");
-            throw new Error('TEMPLATE_NOT_FOUND');
-        }
+            console.log("[UPDATE] SUPER ADMIN updated template:", { id: populated._id, name: populated.name });
+            return { updatedTemplate: populated, messageKey: 'TEMPLATE_UPDATED' };
+        }
 
-        if (updates.name && updates.name !== template.name) {
-            const existing = await AuditTemplate.findOne({ name: updates.name }).lean();
-            if (existing && !existing._id.equals(templateId)) {
-                console.error("[UPDATE] TEMPLATE_NAME_EXISTS");
-                throw new Error('TEMPLATE_NAME_EXISTS');
-            }
-        }
+        // Non-super-admin path: basic checks (name uniqueness etc.)
+        const template = await AuditTemplate.findById(templateId);
+        if (!template) {
+            console.error("[UPDATE] TEMPLATE_NOT_FOUND");
+            throw new Error('TEMPLATE_NOT_FOUND');
+        }
 
-        Object.keys(updates).forEach(key => {
-            if (['name', 'description', 'version', 'status', 'sections'].includes(key)) {
-                template[key] = updates[key];
-            }
-        });
+        if (updates.name && updates.name !== template.name) {
+            const existing = await AuditTemplate.findOne({ name: updates.name }).lean();
+            if (existing && !existing._id.equals(templateId)) {
+                console.error("[UPDATE] TEMPLATE_NAME_EXISTS");
+                throw new Error('TEMPLATE_NAME_EXISTS');
+            }
+        }
 
-        template.lastModifiedBy = requestingUser.id || requestingUser;
-        await template.save();
+        Object.keys(updates).forEach(key => {
+            if (['name', 'description', 'version', 'status', 'sections'].includes(key)) {
+                template[key] = updates[key];
+            }
+        });
 
-        const updatedPopulated = await template.populate([
-            { path: 'createdBy', select: 'firstName lastName email' },
-            { path: 'lastModifiedBy', select: 'firstName lastName email' }
-        ]);
+        // 👇 FIX: Ensure the userId is a string
+        template.lastModifiedBy = (requestingUser.id || requestingUser).toString(); 
+        await template.save();
 
-        console.log("[UPDATE] Template updated by non-super-admin:", { id: updatedPopulated._id, name: updatedPopulated.name });
-        return { updatedTemplate: updatedPopulated, messageKey: 'TEMPLATE_UPDATED' };
-    }
+        const updatedPopulated = await template.populate([
+            { path: 'createdBy', select: 'firstName lastName email' },
+            { path: 'lastModifiedBy', select: 'firstName lastName email' }
+        ]);
 
-    /**
-     * Delete template
-     * Super Admin: allowed to delete any template
-     */
-    async deleteAuditTemplate(templateId, requestingUser) {
-        console.log("\n===== [TEMPLATE SERVICE] deleteAuditTemplate START =====");
-        console.log("Template ID:", templateId);
-        console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
+        console.log("[UPDATE] Template updated by non-super-admin:", { id: updatedPopulated._id, name: updatedPopulated.name });
+        return { updatedTemplate: updatedPopulated, messageKey: 'TEMPLATE_UPDATED' };
+    }
 
-        // SUPER ADMIN BYPASS
-        if (requestingUser && requestingUser.role === 'super_admin') {
-            console.log("[DELETE] SUPER ADMIN — deleting without subscription checks.");
-            const template = await AuditTemplate.findByIdAndDelete(templateId);
-            if (!template) {
-                console.error("[DELETE] TEMPLATE_NOT_FOUND");
-                throw new Error('TEMPLATE_NOT_FOUND');
-            }
-            console.log("[DELETE] Template deleted by super_admin:", { id: templateId });
-            return { messageKey: 'TEMPLATE_DELETED' };
-        }
+    /**
+     * Delete template
+     * Super Admin: allowed to delete any template
+     */
+    async deleteAuditTemplate(templateId, requestingUser) {
+        console.log("\n===== [TEMPLATE SERVICE] deleteAuditTemplate START =====");
+        console.log("Template ID:", templateId);
+        console.log("Requester:", requestingUser && { id: requestingUser.id, role: requestingUser.role });
 
-        // Non-super-admin path
-        const template = await AuditTemplate.findByIdAndDelete(templateId);
-        if (!template) {
-            console.error("[DELETE] TEMPLATE_NOT_FOUND");
-            throw new Error('TEMPLATE_NOT_FOUND');
-        }
+        // SUPER ADMIN BYPASS
+        if (requestingUser && requestingUser.role === 'super_admin') {
+            console.log("[DELETE] SUPER ADMIN — deleting without subscription checks.");
+            const template = await AuditTemplate.findByIdAndDelete(templateId);
+            if (!template) {
+                console.error("[DELETE] TEMPLATE_NOT_FOUND");
+                throw new Error('TEMPLATE_NOT_FOUND');
+            }
+            console.log("[DELETE] Template deleted by super_admin:", { id: templateId });
+            return { messageKey: 'TEMPLATE_DELETED' };
+        }
 
-        console.log("[DELETE] Template deleted:", { id: templateId });
-        return { messageKey: 'TEMPLATE_DELETED' };
-    }
+        // Non-super-admin path
+        const template = await AuditTemplate.findByIdAndDelete(templateId);
+        if (!template) {
+            console.error("[DELETE] TEMPLATE_NOT_FOUND");
+            throw new Error('TEMPLATE_NOT_FOUND');
+        }
+
+        console.log("[DELETE] Template deleted:", { id: templateId });
+        return { messageKey: 'TEMPLATE_DELETED' };
+    }
 }
 
 export default new AuditTemplateService();
