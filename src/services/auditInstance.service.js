@@ -965,6 +965,11 @@ class AuditInstanceService {
 // If you encounter 'translateAuditTemplate is not defined', you must also add:
 // import { translateAuditTemplate } from '../utils/dataTranslator.js'; 
 
+// NOTE: Ensure you have 'auditTemplateService' and 'User' imported in your file's scope.
+// If you encounter 'translateAuditTemplate' or 'translateAuditInstance' is not defined, 
+// you must add the required imports from your utility file, for example:
+// import { translateAuditTemplate, translateAuditInstance } from '../utils/dataTranslator.js'; 
+
 async getAllAuditInstances(requestingUser, lang) {
     try {
         let query = {};
