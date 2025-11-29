@@ -961,21 +961,21 @@ class AuditInstanceService {
 //   }
  
 
-async getAllAuditInstances(requestingUser, lang = 'EN') {
+ // NOTE: Ensure you have 'auditTemplateService' and 'User' imported in your file's scope.
+// If you encounter 'translateAuditTemplate is not defined', you must also add:
+// import { translateAuditTemplate } from '../utils/dataTranslator.js'; 
+
+async getAllAuditInstances(requestingUser, lang) {
     try {
-        console.log(`[LOG] -> getAllAuditInstances called for User ID: ${requestingUser.id} with Role: ${requestingUser.role}`);
-        
         let query = {};
         const requestingUserId = requestingUser.id.toString();
 
         // --- 1. Role-based Access Query Construction ---
-        if (requestingUser.role === 'super_admin') {
-            query = {};
-        } else if (requestingUser.role === 'admin') {
-            const managedAuditors = await User.find({ managerId: requestingUserId, role: 'auditor' }).select('_id');
+        if (['super_admin', 'admin'].includes(requestingUser.role)) {
+            const managedAuditors = await User.find({ managerId: requestingUserId }).select('_id');
             const managedAuditorIds = (managedAuditors || []).map(a => a._id);
+            // Admin sees audits created by them OR assigned to them/their managed auditors
             const allRelevantAuditorIds = [requestingUser.id, ...managedAuditorIds];
-
             query = { 
                 $or: [
                     { createdBy: requestingUser.id }, 
@@ -983,6 +983,7 @@ async getAllAuditInstances(requestingUser, lang = 'EN') {
                 ] 
             };
         } else if (requestingUser.role === 'auditor') {
+            // Auditor sees audits created by them OR audits they are assigned to
             query = { 
                 $or: [
                     { createdBy: requestingUser.id }, 
@@ -1002,60 +1003,57 @@ async getAllAuditInstances(requestingUser, lang = 'EN') {
             .populate('lastModifiedBy', 'firstName lastName email')
             .lean();
 
-        console.log(`[LOG] -> Total Audits fetched before template filtering: ${audits.length}`);
-
         // --- 3. Subscription-based Template Filtering (FIXED LOGIC) ---
+        
         const templateFilter = await auditTemplateService.getTemplateFilter(requestingUser);
-        let allowedTemplateIds = null;
+        let allowedTemplateIds = null; // null means ALL access (Super Admin or Enterprise)
 
         if (requestingUser.role !== 'super_admin') {
+            // Check for the full access case (Enterprise subscription returns {})
             if (Object.keys(templateFilter).length === 0) {
                 allowedTemplateIds = null;
             } else if (templateFilter._id && templateFilter._id.$in) {
+                // CORRECTLY extract the $in array and convert to strings for checking
                 allowedTemplateIds = templateFilter._id.$in.map(id => id.toString());
             } else {
+                // Case for { _id: null } or no access
                 allowedTemplateIds = []; 
             }
         }
-
+        
+        // This is the core filtering step where we use the correctly extracted IDs
         const filteredAudits = audits.filter(audit => {
+            // If access is null, include the audit (Super Admin or Enterprise)
             if (allowedTemplateIds === null) return true;
+            
+            // If access array is empty, block all audits
             if (allowedTemplateIds.length === 0) return false;
 
+            // Ensure the template ID exists on the audit before checking
             if (!audit.template || !audit.template._id) return false; 
             
+            // Check if the audit's template ID is in the allowed list
             const templateIdString = audit.template._id.toString();
             return allowedTemplateIds.includes(templateIdString);
         });
 
-        console.log(`[LOG] -> Audits remaining after template filtering: ${filteredAudits.length}`);
-
         // --- 4. Translation and Return ---
-        const translatedAudits = await Promise.all(filteredAudits.map(async audit => {
-            // Translate the complex structure snapshot
-            const translatedSections = await translateAuditTemplate(
+        // Preserving your original return structure which translates the snapshot
+        return Promise.all(filteredAudits.map(async audit => ({
+            ...audit,
+            // Ensure translateAuditTemplate is imported if it throws a 'not defined' error
+            templateStructureSnapshot: await translateAuditTemplate(
                 { sections: audit.templateStructureSnapshot },
                 lang
-            ).then(t => t.sections);
-
-            // Optional: Translate the audit instance itself (if needed)
-            const translatedAudit = translateAuditInstance(audit, lang); 
-
-            return {
-                ...translatedAudit,
-                templateStructureSnapshot: translatedSections
-            };
-        }));
-        
-        // --- FINAL FIX: Return ONLY the array of translated audits ---
-        return translatedAudits; 
+            ).then(t => t.sections)
+        })));
 
     } catch (error) {
         console.error('[getAllAuditInstances] ERROR:', error.message);
-        // You might want to throw a specific error type for the controller to handle
         throw error;
     }
 }
+
   /**
    * Get a single audit instance
    */
