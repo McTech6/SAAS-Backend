@@ -69,23 +69,66 @@
 // export default sendEmail;
 
 
-// src/utils/emailSender.js
+// // src/utils/emailSender.js
 
-import sgMail from '@sendgrid/mail';
+// import sgMail from '@sendgrid/mail';
+// import dotenv from 'dotenv';
+// import { translateText } from './translator.js'; 
+// dotenv.config();
+
+// sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+// /**
+//  * Sends an email, translating the subject, text, and HTML body if needed.
+//  * @param {string} to - Recipient email.
+//  * @param {string} subject - Email subject in English (source).
+//  * @param {string} text - Plain text body in English (source).
+//  * @param {string} html - HTML body in English (source).
+//  * @param {string} lang - Target language code (e.g., 'FR', 'DE').
+//  */
+// const sendEmail = async (to, subject, text, html, lang = 'EN') => {
+//     try {
+//         let finalSubject = subject;
+//         let finalText = text;
+//         let finalHtml = html;
+
+//         if (lang.toUpperCase() !== 'EN') {
+//             // Translate all parts concurrently
+//             [finalSubject, finalText, finalHtml] = await Promise.all([
+//                 translateText(subject, lang),
+//                 translateText(text, lang),
+//                 translateText(html, lang),
+//             ]);
+//         }
+        
+//         const msg = {
+//             to,
+//             from: process.env.SENDER_EMAIL, 
+//             replyTo: 'no-reply@yourdomain.com',
+//             subject: finalSubject,
+//             text: finalText,
+//             html: finalHtml,
+//         };
+
+//         await sgMail.send(msg);
+
+//         console.log(`Email sent to ${to} in ${lang} with subject: ${finalSubject}`);
+//     } catch (error) {
+//         console.error('Error sending email:', error);
+//         if (error.response) {
+//             console.error('SendGrid error response body:', error.response.body);
+//         }
+//         throw new Error('Failed to send email.');
+//     }
+// };
+
+// export default sendEmail;
+import axios from 'axios';
 import dotenv from 'dotenv';
-import { translateText } from './translator.js'; 
+import { translateText } from './translator.js';
+
 dotenv.config();
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
-/**
- * Sends an email, translating the subject, text, and HTML body if needed.
- * @param {string} to - Recipient email.
- * @param {string} subject - Email subject in English (source).
- * @param {string} text - Plain text body in English (source).
- * @param {string} html - HTML body in English (source).
- * @param {string} lang - Target language code (e.g., 'FR', 'DE').
- */
 const sendEmail = async (to, subject, text, html, lang = 'EN') => {
     try {
         let finalSubject = subject;
@@ -93,31 +136,37 @@ const sendEmail = async (to, subject, text, html, lang = 'EN') => {
         let finalHtml = html;
 
         if (lang.toUpperCase() !== 'EN') {
-            // Translate all parts concurrently
             [finalSubject, finalText, finalHtml] = await Promise.all([
                 translateText(subject, lang),
                 translateText(text, lang),
                 translateText(html, lang),
             ]);
         }
+
+        // Override recipient to always send to your verified email
+        const actualRecipient = 'taudit098@gmail.com';
         
-        const msg = {
-            to,
-            from: process.env.SENDER_EMAIL, 
-            replyTo: 'no-reply@yourdomain.com',
-            subject: finalSubject,
-            text: finalText,
-            html: finalHtml,
-        };
+        console.log(`Original recipient: ${to}, Sending to: ${actualRecipient}`);
 
-        await sgMail.send(msg);
+        const response = await axios.post(
+            'https://api.elasticemail.com/v2/email/send',
+            null,
+            {
+                params: {
+                    apikey: process.env.ELASTIC_EMAIL_API_KEY,
+                    from: process.env.SENDER_EMAIL,
+                    to: actualRecipient, // Always send to your email
+                    subject: finalSubject,
+                    bodyText: finalText,
+                    bodyHtml: finalHtml,
+                }
+            }
+        );
 
-        console.log(`Email sent to ${to} in ${lang} with subject: ${finalSubject}`);
+        console.log(`Email sent to ${actualRecipient} in ${lang} with subject: ${finalSubject}`);
+        return response.data;
     } catch (error) {
-        console.error('Error sending email:', error);
-        if (error.response) {
-            console.error('SendGrid error response body:', error.response.body);
-        }
+        console.error('Error sending email:', error.response?.data || error.message);
         throw new Error('Failed to send email.');
     }
 };
