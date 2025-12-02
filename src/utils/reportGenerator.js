@@ -824,24 +824,26 @@ const generateReportHtml = (auditInstance = {}) => {
             <li><strong>People</strong> – the awareness, behavior, and decisions of everyone involved.</li>
         </ul>
         <p class="justify-text static-text">Only when these three elements are combined can we create real protection. Focusing on technology alone is not enough. A secure company requires clear structures, well-trained employees, and a culture where security is seen as part of everyday work.</p>
-        <p class="justify-text static-text">In today's ever-changing world, the importance of protecting data and systems continues to grow. New threats appear daily, and digitalization increases the complexity of our business environment. For this reason, security must be given the right priority. It should not be treated as an "add-on" or a last step, but as an integral part of every decision, process, and investment.</p>
-        <p class="justify-text static-text">This assessment report is designed to make this approach practical and understandable. It gives a transparent overview of your current situation, highlights strengths and weaknesses, and provides clear guidance for next steps. The goal is not only to identify risks but also to enable your organization to build sustainable protection—so that technology, organization, and people are aligned and your company can continue to operate with confidence and resilience.</p>
+        <p class="justify-text static-text">In today's ever-changing world, the importance of protecting data and systems continues to grow. New threats appear daily, and digitalization increases the complexity of our business environment. For this reason, <strong>security must be given the right priority</strong>. It should not be treated as an "add-on" or a last step, but as an <strong>integral part of every decision, process, and investment</strong>.</p>
+        <p class="justify-text static-text">This assessment report is designed to make this approach practical and understandable. It gives a transparent overview of your current situation, highlights strengths and weaknesses, and provides clear guidance for next steps. The goal is not only to identify risks but also to enable your organization to <strong>build sustainable protection</strong> so that technology, organization, and people are aligned and your company can continue to operate with confidence and resilience.</p>
     `;
 
     const aboutCompanyAudited = `
-        <p class="justify-text static-text">As a prominent player in the <strong>${escapeHtml(company.industry || '')}</strong> industry, <strong>${escapeHtml(company.name || 'Test company')}</strong> has shown a strong commitment to maintaining a secure and reliable operational environment. Our assessment was conducted to assess their current security posture, providing a detailed overview of their defenses and identifying key areas for continuous improvement. This assessment highlights their dedication to protecting their digital assets and fostering a resilient business infrastructure.</p>
+        <p class="justify-text static-text">As a prominent player in the <strong>${escapeHtml(company.industry || '')}</strong> industry, <strong>${escapeHtml(company.name || 'Test company')}</strong> has shown a strong commitment to maintaining a secure and reliable operational environment. Our assessment was conducted to assess their current information, IT and security posture, providing a detailed overview of their defenses and identifying key areas for continuous improvement. This assessment highlights their dedication to protecting their digital assets and fostering a resilient business infrastructure.</p>
         <p class="static-text" style="margin-top: 5px;"><strong>Contact person:</strong> ${escapeHtml(contactName || '')} — ${escapeHtml(contactEmail || '')}</p>
         ${company.generalInfo || company.examinationEnvironment?.generalInfo ? `<p class="justify-text static-text">${escapeHtml(company.generalInfo || company.examinationEnvironment?.generalInfo)}</p>` : ''}
     `;
 
     const aboutCompanyHardcoded = `
-        <p class="justify-text static-text">We, DV-Beratung Koch, are your reliable partner and system house for information technology, telecommunications and video surveillance. Since 1993, we have been successfully implementing IT projects in the areas of government, healthcare and small and medium-sized enterprises.</p>
-        <p class="justify-text static-text">Over the years, our product and service portfolio has been continuously adapted and expanded in line with technological developments. Our aim is to offer you a comprehensive range of IT solutions from a single source, including perfectly coordinated hardware and software for your company.</p>
-        <p class="justify-text static-text">Through continuous training of our team, we ensure that our expert knowledge is always up to date in order to guarantee you modern IT consulting and implementation. We look forward to starting a successful and cooperative partnership with you.</p>
+        <p class="justify-text static-text">We at <strong>BKGS Consulting</strong> believe that audits and assessments should strengthen companies rather than slow them down. In a world where compliance requirements, standards, and technologies evolve faster than ever, many companies still rely on rigid tools and outdated methods to evaluate performance, security, and quality. At <strong>BKGS Consulting</strong>, we exist to change that. Our mission is to make assessments and audits simple, smart, and adaptable transforming them from static checklists into dynamic instruments for growth, trust, and improvement. We believe that every organization, regardless of its size, sector, or country deserves access to modern, intelligent solutions that align with its specific needs, frameworks, and ambitions. </p>
+        <p class="justify-text static-text style="margin-top: 5px">We combine <strong>technology, methodology,</strong> and <strong>human expertise</strong> to develop flexible, powerful audit and assessment solutions tailored to the individual needs of our clients. Our work combines <strong>32 years of consulting experience</strong> with state-of-the-art software platforms, ensuring that every client benefits from precision, scalability, and adaptability.</p>
+        <p class="justify-text static-text style="margin-top: 5px">We don’t just deliver tools we build <strong>solutions that fit your context</strong>.From defining requirements to designing <strong>dashboards</strong>, from building reporting logic to automating workflows, our team ensures that your assessment system reflects <strong>your goals, standards</strong>, and <strong>operational culture</strong>.</p>
+        <p class="justify-text static-text style="margin-top: 5px">We envision a future where audits and assessments are not bureaucratic obligations, but <strong>strategic enablers of trust and performance</strong>. A world where organizations of any size can assess themselves <strong>continuously</strong>, adjust in real time, and make decisions with confidence.</p>
+        <h3 class="slogan-local">"Securing Your Digital Horizon, Together."</h3>
     `;
 
     const prefaceText = `
-        <p class="justify-text static-text">The ISARION Check Report has been developed to provide organizations with a structured and independent assessment of their information security posture. The aim is not only to identify technical issues, but to create a holistic view that combines technology, organization, and people.</p>
+        <p class="justify-text static-text">The <strong>ISARION (Information Security Assessment Evolution) -Report</strong> has been developed to provide organizations with a structured and independent assessment of their information security posture. The aim is not only to identify technical issues, but to create a holistic view that combines <strong>technology, organization, and people</strong>.</p>
         <p class="justify-text static-text">This report is designed as a practical tool for decision-makers at all levels. Whether you have a technical background or not, the findings and recommendations are presented in a way that allows you to clearly understand where strengths lie, where risks exist, and what steps can be taken to achieve sustainable improvement.</p>
         <p class="justify-text static-text">Our mission is to support organizations in treating cybersecurity as an integral part of their business strategy and daily operations—helping to build trust, ensure compliance, and strengthen resilience in an ever-changing digital world.</p>
     `;
@@ -857,7 +859,7 @@ const generateReportHtml = (auditInstance = {}) => {
         <p class="justify-text static-text">By signing below, both parties acknowledge the reception of the full assessment report and confirm that it has been delivered in its final version.</p>
 
         <div class="handover-section">
-            <h3 class="handover-heading">Assessor:</h3>
+            <h3 class="handover-heading">Consultant:</h3>
             <table class="handover-table">
                 <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input"></span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
                 <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
@@ -865,7 +867,7 @@ const generateReportHtml = (auditInstance = {}) => {
         </div>
         
         <div class="handover-section" style="margin-top: 30px;">
-            <h3 class="handover-heading">Assessed Company Representative:</h3>
+            <h3 class="handover-heading">Consulted Company Representative:</h3>
             <table class="handover-table">
                 <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input"></span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
                 <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
@@ -876,15 +878,15 @@ const generateReportHtml = (auditInstance = {}) => {
     const thankYouText = `
         <div style="text-align: center;">
             <h2 style="border-bottom: none; margin-bottom: 5px; font-size: 26pt; color: #014f65; margin-top: 0; font-family: 'Lexend', sans-serif;">Thank You</h2>
-            <p style="font-size: 16pt; margin-bottom: 15px; margin-top: 5px; font-weight: bold; line-height: 1.5;">for Choosing ISARION Assessment</p>
+            <p style="font-size: 16pt; margin-bottom: 15px; margin-top: 5px; font-weight: bold; line-height: 1.5;">for Choosing ISARION</p>
             <p class="justify-text static-text">We are committed to enhancing your organization's security posture and ensuring compliance in an ever evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
             <p class="justify-text static-text">Our team is dedicated to supporting your journey beyond this assessment. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
             <p class="static-text" style="margin-top: 15px;">For further discussions or to schedule a follow-up consultation, please contact us:</p>
             <div class="contact">
                 <p class="static-text"><strong>Email:</strong> <a href="mailto:info@isarion.com">info@isarion.com</a></p>
-                <p class="static-text"><strong>Website:</strong> <a href="https://www.isarion.com">www.isarion.com</a></p>
+                <p class="static-text"><strong>Website:</strong> <a href="https://www.isarion.io">www.isarion.io</a></p>
             </div>
-            <h3 class="slogan-center">"Securing Your Digital Horizon, Together."</h3>
+            <h3 class="slogan-center"><strong>"Improvement begins with assessment and assessment begins with the right questions"</strong></h3>
         </div>
     `;
 
@@ -1060,6 +1062,8 @@ const generateReportHtml = (auditInstance = {}) => {
             .contact { margin-top: 12px; font-size: 14pt; } 
             .contact a { color: #003340; }
             .slogan-center { text-align: center; margin-top: 25px; font-style: italic; color: #014f65; font-size: 20pt; font-family: 'Lexend', sans-serif !important;}
+            .slogan-local { text-align: center; margin-top: 5px; font-style: italic; color: #000; font-size: 14pt; font-family: 'Lexend', sans-serif !important;}
+            .slogan-random { text-align: center; margin-top: 5px; color: #000; font-size: 14pt; font-family: 'Lexend', sans-serif !important;}
         </style>
     </head>
     <body>
@@ -1101,9 +1105,9 @@ const generateReportHtml = (auditInstance = {}) => {
         </div>
 
         <div class="container page-break">
-            <h2 class="header-spacing">About the Assessing Company</h2>
+            <h2 class="header-spacing">About the Consulting Company</h2>
             ${aboutCompanyHardcoded}
-            <h2 class="header-spacing" style="margin-top: 25px;">About the Assessed Company</h2>
+            <h2 class="header-spacing" style="margin-top: 25px;">About the Examinated Company</h2>
             ${aboutCompanyAudited}
         </div>
 
@@ -1116,10 +1120,14 @@ const generateReportHtml = (auditInstance = {}) => {
 
         <div class="container page-break">
             <h2 class="header-spacing">Executive Summary</h2>
-            <p class="justify-text static-text">This report provides a comprehensive overview of the cybersecurity posture for <strong>${escapeHtml(company.name || 'Test Company')}</strong> based on the "<strong>${escapeHtml(template.name || 'Name of the assessment')}</strong>".</p>
+            <p class="justify-text static-text">This report provides a comprehensive overview of the Information, IT, and cybersecurity posture for <strong>${escapeHtml(company.name || 'Test Company')}</strong> based on the "<strong>${escapeHtml(template.name || 'Name of the assessment')}</strong>".</p>
             <p class="justify-text static-text">The assessment covered key areas including Information Security Policies, Access Control, and other critical domains as defined in the selected template.</p>
             <p class="justify-text static-text">Overall, the assessment indicates a compliance score of <strong>${escapeHtml(String(overallScore))}%</strong>. Detailed findings and observations are provided in the subsequent sections, along with specific recommendations for improvement.</p>
             <p class="justify-text static-text">It is crucial to address identified areas of non-compliance and implement recommended remediation actions to strengthen the overall security posture and ensure continuous adherence to best practices.</p>
+             <h3 class="slogan-random"><strong>"Cyber resilience as part of your organization's reputation"</strong></h3>
+             <p class="justify-text static-text" style="margin-top: 5px;>Cyber resilience refers to an entity's ability to continuously deliver the intended outcome, despite cyber-attacks. Resilience to cyber-attacks is essential to IT systems, critical infrastructure, business processes, organizations, societies, and nation-states.</p>
+              <p class="justify-text static-text" style="margin-top: 5px;>Resilience is like juggling lots of balls: it is not enough to optimize individual points. The key to success lies in the ability to think holistically and to orchestrate several strands of action in parallel, from awareness training and technical security to clear crisis management. Resources (budget and people) alone does not lead to success. This is also evident in reality: organizations with the largest IT budgets are not automatically the best protected. The decisive factor is whether security and resilience issues are at the top of the agenda and whether processes, responsibilities and recovery concepts are regularly reviewed, tested and further developed. Cyber resilience is therefore not a project with an end date, but an ongoing management task. As with sustainability, it requires a cultural shift: away from pure compliance thinking and towards genuine risk competence at all levels.</p>
+               <p class="justify-text static-text" style="margin-top: 5px;>The biggest mistake is to believe that you are not affected, or even to rely on getting help in an emergency. Because when cyber-attacks become a reality, only one thing matters: <strong>“how well prepared an organization is”</strong>. Resilience begins in the mind and unfolds its effect where technology, processes and people interact. Those who take the issue seriously not only gain security, but also the trust of customers, partners, employees and ultimately the market. Cyber resilience is not just about keeping systems running. It's about taking responsibility and maintaining trust, especially when it matters, and with this assessment, you have just taken the first step. Congratulations!</p>
             ${(Array.isArray(summaries) && summaries.length > 0) ? `
             <h2 class="header-spacing" style="margin-top: 25px;">Summary</h2>
             ${summariesHtml}
@@ -1129,6 +1137,7 @@ const generateReportHtml = (auditInstance = {}) => {
         <div class="container page-break">
             <h2 class="header-spacing">Examination Environment</h2>
             ${envHtml}
+            <p class="justify-text static-text" style="margin-top: 7px;>“The question must be predetermined, and the examiner must simply ask it and attempt to summarise these points based on the answer.”</p>
         </div>
 
         <div class="container page-break">
