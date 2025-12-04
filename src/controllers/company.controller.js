@@ -91,15 +91,16 @@ class CompanyController {
         }
     }
 
-    async updateCompany(req, res) {
+async updateCompany(req, res) {
         const lang = getLangFromReq(req);
-        try {
-            const updatedCompany = await companyService.updateCompany(req.params.id, req.body, req.user.id);
-            sendSuccessResponse(res, 200, 'COMPANY_UPDATED', updatedCompany, lang); // Using Key
-        } catch (error) {
-            sendErrorResponse(res, 400, error.message, lang);
-        }
-    }
+        try {
+            // *** CHANGE HERE: Pass req.user.role ***
+            const updatedCompany = await companyService.updateCompany(req.params.id, req.body, req.user.id, req.user.role); 
+            sendSuccessResponse(res, 200, 'COMPANY_UPDATED', updatedCompany, lang); // Using Key
+        } catch (error) {
+            sendErrorResponse(res, 400, error.message, lang);
+        }
+    }
 
     async deleteCompany(req, res) {
         const lang = getLangFromReq(req);

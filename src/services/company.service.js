@@ -268,21 +268,30 @@ class CompanyService {
         throw new Error('You are not authorized to view this company.');
     }
 
-    async updateCompany(companyId, updates, requestingUserId) {
-        const company = await Company.findById(companyId);
-        if (!company) throw new Error('Company not found.');
-        if (!company.createdBy.equals(requestingUserId)) throw new Error('You are not authorized to update this company.');
+async updateCompany(companyId, updates, requestingUserId, requestingUserRole) {
+        const company = await Company.findById(companyId);
+        if (!company) throw new Error('Company not found.');
+        
+        // --- START OF REQUIRED CHANGE ---
+        const isSuperAdmin = requestingUserRole === 'super_admin';
+        const isCreator = company.createdBy.equals(requestingUserId);
 
-        const updated = await Company.findByIdAndUpdate(
-            companyId,
-            { ...updates, lastModifiedBy: requestingUserId },
-            { new: true, runValidators: true }
-        )
-        .populate('createdBy', 'firstName lastName email')
-        .populate('lastModifiedBy', 'firstName lastName email');
+        // Allow update if Super-Admin OR if the user is the original creator
+        if (!isSuperAdmin && !isCreator) {
+             throw new Error('You are not authorized to update this company.');
+        }
+        // --- END OF REQUIRED CHANGE ---
 
-        return updated;
-    }
+        const updated = await Company.findByIdAndUpdate(
+            companyId,
+            { ...updates, lastModifiedBy: requestingUserId },
+            { new: true, runValidators: true }
+        )
+        .populate('createdBy', 'firstName lastName email')
+        .populate('lastModifiedBy', 'firstName lastName email');
+
+        return updated;
+    }
 
     async deleteCompany(companyId, requestingUserId) {
         const company = await Company.findById(companyId);
