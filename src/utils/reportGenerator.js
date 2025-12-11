@@ -1442,20 +1442,22 @@ const generateReportHtml = (auditInstance = {}) => {
         </div>
     `;
 
-    const thankYouText = `
-        <div style="text-align: center;">
-            <h2 style="border-bottom: none; margin-bottom: 5px; font-size: 26pt; color: #014f65; margin-top: 0; font-family: 'Lexend', sans-serif;">Thank You</h2>
-            <p style="font-size: 16pt; margin-bottom: 15px; margin-top: 5px; font-weight: bold; line-height: 1.5;">for Choosing ISARION</p>
-            <p class="justify-text static-text">We are committed to enhancing your organization's security posture and ensuring compliance in an ever-evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
-            <p class="justify-text static-text">Our team is dedicated to supporting your journey beyond this assessment. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
-            <p class="static-text" style="margin-top: 15px;">For further discussions or to schedule a follow-up consultation, please contact your examiner:</p>
-            <div class="contact">
-                <p class="static-text"><strong>${escapeHtml(examinerName)}</strong></p>
-                <p class="static-text"><a href="mailto:${escapeHtml(examinerEmail)}">${escapeHtml(examinerEmail)}</a></p>
-            </div>
-            <h3 class="slogan-center"><strong>"Improvement begins with assessment and assessment begins with the right questions"</strong></h3>
+const thankYouText = `
+    <div style="text-align: center;">
+        <h2 style="border-bottom: none; margin-bottom: 5px; font-size: 26pt; color: #014f65; margin-top: 0; font-family: 'Lexend', sans-serif;">Thank You</h2>
+        <p style="font-size: 16pt; margin-bottom: 15px; margin-top: 5px; font-weight: bold; line-height: 1.5;">for Choosing ISARION</p>
+        <p class="justify-text static-text">We are committed to enhancing your organization's security posture and ensuring compliance in an ever-evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
+        <p class="justify-text static-text">Our team is dedicated to supporting your journey beyond this assessment. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
+        <p class="static-text" style="margin-top: 15px;">For further discussions or to schedule a follow-up consultation, please contact your examiner:</p>
+        <div class="contact">
+            <p class="static-text"><strong>${escapeHtml(examinerName)}</strong></p>
+            <p class="static-text">
+                <a href="mailto:${escapeHtml(examinerEmail)}" class="no-style-link">${escapeHtml(examinerEmail)}</a>
+            </p>
         </div>
-    `;
+        <h3 class="slogan-center"><strong>"Improvement begins with assessment and assessment begins with the right questions"</strong></h3>
+    </div>
+`;
 
     const cyberResilienceText = `
         <h3 class="slogan-random"><strong>"Cyber resilience as part of your organization's reputation"</strong></h3>
@@ -1465,7 +1467,7 @@ const generateReportHtml = (auditInstance = {}) => {
     `;
 
     const coverQuoteText = `
-        <p class="static-text"><em><strong>You can only protect what you know.</strong></em></p>
+        <p class="static-text"><em><strong>"You can only protect what you know."</strong></em></p>
     `;
 
     const html = `
@@ -1509,6 +1511,10 @@ const generateReportHtml = (auditInstance = {}) => {
             .cover-quote { margin-top: 30px; font-size: 15pt; max-width: 700px; margin-left: auto; margin-right: auto; }
             .slogan-center { font-size: 20pt; margin-top: 30px; font-style: italic; color: #014f65; }
             .slogan-random { font-size: 18pt; text-align: center; margin: 30px 0 10px; color: #014f65; }
+            .no-style-link {
+    color: #000000 !important;
+    text-decoration: none !important;
+}
         </style>
     </head>
     <body>
