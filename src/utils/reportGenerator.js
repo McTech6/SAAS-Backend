@@ -1164,6 +1164,7 @@
 
 // export default generateReportHtml;
 
+
 const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1765422490/1_BKGS_Consulting_boqy3g.png';
 
 /** Escapes HTML to prevent XSS */
@@ -1190,11 +1191,14 @@ const formatDate = (d) => {
 /** Status color logic - GREEN for yes/compliant/implemented */
 const getStatusInfo = (selectedValue, questionType) => {
     console.log('[getStatusInfo] Input:', { selectedValue, questionType });
+
     if (selectedValue === undefined || selectedValue === null || selectedValue === '') {
         return { label: 'N/A', color: '#a3a3a3' };
     }
+
     let values = [];
     let rawValue = '';
+
     if (Array.isArray(selectedValue)) {
         values = selectedValue.map(v => String(v).trim().toLowerCase());
         rawValue = values.join(', ');
@@ -1202,24 +1206,33 @@ const getStatusInfo = (selectedValue, questionType) => {
         rawValue = String(selectedValue).trim().toLowerCase();
         values = [rawValue];
     }
+
     if (values.length === 0) {
         return { label: 'N/A', color: '#a3a3a3' };
     }
+
     const implementedKeywords = ['implemented', 'yes', 'compliant', 'fully implemented'];
     const partialKeywords = ['partially implemented', 'partial', 'partially'];
     const negativeKeywords = ['not implemented', 'no', 'non-compliant', 'absent'];
+
     const normalized = rawValue.split(',').map(s => s.trim().toLowerCase());
-    const isNegative = normalized.some(v => negativeKeywords.some(k => v.includes(k))) ||
-                       normalized.includes('no') ||
+
+    const isNegative = normalized.some(v => negativeKeywords.some(k => v.includes(k))) || 
+                       normalized.includes('no') || 
                        normalized.includes('non-compliant');
+
     const isPartial = normalized.some(v => partialKeywords.some(k => v.includes(k)));
+
     const isImplemented = normalized.some(v => implementedKeywords.some(k => v.includes(k))) &&
                           !isNegative && !isPartial;
+
     let color = '#a3a3a3';
-    if (isNegative) color = '#ef4444'; // RED
-    else if (isPartial) color = '#f59e0b'; // ORANGE
+    if (isNegative) color = '#ef4444';      // RED
+    else if (isPartial) color = '#f59e0b';  // ORANGE
     else if (isImplemented) color = '#16a34a'; // GREEN
+
     console.log('[getStatusInfo] Result:', { rawValue, isNegative, isPartial, isImplemented, color });
+
     return { label: rawValue || 'N/A', color };
 };
 
@@ -1245,6 +1258,7 @@ const buildToc = (templateStructure) => {
 
 const generateReportHtml = (auditInstance = {}) => {
     console.log('[generateReportHtml] Starting report generation...', auditInstance);
+
     const company = auditInstance.company || {};
     const template = auditInstance.template || {};
     const responses = auditInstance.responses || [];
@@ -1254,6 +1268,7 @@ const generateReportHtml = (auditInstance = {}) => {
     const auditorsToDisplay = auditInstance.auditorsToDisplay || [];
     const examinationEnvironment = company.examinationEnvironment || auditInstance.examinationEnvironment || {};
     const summaries = auditInstance.summaries || [];
+
     const reportDate = formatDate(new Date());
     const startDateFormatted = formatDate(auditInstance.startDate);
     const endDateFormatted = formatDate(auditInstance.endDate);
@@ -1271,6 +1286,7 @@ const generateReportHtml = (auditInstance = {}) => {
     const contactName = company.contactPerson?.name || '';
     const contactEmail = company.contactPerson?.email || '';
 
+    // Use main auditor as examiner contact
     const examinerName = auditorsToDisplay[0]?.firstName && auditorsToDisplay[0]?.lastName
         ? `${auditorsToDisplay[0].firstName} ${auditorsToDisplay[0].lastName}`
         : `${createdBy.firstName || ''} ${createdBy.lastName || ''}`.trim() || 'Auditor';
@@ -1282,37 +1298,49 @@ const generateReportHtml = (auditInstance = {}) => {
     templateStructure.forEach((section, sIdx) => {
         const secId = `sec-${sIdx}`;
         const sectionClass = sIdx === 0 ? 'section' : 'section section-page-break';
+
         mainHtml += `<div class="${sectionClass}" id="${secId}">`;
         mainHtml += `<h2 class="header-spacing">${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
+
         if (section.description) {
             mainHtml += `<p class="section-desc">${escapeHtml(section.description)}</p>`;
         }
+
         (section.subSections || []).forEach((subSection, ssIdx) => {
             const subId = `sec-${sIdx}-sub-${ssIdx}`;
             mainHtml += `<div class="subsection" id="${subId}">`;
             mainHtml += `<h3 class="header-spacing">${escapeHtml(subSection.name || 'Unnamed Subsection')}</h3>`;
+
             if (subSection.description) {
                 mainHtml += `<p class="subsection-desc">${escapeHtml(subSection.description)}</p>`;
             }
+
             (subSection.questions || []).forEach((question, qIdx) => {
                 const resp = responses.find(r => r.questionId?.toString() === question._id?.toString()) || {};
+                console.log(`[Question ${qIdx}] Found response:`, resp);
+
                 let selectedValueDisplay = resp.selectedValue;
                 if (Array.isArray(resp.selectedValue)) {
                     selectedValueDisplay = resp.selectedValue.join(', ');
                 } else if (resp.selectedValue === undefined || resp.selectedValue === null || resp.selectedValue === '') {
                     selectedValueDisplay = 'N/A';
                 }
+
                 const questionType = resp.questionTypeSnapshot || question.type || 'text_input';
                 const status = getStatusInfo(resp.selectedValue, questionType);
+
                 const answerText = escapeHtml(String(selectedValueDisplay || 'N/A'));
                 const answerHtml = `<span style="color: ${status.color};"><strong>${answerText}</strong></span>`;
 
                 const commentHtml = resp.comment
                     ? `<div class="comment"><strong>Comment:</strong><div>${escapeHtml(resp.comment)}</div></div>`
                     : '';
+
                 const evidenceHtml = (Array.isArray(resp.evidenceUrls) && resp.evidenceUrls.length > 0)
                     ? `<div class="evidence"><strong>Evidence:</strong><ul>${resp.evidenceUrls.map(u => `<li><a href="${escapeHtml(u)}">${escapeHtml(u)}</a></li>`).join('')}</ul></div>`
                     : '';
+
+                // Fixed: Recommendations now properly displayed
                 const recommendationHtml = resp.recommendation
                     ? `<div class="recommendation"><strong>Recommendation:</strong><div>${escapeHtml(resp.recommendation)}</div></div>`
                     : '';
@@ -1329,9 +1357,10 @@ const generateReportHtml = (auditInstance = {}) => {
                     </div>
                 `;
             });
-            mainHtml += `</div>`; // close subsection
+
+            mainHtml += `</div>`; // Close subsection
         });
-        mainHtml += `</div>`; // close section
+        mainHtml += `</div>`; // Close section
     });
 
     const envHtml = `
@@ -1354,11 +1383,27 @@ const generateReportHtml = (auditInstance = {}) => {
 
     const summariesHtml = (Array.isArray(summaries) && summaries.length > 0)
         ? summaries.map(s => `<div class="summary"><p><strong>${escapeHtml(s.auditor?.firstName || '')} ${escapeHtml(s.auditor?.lastName || '')}</strong></p><p>${escapeHtml(s.text || '')}</p></div>`).join('')
-        : '<p class="justify-text static-text">No summaries provided.</p>';
+        : '<p class="justify-text">No summaries provided.</p>';
 
-    const introductionText = `...`; // (same as before - omitted for brevity)
+    const introductionText = `
+        <p class="justify-text static-text">When we speak about Cyber, Information, and IT Security, it is important to recognize that it is not only a technical matter. Technology plays a key role, but security is always the result of three dimensions working together:</p>
+        <ul style="margin-top: 5px; margin-bottom: 5px;">
+            <li><strong>Technology</strong> – the tools and systems that protect our data.</li>
+            <li><strong>Organization</strong> – the rules, processes, and responsibilities that guide how we work.</li>
+            <li><strong>People</strong> – the awareness, behavior, and decisions of everyone involved.</li>
+        </ul>
+        <p class="justify-text static-text">Only when these three elements are combined can we create real protection. Focusing on technology alone is not enough. A secure company requires clear structures, well-trained employees, and a culture where security is seen as part of everyday work.</p>
+        <p class="justify-text static-text">In today's ever-changing world, the importance of protecting data and systems continues to grow. New threats appear daily, and digitalization increases the complexity of our business environment. For this reason, <strong>security must be given the right priority</strong>. It should not be treated as an "add-on" or a last step, but as an <strong>integral part of every decision, process, and investment</strong>.</p>
+        <p class="justify-text static-text">This assessment report is designed to make this approach practical and understandable. It gives a transparent overview of your current situation, highlights strengths and weaknesses, and provides clear guidance for next steps. The goal is not only to identify risks but also to enable your organization to <strong>build sustainable protection</strong> so that technology, organization, and people are aligned and your company can continue to operate with confidence and resilience.</p>
+    `;
 
-    const aboutCompanyHardcoded = `...`; // (same as before)
+    const aboutCompanyHardcoded = `
+        <p class="justify-text static-text">We at <strong>BKGS Consulting</strong> believe that audits and assessments should strengthen companies rather than slow them down. In a world where compliance requirements, standards, and technologies evolve faster than ever, many companies still rely on rigid tools and outdated methods to evaluate performance, security, and quality. At <strong>BKGS Consulting</strong>, we exist to change that. Our mission is to make assessments and audits simple, smart, and adaptable — transforming them from static checklists into dynamic instruments for growth, trust, and improvement. We believe that every organization, regardless of its size, sector, or country deserves access to modern, intelligent solutions that align with its specific needs, frameworks, and ambitions.</p>
+        <p class="justify-text static-text" style="margin-top: 15px;">We combine <strong>technology, methodology,</strong> and <strong>human expertise</strong> to develop flexible, powerful audit and assessment solutions tailored to the individual needs of our clients. Our work combines <strong>32 years of consulting experience</strong> with state-of-the-art software platforms, ensuring that every client benefits from precision, scalability, and adaptability.</p>
+        <p class="justify-text static-text" style="margin-top: 15px;">We don’t just deliver tools — we build <strong>solutions that fit your context</strong>. From defining requirements to designing dashboards, from building reporting logic to automating workflows, our team ensures that your assessment system reflects <strong>your goals, standards</strong>, and <strong>operational culture</strong>.</p>
+        <p class="justify-text static-text" style="margin-top: 15px;">We envision a future where audits and assessments are not bureaucratic obligations, but <strong>strategic enablers of trust and performance</strong>. A world where organizations of any size can assess themselves <strong>continuously</strong>, adjust in real time, and make decisions with confidence.</p>
+        <h3 class="slogan-local">"Securing Your Digital Horizon, Together."</h3>
+    `;
 
     const aboutCompanyAudited = `
         <p class="justify-text static-text">As a prominent player in the <strong>${escapeHtml(company.industry || '')}</strong> industry, <strong>${escapeHtml(company.name || 'Test company')}</strong> has shown a strong commitment to maintaining a secure and reliable operational environment. Our assessment was conducted to assess their current information, IT and security posture, providing a detailed overview of their defenses and identifying key areas for continuous improvement. This assessment highlights their dedication to protecting their digital assets and fostering a resilient business infrastructure.</p>
@@ -1366,12 +1411,64 @@ const generateReportHtml = (auditInstance = {}) => {
         ${company.generalInfo || examinationEnvironment.generalInfo ? `<p class="justify-text static-text">${escapeHtml(company.generalInfo || examinationEnvironment.generalInfo)}</p>` : ''}
     `;
 
-    const prefaceText = `...`; // (same)
-    const disclaimerText = `...`; // (same)
-    const handoverText = `...`; // (same)
-    const thankYouText = `...`; // (same)
-    const cyberResilienceText = `...`; // (same)
-    const coverQuoteText = `...`; // (same)
+    const prefaceText = `
+        <p class="justify-text static-text">The <strong>ISARION (Information Security Assessment Evolution) -Report</strong> has been developed to provide organizations with a structured and independent assessment of their information security posture. The aim is not only to identify technical issues, but to create a holistic view that combines <strong>technology, organization, and people</strong>.</p>
+        <p class="justify-text static-text">This report is designed as a practical tool for decision-makers at all levels. Whether you have a technical background or not, the findings and recommendations are presented in a way that allows you to clearly understand where strengths lie, where risks exist, and what steps can be taken to achieve sustainable improvement.</p>
+        <p class="justify-text static-text">Our mission is to support organizations in treating cybersecurity as an integral part of their business strategy and daily operations—helping to build trust, ensure compliance, and strengthen resilience in an ever-changing digital world.</p>
+    `;
+
+    const disclaimerText = `
+        <p class="justify-text static-text">This report is based on the information, data, and evidence made available during the assessment process. While every effort has been made to provide accurate and reliable findings, the results and recommendations are limited to the scope of the assessment and the time of its execution.</p>
+        <p class="justify-text static-text">The report should not be considered a guarantee against future risks or incidents. Security threats evolve constantly, and continuous monitoring, improvement, and adaptation remain essential.</p>
+        <p class="justify-text static-text">The assessor and assessing organization do not assume liability for direct or indirect damages that may result from the use of this report. The responsibility for implementing and maintaining effective security measures lies with the assessed organization.</p>
+    `;
+
+    const handoverText = `
+        <p class="justify-text static-text">This page confirms that the assessment report titled "<strong>${escapeHtml(template.name || 'Name of the assessment')}</strong>" has been formally handed over by the assessor to the assessed company.</p>
+        <p class="justify-text static-text">By signing below, both parties acknowledge the reception of the full assessment report and confirm that it has been delivered in its final version.</p>
+        <div class="handover-section">
+            <h3 class="handover-heading">Consultant:</h3>
+            <table class="handover-table">
+                <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input">BKGS Consulting</span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
+                <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
+            </table>
+        </div>
+        <div class="handover-section" style="margin-top: 30px;">
+            <h3 class="handover-heading">Company Representative:</h3>
+            <table class="handover-table">
+                <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input">${escapeHtml(company.name || '')}</span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
+                <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
+            </table>
+        </div>
+    `;
+
+const thankYouText = `
+    <div style="text-align: center;">
+        <h2 style="border-bottom: none; margin-bottom: 5px; font-size: 26pt; color: #014f65; margin-top: 0; font-family: 'Lexend', sans-serif;">Thank You</h2>
+        <p style="font-size: 16pt; margin-bottom: 15px; margin-top: 5px; font-weight: bold; line-height: 1.5;">for Choosing ISARION</p>
+        <p class="justify-text static-text">We are committed to enhancing your organization's security posture and ensuring compliance in an ever-evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
+        <p class="justify-text static-text">Our team is dedicated to supporting your journey beyond this assessment. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
+        <p class="static-text" style="margin-top: 15px;">For further discussions or to schedule a follow-up consultation, please contact your examiner:</p>
+        <div class="contact">
+            <p class="static-text"><strong>${escapeHtml(examinerName)}</strong></p>
+            <p class="static-text">
+                <a href="mailto:${escapeHtml(examinerEmail)}" class="no-style-link">${escapeHtml(examinerEmail)}</a>
+            </p>
+        </div>
+        <h3 class="slogan-center"><strong>"Improvement begins with assessment and assessment begins with the right questions"</strong></h3>
+    </div>
+`;
+
+    const cyberResilienceText = `
+        <h3 class="slogan-random"><strong>"Cyber resilience as part of your organization's reputation"</strong></h3>
+        <p class="justify-text static-text" style="margin-top: 10px;">Cyber resilience refers to an entity's ability to continuously deliver the intended outcome, despite cyber-attacks. Resilience to cyber-attacks is essential to IT systems, critical infrastructure, business processes, organizations, societies, and nation-states.</p>
+        <p class="justify-text static-text">Resilience is like juggling lots of balls: it is not enough to optimize individual points. The key to success lies in the ability to think holistically and to orchestrate several strands of action in parallel, from awareness training and technical security to clear crisis management. Resources (budget and people) alone does not lead to success. This is also evident in reality: organizations with the largest IT budgets are not automatically the best protected. The decisive factor is whether security and resilience issues are at the top of the agenda and whether processes, responsibilities and recovery concepts are regularly reviewed, tested and further developed. Cyber resilience is therefore not a project with an end date, but an ongoing management task. As with sustainability, it requires a cultural shift: away from pure compliance thinking and towards genuine risk competence at all levels.</p>
+        <p class="justify-text static-text">The biggest mistake is to believe that you are not affected, or even to rely on getting help in an emergency. Because when cyber-attacks become a reality, only one thing matters: <strong>“how well prepared an organization is”</strong>. Resilience begins in the mind and unfolds its effect where technology, processes and people interact. Those who take the issue seriously not only gain security, but also the trust of customers, partners, employees and ultimately the market. Cyber resilience is not just about keeping systems running. It's about taking responsibility and maintaining trust, especially when it matters — and with this assessment, you have just taken the first step. Congratulations!</p>
+    `;
+
+    const coverQuoteText = `
+        <p class="static-text"><em><strong>"You can only protect what you know."</strong></em></p>
+    `;
 
     const html = `
     <!doctype html>
@@ -1414,7 +1511,10 @@ const generateReportHtml = (auditInstance = {}) => {
             .cover-quote { margin-top: 30px; font-size: 15pt; max-width: 700px; margin-left: auto; margin-right: auto; }
             .slogan-center { font-size: 20pt; margin-top: 30px; font-style: italic; color: #014f65; }
             .slogan-random { font-size: 18pt; text-align: center; margin: 30px 0 10px; color: #014f65; }
-            .no-style-link { color: #000000 !important; text-decoration: none !important; }
+            .no-style-link {
+    color: #000000 !important;
+    text-decoration: none !important;
+}
         </style>
     </head>
     <body>
@@ -1448,8 +1548,8 @@ const generateReportHtml = (auditInstance = {}) => {
         <div class="container page-break"><h2 class="header-spacing">Table of Contents</h2>${tocHtml}</div>
         <div class="container page-break"><h2 class="header-spacing">Introduction</h2>${introductionText}</div>
         <div class="container page-break"><h2 class="header-spacing">About the Consulting Company</h2>${aboutCompanyHardcoded}</div>
-
-        <!-- "About the Examined Company" is now FULLY isolated on its own page -->
+        
+        <!-- About the Examined Company starts on new page -->
         <div class="container page-break">
             <h2 class="header-spacing">About the Examined Company</h2>
             ${aboutCompanyAudited}
