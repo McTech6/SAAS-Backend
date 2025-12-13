@@ -1597,6 +1597,11 @@
  *  – line-height for signature rows
  *  – env vars debugged (remove `?? 0` fallback)
  * ========================================================= */
+/* =========================================================
+ *  ISARION – generateReportHtml  (final 2025-06-25)
+ *  – overallScore used straight from auditInstance
+ *  – env values merged from COMPANY first
+ * ========================================================= */
 
 const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1765422490/1_BKGS_Consulting_boqy3g.png';
 
@@ -1631,8 +1636,6 @@ const getStatusInfo = (selectedValue, questionType) => {
     ? selectedValue.map(v => String(v).trim().toLowerCase())
     : [String(selectedValue).trim().toLowerCase()];
 
-  const flat = raw.join(', ');
-
   const negative = ['not implemented', 'no', 'non-compliant', 'absent'];
   const partial = ['partially implemented', 'partial', 'partially'];
   const positive = ['implemented', 'yes', 'compliant', 'fully implemented'];
@@ -1646,10 +1649,10 @@ const getStatusInfo = (selectedValue, questionType) => {
   if (isPart) color = '#f59e0b';
   if (isPos)  color = '#16a34a';
 
-  return { label: flat || 'N/A', color };
+  return { label: raw.join(', ') || 'N/A', color };
 };
 
-/* ---------- TOC builder (identical to original commented code) ---------- */
+/* ---------- TOC (identical to original commented code) ---------- */
 const buildToc = (templateStructure) => {
   if (!Array.isArray(templateStructure) || !templateStructure.length) return '<p>(No content)</p>';
   let html = '<ul class="toc-root">';
@@ -1676,23 +1679,28 @@ const buildToc = (templateStructure) => {
 const generateReportHtml = (auditInstance = {}) => {
   console.log('[generateReportHtml] input:', auditInstance);
 
-  /* ---------- data ---------- */
+  /* ---------- core data ---------- */
   const company   = auditInstance.company || {};
   const template  = auditInstance.template || {};
   const responses = auditInstance.responses || [];
   const struct    = auditInstance.templateStructureSnapshot || [];
   const summaries = auditInstance.summaries || [];
 
-  const rawScore = (typeof auditInstance.overallScore === 'number') ? auditInstance.overallScore : 0;
-  console.log('[generateReportHtml] raw overallScore:', auditInstance.overallScore, '→ used:', rawScore);
-  const overallScore = Math.round(rawScore);
+  /* >>>  SCORE STRAIGHT FROM DB  <<< */
+  const overallScore = (typeof auditInstance.overallScore === 'number') ? auditInstance.overallScore : 0;
+  console.log('[generateReportHtml] overallScore from DB:', overallScore);
 
   const createdBy = auditInstance.createdBy || {};
   const auditors  = auditInstance.auditorsToDisplay || [];
-  const examEnv   = company.examinationEnvironment || auditInstance.examinationEnvironment || {};
-  console.log('[generateReportHtml] examinationEnvironment:', examEnv);
 
-  /* ---------- dynamic dates ---------- */
+  /* ---------- environment: COMPANY first, fall-back to auditInstance ---------- */
+  const companyEnv = company.examinationEnvironment || {};
+  const auditEnv   = auditInstance.examinationEnvironment || {};
+  const examEnv    = { ...auditEnv, ...companyEnv };   // company wins
+
+  console.log('[generateReportHtml] merged examinationEnvironment:', examEnv);
+
+  /* ---------- dates ---------- */
   const reportDate = formatDate(new Date());
   const startDate  = formatDate(auditInstance.startDate);
   const endDate    = formatDate(auditInstance.endDate);
@@ -1766,19 +1774,19 @@ const generateReportHtml = (auditInstance = {}) => {
     mainHtml += '</div>';
   });
 
-  /* ---------- examination environment (null-safe) ---------- */
+  /* ---------- examination environment (null-safe, company first) ---------- */
   const envHtml = `
     <table class="env">
-      <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examEnv.locations || 'N/A'))}</td></tr>
-      <tr><td><strong>Number of employees</strong></td><td>${escapeHtml(String(examEnv.employees || 'N/A'))}</td></tr>
-      <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(examEnv.clients?.total || 'N/A'))}</td></tr>
-      <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(examEnv.clients?.managed || 'N/A'))}</td></tr>
-      <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(examEnv.clients?.unmanaged || 'N/A'))}</td></tr>
+      <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examEnv.locations ?? 'N/A'))}</td></tr>
+      <tr><td><strong>Number of employees</strong></td><td>${escapeHtml(String(examEnv.employees ?? 'N/A'))}</td></tr>
+      <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(examEnv.clients?.total ?? 'N/A'))}</td></tr>
+      <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(examEnv.clients?.managed ?? 'N/A'))}</td></tr>
+      <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(examEnv.clients?.unmanaged ?? 'N/A'))}</td></tr>
       <tr><td><strong>Industry</strong></td><td>${escapeHtml(examEnv.industry || company.industry || 'N/A')}</td></tr>
-      <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(examEnv.physicalServers || 'N/A'))}</td></tr>
-      <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(examEnv.vmServers || 'N/A'))}</td></tr>
-      <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(examEnv.firewalls || 'N/A'))}</td></tr>
-      <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(examEnv.switches || 'N/A'))}</td></tr>
+      <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(examEnv.physicalServers ?? 'N/A'))}</td></tr>
+      <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(examEnv.vmServers ?? 'N/A'))}</td></tr>
+      <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(examEnv.firewalls ?? 'N/A'))}</td></tr>
+      <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(examEnv.switches ?? 'N/A'))}</td></tr>
       <tr><td><strong>Mobile working</strong></td><td>${examEnv.mobileWorking ? 'Yes' : 'No'}</td></tr>
       <tr><td><strong>Smartphones</strong></td><td>${examEnv.smartphones ? 'Yes' : 'No'}</td></tr>
       ${examEnv.notes ? `<tr><td><strong>Notes</strong></td><td>${escapeHtml(examEnv.notes)}</td></tr>` : ''}
@@ -1853,7 +1861,7 @@ const generateReportHtml = (auditInstance = {}) => {
       </table>
     </div>`;
 
-  /* ---------- thank-you + contact ---------- */
+  /* ---------- thank-you + dynamic contact ---------- */
   const thankYouHtml = `
     <div style="text-align:center;">
       <h2 style="border-bottom:none;margin-bottom:5px;font-size:26pt;color:#014f65;margin-top:0;font-family:'Lexend',sans-serif;">Thank You</h2>
@@ -1862,7 +1870,7 @@ const generateReportHtml = (auditInstance = {}) => {
       <p class="justify-text static-text">Our team is dedicated to supporting your journey beyond this assessment. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
       <p class="static-text" style="margin-top:15px;">For further discussions or to schedule a follow-up consultation, please contact your partner:</p>
       <div class="contact">
-        <p class="static-text"><strong>Recks Binda — <a href="mailto:bindaramsey@gmail.com" class="no-style-link">bindaramsey@gmail.com</a></strong></p>
+        <p class="static-text"><strong>${escapeHtml(examinerName)} — <a href="mailto:${escapeHtml(examinerEmail)}" class="no-style-link">${escapeHtml(examinerEmail)}</a></strong></p>
       </div>
       <h3 class="slogan-center" style="font-size:14pt;margin-top:20px;"><strong>"Improvement begins with assessment and assessment begins with the right questions"</strong></h3>
     </div>`;
@@ -1964,7 +1972,7 @@ const generateReportHtml = (auditInstance = {}) => {
 
   <!-- ===========================  ABOUT CONSULTING  =========================== -->
   <div class="container page-break">
-    <h2 class="header-spacing">About the Consulting Company</h2>
+    <h2 class="header-spacing">About BKGS Consulting </h2>
     ${aboutConsulting}
   </div>
 
