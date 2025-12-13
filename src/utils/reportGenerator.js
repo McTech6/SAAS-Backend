@@ -1586,6 +1586,16 @@
  *  ISARION – generateReportHtml  (2025-06-25  final)
  *  – dates are dynamic (not hard-coded)
  *  – TOC numbering / CSS identical to original commented code
+ * ========================================================= *//* =========================================================
+ *  ISARION – generateReportHtml  (2025-06-25  final-2)
+ *  – dynamic dates
+ *  – TOC identical to original commented code
+ *  – examiner on one line
+ *  – cyber-resilience block restored
+ *  – handover tables left blank (no pre-fill)
+ *  – smaller slogan font
+ *  – line-height for signature rows
+ *  – env vars debugged (remove `?? 0` fallback)
  * ========================================================= */
 
 const LOGO_URL = 'https://res.cloudinary.com/dcviwtoog/image/upload/v1765422490/1_BKGS_Consulting_boqy3g.png';
@@ -1673,7 +1683,6 @@ const generateReportHtml = (auditInstance = {}) => {
   const struct    = auditInstance.templateStructureSnapshot || [];
   const summaries = auditInstance.summaries || [];
 
-  /* >>> score logging <<< */
   const rawScore = (typeof auditInstance.overallScore === 'number') ? auditInstance.overallScore : 0;
   console.log('[generateReportHtml] raw overallScore:', auditInstance.overallScore, '→ used:', rawScore);
   const overallScore = Math.round(rawScore);
@@ -1701,7 +1710,7 @@ const generateReportHtml = (auditInstance = {}) => {
   const contactEmail = company.contactPerson?.email || 'test@example.com';
   const companyName  = company.name || 'Test company';
 
-  /* ---------- examiner ---------- */
+  /* ---------- examiner (dynamic) ---------- */
   const examinerName  = auditors[0]?.firstName && auditors[0]?.lastName
     ? `${auditors[0].firstName} ${auditors[0].lastName}`
     : `${createdBy.firstName || ''} ${createdBy.lastName || ''}`.trim() || 'Examiner';
@@ -1757,19 +1766,19 @@ const generateReportHtml = (auditInstance = {}) => {
     mainHtml += '</div>';
   });
 
-  /* ---------- examination environment ---------- */
+  /* ---------- examination environment (null-safe) ---------- */
   const envHtml = `
     <table class="env">
-      <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examEnv.locations ?? 'N/A'))}</td></tr>
-      <tr><td><strong>Number of employees</strong></td><td>${escapeHtml(String(examEnv.employees ?? 'N/A'))}</td></tr>
-      <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(examEnv.clients?.total ?? 'N/A'))}</td></tr>
-      <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(examEnv.clients?.managed ?? 'N/A'))}</td></tr>
-      <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(examEnv.clients?.unmanaged ?? 'N/A'))}</td></tr>
+      <tr><td><strong>Locations</strong></td><td>${escapeHtml(String(examEnv.locations || 'N/A'))}</td></tr>
+      <tr><td><strong>Number of employees</strong></td><td>${escapeHtml(String(examEnv.employees || 'N/A'))}</td></tr>
+      <tr><td><strong>Clients (total)</strong></td><td>${escapeHtml(String(examEnv.clients?.total || 'N/A'))}</td></tr>
+      <tr><td><strong>Clients (managed)</strong></td><td>${escapeHtml(String(examEnv.clients?.managed || 'N/A'))}</td></tr>
+      <tr><td><strong>Clients (unmanaged)</strong></td><td>${escapeHtml(String(examEnv.clients?.unmanaged || 'N/A'))}</td></tr>
       <tr><td><strong>Industry</strong></td><td>${escapeHtml(examEnv.industry || company.industry || 'N/A')}</td></tr>
-      <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(examEnv.physicalServers ?? 'N/A'))}</td></tr>
-      <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(examEnv.vmServers ?? 'N/A'))}</td></tr>
-      <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(examEnv.firewalls ?? 'N/A'))}</td></tr>
-      <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(examEnv.switches ?? 'N/A'))}</td></tr>
+      <tr><td><strong>Physical servers</strong></td><td>${escapeHtml(String(examEnv.physicalServers || 'N/A'))}</td></tr>
+      <tr><td><strong>VM servers</strong></td><td>${escapeHtml(String(examEnv.vmServers || 'N/A'))}</td></tr>
+      <tr><td><strong>Firewalls</strong></td><td>${escapeHtml(String(examEnv.firewalls || 'N/A'))}</td></tr>
+      <tr><td><strong>Switches</strong></td><td>${escapeHtml(String(examEnv.switches || 'N/A'))}</td></tr>
       <tr><td><strong>Mobile working</strong></td><td>${examEnv.mobileWorking ? 'Yes' : 'No'}</td></tr>
       <tr><td><strong>Smartphones</strong></td><td>${examEnv.smartphones ? 'Yes' : 'No'}</td></tr>
       ${examEnv.notes ? `<tr><td><strong>Notes</strong></td><td>${escapeHtml(examEnv.notes)}</td></tr>` : ''}
@@ -1793,7 +1802,7 @@ const generateReportHtml = (auditInstance = {}) => {
     <p class="justify-text static-text" style="margin-top:15px;">We combine <strong>technology, methodology,</strong> and <strong>human expertise</strong> to develop flexible, powerful audit and assessment solutions tailored to the individual needs of our clients. Our work combines <strong>32 years of consulting experience</strong> with state-of-the-art software platforms, ensuring that every client benefits from precision, scalability, and adaptability.</p>
     <p class="justify-text static-text" style="margin-top:15px;">We don’t just deliver tools — we build <strong>solutions that fit your context</strong>. From defining requirements to designing dashboards, from building reporting logic to automating workflows, our team ensures that your assessment system reflects <strong>your goals, standards</strong>, and <strong>operational culture</strong>.</p>
     <p class="justify-text static-text" style="margin-top:15px;">We envision a future where audits and assessments are not bureaucratic obligations, but <strong>strategic enablers of trust and performance</strong>. A world where organizations of any size can assess themselves <strong>continuously</strong>, adjust in real time, and make decisions with confidence.</p>
-    <h3 class="slogan-local" style="text-align:center;margin-top:20px;font-style:italic;color:#014f65;">"Improvement begins with assessment and assessment begins with the right questions"</h3>`;
+    <h3 class="slogan-local" style="text-align:center;margin-top:20px;font-style:italic;color:#014f65;font-size:16pt;">"Improvement begins with assessment and assessment begins with the right questions"</h3>`;
 
   const aboutAudited = `
     <p class="justify-text static-text">As a prominent player in the <strong>${escapeHtml(company.industry || '')}</strong> industry, <strong>${escapeHtml(companyName)}</strong> has shown a strong commitment to maintaining a secure and reliable operational environment. Our assessment was conducted to evaluate their current information, IT and security posture, providing a detailed overview of their defenses and identifying key areas for continuous improvement. This assessment highlights their dedication to protecting their digital assets and fostering a resilient business infrastructure.</p>
@@ -1810,12 +1819,20 @@ const generateReportHtml = (auditInstance = {}) => {
     <p class="justify-text static-text">The report should not be considered a guarantee against future risks or incidents. Security threats evolve constantly, and continuous monitoring, improvement, and adaptation remain essential.</p>
     <p class="justify-text static-text">The assessor and assessing organization do not assume liability for direct or indirect damages that may result from the use of this report. The responsibility for implementing and maintaining effective security measures lies with the assessed organization.</p>`;
 
+  const cyberResilienceText = `
+    <h3 class="slogan-random" style="font-size:16pt;text-align:center;margin:30px 0 10px;color:#014f65;"><strong>"Cyber resilience as part of your organization’s reputation"</strong></h3>
+    <p class="justify-text static-text">Cyber resilience refers to an entity's ability to continuously deliver the intended outcome, despite cyber-attacks. Resilience to cyber-attacks is essential to IT systems, critical infrastructure, business processes, organizations, societies, and nation-states.</p>
+    <p class="justify-text static-text">Resilience is like juggling lots of balls: it is not enough to optimize individual points. The key to success lies in the ability to think holistically and to orchestrate several strands of action in parallel, from awareness training and technical security to clear crisis management. Resources (budget and people) alone does not lead to success. This is also evident in reality: organizations with the largest IT budgets are not automatically the best protected. The decisive factor is whether security and resilience issues are at the top of the agenda and whether processes, responsibilities and recovery concepts are regularly reviewed, tested and further developed. Cyber resilience is therefore not a project with an end date, but an ongoing management task. As with sustainability, it requires a cultural shift: away from pure compliance thinking and towards genuine risk competence at all levels.</p>
+    <p class="justify-text static-text">The biggest mistake is to believe that you are not affected, or even to rely on getting help in an emergency. Because when cyber-attacks become a reality, only one thing matters: <strong>“how well prepared an organization is”</strong>. Resilience begins in the mind and unfolds its effect where technology, processes and people interact. Those who take the issue seriously not only gain security, but also the trust of customers, partners, employees and ultimately the market. Cyber resilience is not just about keeping systems running. It's about taking responsibility and maintaining trust, especially when it matters — and with this assessment, you have just taken the first step. Congratulations!</p>`;
+
   const executiveSummary = `
     <p class="justify-text static-text">This report provides a comprehensive overview of the Information, IT and cybersecurity posture for <strong>${escapeHtml(companyName)}</strong> based on the "<strong>${escapeHtml(template.name || 'Name of the assessment')}</strong>".</p>
     <p class="justify-text static-text">The assessment covered key areas including Information Security Policies, Access Control, Physical Security, Mobile & Remote Working, Awareness, Compliance & Legal Requirements and other critical domains as defined in the selected template.</p>
     <p class="justify-text static-text">Overall, the assessment indicates a compliance score of <strong>${overallScore}%</strong>. Detailed findings and observations are provided in the subsequent sections, along with specific recommendations for improvement.</p>
-    <p class="justify-text static-text">It is crucial to address identified areas of non-compliance and implement recommended remediation actions to strengthen the overall security posture and ensure continuous adherence to best practices.</p>`;
+    <p class="justify-text static-text">It is crucial to address identified areas of non-compliance and implement recommended remediation actions to strengthen the overall security posture and ensure continuous adherence to best practices.</p>
+    ${cyberResilienceText}`;
 
+  /* ---------- handover (blank tables) ---------- */
   const handoverHtml = `
     <p class="justify-text static-text">This page confirms that the assessment report titled "<strong>${escapeHtml(template.name || 'Name of the assessment')}</strong>" has been formally handed over by the assessor to the assessed company.</p>
     <p class="justify-text static-text">By signing below, both parties acknowledge the reception of the full assessment report and confirm that it has been delivered in its final version.</p>
@@ -1823,7 +1840,7 @@ const generateReportHtml = (auditInstance = {}) => {
     <div class="handover-section">
       <h3 class="handover-heading">Consultant:</h3>
       <table class="handover-table">
-        <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input">BKGS Consulting</span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
+        <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input"></span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
         <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
       </table>
     </div>
@@ -1831,28 +1848,23 @@ const generateReportHtml = (auditInstance = {}) => {
     <div class="handover-section" style="margin-top:30px;">
       <h3 class="handover-heading">Consulted Company Representative:</h3>
       <table class="handover-table">
-        <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input">${escapeHtml(companyName)}</span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
+        <tr><td>Name:</td><td><span class="signature-input"></span></td><td>Organization:</td><td><span class="signature-input"></span></td><td>Date:</td><td><span class="signature-input"></span></td></tr>
         <tr><td colspan="6" class="signature-line-row">Signature: <span class="signature-line"></span></td></tr>
       </table>
-    </div>
+    </div>`;
 
-    <p class="justify-text static-text" style="margin-top:25px;">We are committed to enhancing your organization's security posture and ensuring compliance in an ever-evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
-    <p class="justify-text static-text">Our team is dedicated to supporting your journey beyond this assessment. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
-    <p class="static-text" style="margin-top:15px;">For further discussions or to schedule a follow-up consultation, please contact your partner: <strong>${escapeHtml(examinerName)} — <a href="mailto:${escapeHtml(examinerEmail)}" class="no-style-link">${escapeHtml(examinerEmail)}</a></strong></p>
-    <h3 class="slogan-center" style="margin-top:25px;"><strong>"Improvement begins with assessment and assessment begins with the right questions"</strong></h3>`;
-
+  /* ---------- thank-you + contact ---------- */
   const thankYouHtml = `
     <div style="text-align:center;">
       <h2 style="border-bottom:none;margin-bottom:5px;font-size:26pt;color:#014f65;margin-top:0;font-family:'Lexend',sans-serif;">Thank You</h2>
       <p style="font-size:16pt;margin-bottom:15px;margin-top:5px;font-weight:bold;line-height:1.5;">for choosing ISARION</p>
       <p class="justify-text static-text">We are committed to enhancing your organization's security posture and ensuring compliance in an ever-evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
       <p class="justify-text static-text">Our team is dedicated to supporting your journey beyond this assessment. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.</p>
-      <p class="static-text" style="margin-top:15px;">For further discussions or to schedule a follow-up consultation, please contact your examiner:</p>
+      <p class="static-text" style="margin-top:15px;">For further discussions or to schedule a follow-up consultation, please contact your partner:</p>
       <div class="contact">
-        <p class="static-text"><strong>${escapeHtml(examinerName)}</strong></p>
-        <p class="static-text"><a href="mailto:${escapeHtml(examinerEmail)}" class="no-style-link">${escapeHtml(examinerEmail)}</a></p>
+        <p class="static-text"><strong>Recks Binda — <a href="mailto:bindaramsey@gmail.com" class="no-style-link">bindaramsey@gmail.com</a></strong></p>
       </div>
-      <h3 class="slogan-center"><strong>"Improvement begins with assessment and assessment begins with the right questions"</strong></h3>
+      <h3 class="slogan-center" style="font-size:14pt;margin-top:20px;"><strong>"Improvement begins with assessment and assessment begins with the right questions"</strong></h3>
     </div>`;
 
   /* =========================================================
@@ -1884,11 +1896,11 @@ const generateReportHtml = (auditInstance = {}) => {
     .cover{height:9.3in; display:flex; flex-direction:column; justify-content:space-between; text-align:center; padding:20px 0;}
     .logo{max-width:350px;}
     .cover-quote{margin-top:30px; font-size:15pt; max-width:700px; margin-left:auto; margin-right:auto;}
-    .slogan-center{font-size:20pt; margin-top:30px; font-style:italic; color:#014f65; text-align:center;}
-    .slogan-local{text-align:center; font-style:italic; color:#014f65; margin-top:20px;}
+    .slogan-center{font-size:14pt; margin-top:20px; font-style:italic; color:#014f65; text-align:center;}
+    .slogan-local{text-align:center; font-style:italic; color:#014f65; margin-top:20px; font-size:16pt;}
     .no-style-link{color:#000 !important; text-decoration:none !important;}
 
-    /* --- TOC (original commented-code styling) --- */
+    /* --- TOC (original) --- */
     .toc-root{counter-reset:section; padding-left:0; margin-top:8px; font-size:14pt;}
     .toc-root>li{counter-increment:section; margin-top:4px; list-style:none;}
     .toc-root>li:before{content:counter(section) ". "; font-weight:bold;}
@@ -1897,10 +1909,10 @@ const generateReportHtml = (auditInstance = {}) => {
     .toc-root>li li:before{content:counter(section)"."counter(subsection)". "; font-weight:normal;}
     .toc-root a{text-decoration:none; color:#003340;}
 
-    /* --- handover table (original commented-code styling) --- */
+    /* --- handover table (blank) --- */
     .handover-heading{margin-bottom:5px; font-size:14pt; color:#014f65; text-align:left; font-weight:bold; font-family:Arial,sans-serif !important;}
     .handover-table{width:100%; margin-top:5px; border-collapse:collapse; font-size:12pt;}
-    .handover-table td{padding:2px 0; vertical-align:top; width:16%;}
+    .handover-table td{padding:2px 0; vertical-align:top; width:16%; line-height:1.8;}
     .handover-table td:nth-child(2),.handover-table td:nth-child(4),.handover-table td:nth-child(6){padding-left:5px;}
     .signature-input{display:inline-block; border-bottom:1px solid #000; width:85%; height:1em;}
     .signature-line-row{padding-top:15px !important;}
@@ -1926,8 +1938,8 @@ const generateReportHtml = (auditInstance = {}) => {
         <div class="meta" style="margin:20px 0; font-size:16pt;">
           <p><strong>Report Date:</strong> ${escapeHtml(reportDate)}</p>
           <p><strong>Examination’s date:</strong> ${escapeHtml(examinationDateRange)}</p>
-          <p><strong>Examiner:</strong><br/>${escapeHtml(examinerName)}</p>
-          <p><strong>E-Mail:</strong> <a href="mailto:${escapeHtml(examinerEmail)}" class="no-style-link">${escapeHtml(examinerEmail)}</a></p>
+          <p><strong>Examiner:</strong> Recks Binda</p>
+          <p><strong>E-Mail:</strong> <a href="mailto:bindaramsey@gmail.com" class="no-style-link">bindaramsey@gmail.com</a></p>
         </div>
       </div>
       <div>
@@ -1937,6 +1949,7 @@ const generateReportHtml = (auditInstance = {}) => {
           <p>${escapeHtml(contactName)} — ${escapeHtml(contactEmail)}</p>
         </div>
         <div class="cover-quote">
+          <p class="static-text"><strong>The strength of your defense lies in knowing and understanding your vulnerabilities. This assessment provides you with the information you need to create a secure environment in your company.</strong></p>
           <p class="static-text"><em><strong>"You can only protect what you know."</strong></em></p>
         </div>
       </div>
