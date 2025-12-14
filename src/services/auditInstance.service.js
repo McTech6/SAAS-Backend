@@ -3040,6 +3040,67 @@ class AuditInstanceService {
     if (audit.status === 'Draft' || audit.status === 'In Progress') return isCreator || isAssigned || isAdminOrSuperAdmin;
     return false;
   }
+
+async generateReport(auditInstanceId, requestingUser, lang) {
+    console.log('[generateReport] START');
+    try {
+        const audit = await this.getAuditInstanceById(auditInstanceId, requestingUser, lang);
+
+        if (audit.status !== 'Completed') {
+            throw new Error(`Report can only be generated for completed audits. Current status: ${audit.status}`);
+        }
+
+        const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
+        const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
+        const isAdminOrSuperAdmin = ['admin', 'super_admin'].includes(requestingUser.role);
+
+        if (!isCreator && !isAssigned && !isAdminOrSuperAdmin) {
+            throw new Error('Not authorized to generate report.');
+        }
+
+        console.log('[generateReport] Authorization passed');
+
+        const auditorsToDisplay = audit.assignedAuditors.length > 0
+            ? audit.assignedAuditors
+            : [audit.createdBy];
+
+        const auditObj = { ...audit, auditorsToDisplay };
+
+        console.log(`[generateReport] Audit overallScore: ${auditObj.overallScore}`);
+
+        const html = generateReportHtml(auditObj);
+
+        const browser = await puppeteer.launch({
+            args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
+            ignoreHTTPSErrors: true,
+        });
+
+        const page = await browser.newPage();
+        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: {
+                top: '0.6in',
+                right: '0.6in',
+                bottom: '0.6in',
+                left: '0.6in'
+            }
+        });
+
+        await browser.close();
+        console.log('[generateReport] SUCCESS');
+        return pdfBuffer;
+    } catch (error) {
+        console.error('[generateReport] ERROR:', error.message);
+        throw new Error(`Failed to generate PDF report: ${error.message}`);
+    }
+}
+
 }
 
 export default new AuditInstanceService();
