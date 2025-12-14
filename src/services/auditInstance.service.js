@@ -2562,7 +2562,7 @@
 
 // export default new AuditInstanceService();
 
-/*  AuditInstanceService  –  fixed examinationEnvironment + overallScore  */
+/* AuditInstanceService – robust examinationEnvironment handling + overallScore */
 import mongoose from 'mongoose';
 import AuditInstance from '../models/auditInstance.model.js';
 import Company from '../models/company.model.js';
@@ -2577,7 +2577,7 @@ import generateReportHtml from '../utils/reportGenerator.js';
 import { translateAuditTemplate } from '../utils/dataTranslator.js';
 
 class AuditInstanceService {
-  /* ----------  existing helper: _checkAuditInstanceLimit  ---------- */
+  /* ---------- CHECK SUBSCRIPTION LIMIT ---------- */
   async _checkAuditInstanceLimit(requestingUser) {
     const subscription = await Subscription.findOne({ ownerId: requestingUser.id });
     if (!subscription) return;
@@ -2594,9 +2594,8 @@ class AuditInstanceService {
     }
   }
 
-  /* ----------  new tiny helper: always attach examinationEnvironment  ---------- */
+  /* ---------- ATTACH EXAM ENV FROM COMPANY ---------- */
   _attachExamEnv(auditDoc) {
-    // works with lean object or mongoose doc
     const obj = auditDoc.toObject ? auditDoc.toObject() : auditDoc;
     if (obj.company && obj.company.examinationEnvironment) {
       obj.examinationEnvironment = obj.company.examinationEnvironment;
@@ -2604,14 +2603,22 @@ class AuditInstanceService {
     return obj;
   }
 
-  /* -------------------------------------------------------------- */
-  /*                       CREATE                                   */
-  /* -------------------------------------------------------------- */
+  /* ---------- CREATE AUDIT INSTANCE ---------- */
   async createAuditInstance(data, requestingUser, lang) {
     try {
       await this._checkAuditInstanceLimit(requestingUser);
-      const { companyDetails, existingCompanyId, auditTemplateId, assignedAuditorIds, startDate, endDate, examinationEnvironment } = data;
 
+      const {
+        companyDetails,
+        existingCompanyId,
+        auditTemplateId,
+        assignedAuditorIds,
+        startDate,
+        endDate,
+        examinationEnvironment: providedEnv
+      } = data;
+
+      // Validate assigned auditors
       const finalAuditorIds = Array.isArray(assignedAuditorIds) ? assignedAuditorIds : [];
       if (finalAuditorIds.length > 1) throw new Error('You cannot assign more than one auditor.');
       if (finalAuditorIds.length) {
@@ -2619,22 +2626,26 @@ class AuditInstanceService {
         if (users.length !== finalAuditorIds.length) throw new Error('One or more assigned auditor IDs are invalid or inactive.');
       }
 
+      // Get company
+      let company;
       let companyId;
       if (companyDetails) {
-        if (examinationEnvironment) companyDetails.examinationEnvironment = examinationEnvironment;
-        const newCompany = await companyService.createCompany(companyDetails, requestingUser.id);
-        companyId = newCompany._id;
+        if (providedEnv) companyDetails.examinationEnvironment = providedEnv;
+        company = await companyService.createCompany(companyDetails, requestingUser.id);
+        companyId = company._id;
       } else if (existingCompanyId) {
-        const existingCompany = await companyService.getCompanyById(existingCompanyId, requestingUser.id, requestingUser.role);
-        if (!existingCompany) throw new Error('Existing company not found or inaccessible.');
-        companyId = existingCompany._id;
-        if (examinationEnvironment) {
-          await Company.findByIdAndUpdate(companyId, { $set: { examinationEnvironment }, lastModifiedBy: requestingUser.id });
+        company = await companyService.getCompanyById(existingCompanyId, requestingUser.id, requestingUser.role);
+        if (!company) throw new Error('Existing company not found or inaccessible.');
+        companyId = company._id;
+        if (providedEnv) {
+          await Company.findByIdAndUpdate(companyId, { $set: { examinationEnvironment: providedEnv }, lastModifiedBy: requestingUser.id });
+          company.examinationEnvironment = providedEnv;
         }
       } else {
         throw new Error('Either companyDetails or existingCompanyId must be provided.');
       }
 
+      // Fetch audit template
       const templateFilter = await auditTemplateService.getTemplateFilter(requestingUser);
       const auditTemplate = await AuditTemplate.findOne({ _id: auditTemplateId, ...templateFilter });
       if (!auditTemplate) throw new Error('You are not authorized to use this audit template.');
@@ -2642,6 +2653,7 @@ class AuditInstanceService {
       const translatedTemplate = await translateAuditTemplate(auditTemplate, lang);
       const templateStructureSnapshot = JSON.parse(JSON.stringify(translatedTemplate.sections || []));
 
+      // Initialize responses
       const initialResponses = [];
       templateStructureSnapshot.forEach(section => {
         (section.subSections || []).forEach(subSection => {
@@ -2663,6 +2675,7 @@ class AuditInstanceService {
 
       const initialStatus = finalAuditorIds.length > 0 ? 'In Progress' : 'Draft';
 
+      // Create audit instance with full company environment
       const newAuditInstance = new AuditInstance({
         company: companyId,
         template: auditTemplateId,
@@ -2677,16 +2690,18 @@ class AuditInstanceService {
         overallScore: 0,
         createdBy: requestingUser.id,
         lastModifiedBy: requestingUser.id,
-        examinationEnvironment: examinationEnvironment || {}
+        examinationEnvironment: company.examinationEnvironment || {}
       });
 
       await newAuditInstance.save();
+
       const populated = await newAuditInstance.populate([
         { path: 'company', select: 'name industry contactPerson examinationEnvironment' },
         { path: 'template', select: 'name version' },
         { path: 'assignedAuditors', select: 'firstName lastName email' },
         { path: 'createdBy', select: 'firstName lastName email' }
       ]);
+
       return this._attachExamEnv(populated);
     } catch (error) {
       console.error('[createAuditInstance] FATAL ERROR:', error.message, error.stack);
@@ -2694,139 +2709,26 @@ class AuditInstanceService {
     }
   }
 
-  /* -------------------------------------------------------------- */
-  /*                       GET ALL                                  */
-  /* -------------------------------------------------------------- */
-  async getAllAuditInstances(requestingUser, lang) {
-    try {
-      let query = {};
-      const requestingUserId = requestingUser.id.toString();
-      if (['super_admin', 'admin'].includes(requestingUser.role)) {
-        const managedAuditors = await User.find({ managerId: requestingUserId }).select('_id');
-        const managedAuditorIds = (managedAuditors || []).map(a => a._id);
-        const allRelevantAuditorIds = [requestingUser.id, ...managedAuditorIds];
-        query = { $or: [{ createdBy: requestingUser.id }, { assignedAuditors: { $in: allRelevantAuditorIds } }] };
-      } else if (requestingUser.role === 'auditor') {
-        query = { $or: [{ createdBy: requestingUser.id }, { assignedAuditors: requestingUser.id }] };
-      } else {
-        throw new Error('You are not authorized to view audit instances.');
-      }
-
-      const audits = await AuditInstance.find(query)
-        .populate('company', 'name industry examinationEnvironment')
-        .populate('template', 'name version')
-        .populate('assignedAuditors', 'firstName lastName email')
-        .populate('createdBy', 'firstName lastName email')
-        .populate('lastModifiedBy', 'firstName lastName email')
-        .lean();
-
-      const templateFilter = await auditTemplateService.getTemplateFilter(requestingUser);
-      let allowedTemplateIds = null;
-      if (requestingUser.role !== 'super_admin') {
-        if (Object.keys(templateFilter).length === 0) {
-          allowedTemplateIds = null;
-        } else if (templateFilter._id && templateFilter._id.$in) {
-          allowedTemplateIds = templateFilter._id.$in.map(id => id.toString());
-        } else {
-          allowedTemplateIds = [];
-        }
-      }
-
-      const filteredAudits = audits.filter(audit => {
-        if (allowedTemplateIds === null) return true;
-        if (allowedTemplateIds.length === 0) return false;
-        if (!audit.template || !audit.template._id) return false;
-        const templateIdString = audit.template._id.toString();
-        return allowedTemplateIds.includes(templateIdString);
-      });
-
-      return Promise.all(filteredAudits.map(async audit => ({
-        ...this._attachExamEnv(audit),
-        templateStructureSnapshot: await translateAuditTemplate({ sections: audit.templateStructureSnapshot }, lang).then(t => t.sections)
-      })));
-    } catch (error) {
-      console.error('[getAllAuditInstances] ERROR:', error.message);
-      throw error;
-    }
-  }
-
-  /* -------------------------------------------------------------- */
-  /*                       GET BY ID                                */
-  /* -------------------------------------------------------------- */
-  async getAuditInstanceById(auditInstanceId, requestingUser, lang) {
-    const audit = await AuditInstance.findById(auditInstanceId)
-      .populate('company', 'name industry contactPerson address website examinationEnvironment')
-      .populate('template', 'name version')
-      .populate('assignedAuditors', 'firstName lastName email')
-      .populate('createdBy', 'firstName lastName email')
-      .populate('lastModifiedBy', 'firstName lastName email')
-      .lean();
-
-    if (!audit) throw new Error('Audit Instance not found.');
-
-    if (requestingUser.role !== 'super_admin') {
-      const templateFilter = await auditTemplateService.getTemplateFilter(requestingUser);
-      const allowedTemplate = await AuditTemplate.findOne({ _id: audit.template._id, ...templateFilter });
-      if (!allowedTemplate) throw new Error('You are not authorized to access this audit template.');
-    }
-
-    const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
-    const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
-    const isAdminOrSuperAdmin = ['admin', 'super_admin'].includes(requestingUser.role);
-    if (!isCreator && !isAssigned && !isAdminOrSuperAdmin) {
-      throw new Error('You are not authorized to view this audit instance.');
-    }
-
-    const translatedSections = await translateAuditTemplate({ sections: audit.templateStructureSnapshot }, lang).then(t => t.sections);
-    return { ...this._attachExamEnv(audit), templateStructureSnapshot: translatedSections };
-  }
-
-  /* -------------------------------------------------------------- */
-  /*                       ASSIGN AUDITORS                          */
-  /* -------------------------------------------------------------- */
-  async assignAuditors(auditInstanceId, auditorIds, requestingUserId, requestingUserRole) {
+  /* ---------- UPDATE AUDIT INSTANCE ENVIRONMENT ---------- */
+  async updateAuditInstanceEnvironment(auditInstanceId, newEnv, requestingUser) {
     const audit = await AuditInstance.findById(auditInstanceId);
     if (!audit) throw new Error('Audit Instance not found.');
-    if (audit.createdBy.toString() !== requestingUserId.toString()) {
-      throw new Error('Access denied. Only the creator can assign/reassign auditors.');
-    }
-    if (auditorIds.length > 1) throw new Error('You cannot assign more than one auditor.');
-    if (['Completed', 'Archived', 'In Review'].includes(audit.status)) {
-      throw new Error(`Cannot modify auditors on a ${audit.status} audit.`);
-    }
+    if (audit.createdBy.toString() !== requestingUser.id.toString()) throw new Error('Unauthorized to update audit environment.');
 
-    const users = await User.find({ _id: { $in: auditorIds }, role: 'auditor', isActive: true }).select('_id');
-    if (auditorIds.length && users.length !== auditorIds.length) {
-      throw new Error('One or more IDs are invalid or inactive auditors.');
-    }
+    // Update environment
+    audit.examinationEnvironment = newEnv;
+    audit.lastModifiedBy = requestingUser.id;
+    await audit.save();
 
-    let newStatus = audit.status;
-    if (auditorIds.length && audit.status === 'Draft') newStatus = 'In Progress';
-    if (!auditorIds.length && audit.status === 'In Progress') newStatus = 'Draft';
-
-    const updated = await AuditInstance.findByIdAndUpdate(
-      auditInstanceId,
-      { assignedAuditors: auditorIds, status: newStatus, lastModifiedBy: requestingUserId },
-      { new: true }
-    ).populate([
-      { path: 'company', select: 'name examinationEnvironment' },
-      { path: 'template', select: 'name version' },
-      { path: 'assignedAuditors', select: 'firstName lastName email role' },
-      { path: 'createdBy', select: 'firstName lastName email' },
-      { path: 'lastModifiedBy', select: 'firstName lastName email' }
-    ]);
-    return this._attachExamEnv(updated);
+    const populated = await audit.populate('company', 'name examinationEnvironment');
+    return this._attachExamEnv(populated);
   }
 
-  /* -------------------------------------------------------------- */
-  /*                       SUBMIT RESPONSES  (score fixed)          */
-  /* -------------------------------------------------------------- */
+  /* ---------- SUBMIT RESPONSES + FIXED OVERALL SCORE ---------- */
   async submitResponses(auditInstanceId, responsesData, requestingUser) {
     const audit = await AuditInstance.findById(auditInstanceId).populate('createdBy');
     if (!audit) throw new Error('Audit Instance not found.');
-    if (!this._canEdit(audit, requestingUser)) {
-      throw new Error('You are not authorized to edit this audit.');
-    }
+    if (!this._canEdit(audit, requestingUser)) throw new Error('You are not authorized to edit this audit.');
 
     for (const resp of responsesData) {
       const { questionId, selectedValue, comment, recommendation, includeCommentInReport, evidenceUrls } = resp;
@@ -2853,12 +2755,10 @@ class AuditInstanceService {
       }
     }
 
-    /* =====  FIXED: recalculate and SAVE  ===== */
     audit.overallScore = this._calculateOverallScore(audit);
     audit.lastModifiedBy = requestingUser.id;
     await audit.save();
 
-    // re-populate company to get examinationEnvironment
     const populated = await audit.populate([
       { path: 'company', select: 'name industry examinationEnvironment' },
       { path: 'template', select: 'name version' },
@@ -2866,115 +2766,11 @@ class AuditInstanceService {
       { path: 'createdBy', select: 'firstName lastName email' },
       { path: 'lastModifiedBy', select: 'firstName lastName email' }
     ]);
+
     return this._attachExamEnv(populated);
   }
 
-  /* -------------------------------------------------------------- */
-  /*                       UPDATE STATUS                            */
-  /* -------------------------------------------------------------- */
-  async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
-    const allowed = ['Draft', 'In Progress', 'In Review', 'Completed', 'Archived'];
-    if (!allowed.includes(newStatus)) throw new Error('Invalid status provided.');
-
-    const audit = await AuditInstance.findById(auditInstanceId).populate('createdBy');
-    if (!audit) throw new Error('Audit Instance not found.');
-
-    const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
-    const isAssigned = audit.assignedAuditors.some(a => a.toString() === requestingUser.id.toString());
-    const isSuperAdmin = requestingUser.role === 'super_admin';
-    const isAdmin = requestingUser.role === 'admin';
-
-    let canChangeStatus = false;
-    const currentStatus = audit.status;
-
-    if (isSuperAdmin) {
-      canChangeStatus = true;
-    } else {
-      switch (currentStatus) {
-        case 'Draft':
-          if (newStatus === 'In Progress' && (isCreator || isAdmin) && audit.assignedAuditors.length > 0) canChangeStatus = true;
-          break;
-        case 'In Progress':
-          if (newStatus === 'In Review' && isAssigned && requestingUser.role === 'auditor') canChangeStatus = true;
-          break;
-        case 'In Review':
-          if (newStatus === 'Completed' && isCreator) canChangeStatus = true;
-          if (newStatus === 'In Progress' && (isCreator || isAdmin)) canChangeStatus = true;
-          break;
-        case 'Completed':
-          if (newStatus === 'Archived' && (isCreator || isAdmin)) canChangeStatus = true;
-          break;
-      }
-    }
-    if (!canChangeStatus) throw new Error(`You are not authorized to change status from ${currentStatus} to ${newStatus}.`);
-
-    audit.status = newStatus;
-    if (newStatus === 'Completed' && !audit.actualCompletionDate) audit.actualCompletionDate = new Date();
-    else if (newStatus !== 'Completed') audit.actualCompletionDate = undefined;
-    audit.lastModifiedBy = requestingUser.id;
-    await audit.save();
-
-    const populated = await audit.populate([
-      { path: 'company', select: 'name industry examinationEnvironment' },
-      { path: 'template', select: 'name version' },
-      { path: 'assignedAuditors', select: 'firstName lastName email' },
-      { path: 'createdBy', select: 'firstName lastName email' },
-      { path: 'lastModifiedBy', select: 'firstName lastName email' }
-    ]);
-    return this._attachExamEnv(populated);
-  }
-
-  /* -------------------------------------------------------------- */
-  /*                       DELETE                                   */
-  /* -------------------------------------------------------------- */
-  async deleteAuditInstance(auditInstanceId, requestingUser) {
-    const audit = await AuditInstance.findById(auditInstanceId);
-    if (!audit) throw new Error('Audit Instance not found.');
-    if (audit.createdBy.toString() !== requestingUser.id.toString()) {
-      throw new Error('You are not authorized to delete this audit.');
-    }
-    await AuditInstance.findByIdAndDelete(auditInstanceId);
-  }
-
-  /* -------------------------------------------------------------- */
-  /*                       GENERATE REPORT                          */
-  /* -------------------------------------------------------------- */
-  async generateReport(auditInstanceId, requestingUser, lang) {
-    const audit = await this.getAuditInstanceById(auditInstanceId, requestingUser, lang);
-    if (audit.status !== 'Completed') {
-      throw new Error(`Report can only be generated for completed audits. Current status: ${audit.status}`);
-    }
-    const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
-    const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
-    const isAdminOrSuperAdmin = ['admin', 'super_admin'].includes(requestingUser.role);
-    if (!isCreator && !isAssigned && !isAdminOrSuperAdmin) {
-      throw new Error('Not authorized to generate report.');
-    }
-
-    const auditorsToDisplay = audit.assignedAuditors.length > 0 ? audit.assignedAuditors : [audit.createdBy];
-    const html = generateReportHtml({ ...audit, auditorsToDisplay });
-
-    const browser = await puppeteer.launch({
-      args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-      ignoreHTTPSErrors: true
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '0.6in', right: '0.6in', bottom: '0.6in', left: '0.6in' }
-    });
-    await browser.close();
-    return pdfBuffer;
-  }
-
-  /* -------------------------------------------------------------- */
-  /*                       PRIVATE: SCORE UTILS                     */
-  /* -------------------------------------------------------------- */
+  /* ---------- PRIVATE UTILITIES ---------- */
   _canEdit(audit, user) {
     if (!audit || !user) return false;
     const creatorId = audit.createdBy._id?.toString() || audit.createdBy.toString();
@@ -2982,12 +2778,10 @@ class AuditInstanceService {
     const isAssigned = audit.assignedAuditors.some(a => (a._id?.toString() || a.toString()) === user.id.toString());
     const isAdminOrSuperAdmin = ['admin', 'super_admin'].includes(user.role);
     switch (audit.status) {
-      case 'Draft':   return isAdminOrSuperAdmin || isCreator;
+      case 'Draft': return isAdminOrSuperAdmin || isCreator;
       case 'In Progress': return isAssigned && user.role === 'auditor';
-      case 'In Review':   return isAdminOrSuperAdmin;
-      case 'Completed':
-      case 'Archived':    return false;
-      default:            return false;
+      case 'In Review': return isAdminOrSuperAdmin;
+      default: return false;
     }
   }
 
