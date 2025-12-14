@@ -2816,90 +2816,119 @@ class AuditInstanceService {
     return this._attachExamEnv(updated);
   }
 
-  /* ---------- SUBMIT RESPONSES ---------- */
-  async submitResponses(auditInstanceId, responsesData, requestingUser) {
-    const audit = await AuditInstance.findById(auditInstanceId).populate('createdBy');
-    if (!audit) throw new Error('Audit Instance not found.');
-    if (!this._canEdit(audit, requestingUser)) throw new Error('You are not authorized to edit this audit.');
+  /* ---------- SUBMIT RESPONSES ---------- *//* ---------- SUBMIT RESPONSES WITH HARDCORE LOGGING ---------- */
+async submitResponses(auditInstanceId, responsesData, requestingUser) {
+  const audit = await AuditInstance.findById(auditInstanceId).populate('createdBy');
+  if (!audit) throw new Error('Audit Instance not found.');
+  if (!this._canEdit(audit, requestingUser)) throw new Error('You are not authorized to edit this audit.');
 
-    for (const resp of responsesData) {
-      const { questionId, selectedValue, comment, recommendation, includeCommentInReport, evidenceUrls } = resp;
-      const questionFromSnapshot = audit.templateStructureSnapshot
-        .flatMap(s => s.subSections)
-        .flatMap(ss => ss.questions)
-        .find(q => q._id.toString() === questionId);
-      if (!questionFromSnapshot) continue;
+  console.log('--- submitResponses START ---');
+  console.log('Number of incoming responses:', responsesData.length);
 
-      const score = this._calcScore(questionFromSnapshot, selectedValue);
-      let existing = audit.responses.find(r => r.questionId.toString() === questionId);
-      if (existing) {
-        Object.assign(existing, { selectedValue, comment, recommendation, includeCommentInReport, evidenceUrls, score, auditorId: requestingUser.id, lastUpdated: new Date() });
-      } else {
-        audit.responses.push({
-          questionId,
-          questionTextSnapshot: questionFromSnapshot.text,
-          questionTypeSnapshot: questionFromSnapshot.type,
-          answerOptionsSnapshot: questionFromSnapshot.answerOptions,
-          selectedValue, comment, recommendation, includeCommentInReport, evidenceUrls, score,
-          auditorId: requestingUser.id,
-          lastUpdated: new Date()
-        });
-      }
+  for (const resp of responsesData) {
+    const { questionId, selectedValue, comment, recommendation, includeCommentInReport, evidenceUrls } = resp;
+    const questionFromSnapshot = audit.templateStructureSnapshot
+      .flatMap(s => s.subSections)
+      .flatMap(ss => ss.questions)
+      .find(q => q._id.toString() === questionId.toString());
+
+    if (!questionFromSnapshot) {
+      console.warn('QUESTION NOT FOUND IN TEMPLATE STRUCTURE:', questionId);
+      continue;
     }
 
-    audit.overallScore = this._calculateOverallScore(audit);
-    audit.lastModifiedBy = requestingUser.id;
-    await audit.save();
+    const score = this._calcScore(questionFromSnapshot, selectedValue);
+    console.log('Question ID:', questionId);
+    console.log('Selected Value:', selectedValue);
+    console.log('Calculated Score:', score);
 
-    const populated = await audit.populate([
-      { path: 'company', select: 'name industry examinationEnvironment' },
-      { path: 'template', select: 'name version' },
-      { path: 'assignedAuditors', select: 'firstName lastName email' },
-      { path: 'createdBy', select: 'firstName lastName email' },
-      { path: 'lastModifiedBy', select: 'firstName lastName email' }
-    ]);
-
-    return this._attachExamEnv(populated);
+    let existing = audit.responses.find(r => r.questionId.toString() === questionId.toString());
+    if (existing) {
+      Object.assign(existing, { selectedValue, comment, recommendation, includeCommentInReport, evidenceUrls, score, auditorId: requestingUser.id, lastUpdated: new Date() });
+    } else {
+      audit.responses.push({
+        questionId,
+        questionTextSnapshot: questionFromSnapshot.text,
+        questionTypeSnapshot: questionFromSnapshot.type,
+        answerOptionsSnapshot: questionFromSnapshot.answerOptions,
+        selectedValue, comment, recommendation, includeCommentInReport, evidenceUrls, score,
+        auditorId: requestingUser.id,
+        lastUpdated: new Date()
+      });
+    }
   }
 
-  /* ---------- CALCULATE SCORE FOR A SINGLE QUESTION ---------- */
-  _calcScore(question, value) {
-    if (!question) return 0;
+  console.log('--- Calculating Overall Score ---');
+  audit.overallScore = this._calculateOverallScore(audit);
+  console.log('Overall Score after calculation:', audit.overallScore);
 
-    if (['single_choice', 'multi_choice'].includes(question.type)) {
-      const selectedValues = Array.isArray(value) ? value : [value];
-      return (question.answerOptions || []).reduce((sum, opt) => {
-        return sum + (selectedValues.includes(opt.value) ? (opt.score || 0) : 0);
-      }, 0);
+  audit.lastModifiedBy = requestingUser.id;
+  await audit.save();
+
+  const populated = await audit.populate([
+    { path: 'company', select: 'name industry examinationEnvironment' },
+    { path: 'template', select: 'name version' },
+    { path: 'assignedAuditors', select: 'firstName lastName email' },
+    { path: 'createdBy', select: 'firstName lastName email' },
+    { path: 'lastModifiedBy', select: 'firstName lastName email' }
+  ]);
+
+  console.log('--- submitResponses END ---');
+  return this._attachExamEnv(populated);
+}
+
+/* ---------- CALCULATE SCORE FOR A SINGLE QUESTION WITH LOGGING ---------- */
+_calcScore(question, value) {
+  if (!question) return 0;
+
+  let score = 0;
+  if (['single_choice', 'multi_choice'].includes(question.type)) {
+    const selectedValues = Array.isArray(value) ? value : [value];
+    score = (question.answerOptions || []).reduce((sum, opt) => {
+      const add = selectedValues.includes(opt.value) ? (opt.score || 0) : 0;
+      if (add > 0) console.log(`Scoring ${question._id}: option ${opt.value} = ${add}`);
+      return sum + add;
+    }, 0);
+  } else if (question.type === 'numeric' && typeof value === 'number') {
+    score = value;
+    console.log(`Numeric question ${question._id}: value = ${value}`);
+  } else {
+    console.log(`Unknown question type or value skipped for question ${question._id}`);
+  }
+
+  return score;
+}
+
+/* ---------- CALCULATE OVERALL SCORE WITH LOGGING ---------- */
+_calculateOverallScore(audit) {
+  let totalAchievedScore = 0;
+  let totalPossibleScore = 0;
+
+  for (const section of audit.templateStructureSnapshot) {
+    for (const subSection of section.subSections || []) {
+      for (const question of subSection.questions || []) {
+        const response = audit.responses.find(r => r.questionId.toString() === question._id.toString());
+        const weight = question.weight || 1;
+
+        totalPossibleScore += weight;
+        const achieved = response ? response.score || 0 : 0;
+        totalAchievedScore += achieved;
+
+        console.log('QID:', question._id, 'Weight:', weight, 'Achieved:', achieved, 'TotalPossibleSoFar:', totalPossibleScore);
+      }
     }
+  }
 
-    if (question.type === 'numeric' && typeof value === 'number') {
-      return value;
-    }
-
+  if (totalPossibleScore === 0) {
+    console.warn('TOTAL POSSIBLE SCORE IS ZERO! Check template structure and question weights.');
     return 0;
   }
 
-  /* ---------- CALCULATE OVERALL SCORE ---------- */
-  _calculateOverallScore(audit) {
-    let totalAchievedScore = 0;
-    let totalPossibleScore = 0;
+  const overall = parseFloat(((totalAchievedScore / totalPossibleScore) * 100).toFixed(2));
+  console.log('Total Achieved Score:', totalAchievedScore, 'Total Possible Score:', totalPossibleScore, 'Overall %:', overall);
+  return overall;
+}
 
-    for (const section of audit.templateStructureSnapshot) {
-      for (const subSection of section.subSections || []) {
-        for (const question of subSection.questions || []) {
-          const response = audit.responses.find(r => r.questionId.toString() === question._id.toString());
-          const weight = question.weight || 1;
-
-          totalPossibleScore += weight;
-          if (response) totalAchievedScore += (response.score || 0);
-        }
-      }
-    }
-
-    if (totalPossibleScore === 0) return 0;
-    return parseFloat(((totalAchievedScore / totalPossibleScore) * 100).toFixed(2));
-  }
 
   /* ---------- UPDATE AUDIT STATUS ---------- */
   async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
