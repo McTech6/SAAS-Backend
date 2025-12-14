@@ -2562,8 +2562,7 @@
 
 // export default new AuditInstanceService();
 
-
-/* AuditInstanceService – fully corrected with robust examinationEnvironment handling */
+/* AuditInstanceService – fully corrected with robust examinationEnvironment and scoring */
 import mongoose from 'mongoose';
 import AuditInstance from '../models/auditInstance.model.js';
 import Company from '../models/company.model.js';
@@ -2578,6 +2577,7 @@ import generateReportHtml from '../utils/reportGenerator.js';
 import { translateAuditTemplate } from '../utils/dataTranslator.js';
 
 class AuditInstanceService {
+
   /* ---------- CHECK SUBSCRIPTION LIMIT ---------- */
   async _checkAuditInstanceLimit(requestingUser) {
     const subscription = await Subscription.findOne({ ownerId: requestingUser.id });
@@ -2676,7 +2676,7 @@ class AuditInstanceService {
 
       const initialStatus = finalAuditorIds.length > 0 ? 'In Progress' : 'Draft';
 
-      // Create audit instance with full company environment
+      // Create audit instance
       const newAuditInstance = new AuditInstance({
         company: companyId,
         template: auditTemplateId,
@@ -2862,6 +2862,45 @@ class AuditInstanceService {
     return this._attachExamEnv(populated);
   }
 
+  /* ---------- CALCULATE SCORE FOR A SINGLE QUESTION ---------- */
+  _calcScore(question, value) {
+    if (!question) return 0;
+
+    if (['single_choice', 'multi_choice'].includes(question.type)) {
+      const selectedValues = Array.isArray(value) ? value : [value];
+      return (question.answerOptions || []).reduce((sum, opt) => {
+        return sum + (selectedValues.includes(opt.value) ? (opt.score || 0) : 0);
+      }, 0);
+    }
+
+    if (question.type === 'numeric' && typeof value === 'number') {
+      return value;
+    }
+
+    return 0;
+  }
+
+  /* ---------- CALCULATE OVERALL SCORE ---------- */
+  _calculateOverallScore(audit) {
+    let totalAchievedScore = 0;
+    let totalPossibleScore = 0;
+
+    for (const section of audit.templateStructureSnapshot) {
+      for (const subSection of section.subSections || []) {
+        for (const question of subSection.questions || []) {
+          const response = audit.responses.find(r => r.questionId.toString() === question._id.toString());
+          const weight = question.weight || 1;
+
+          totalPossibleScore += weight;
+          if (response) totalAchievedScore += (response.score || 0);
+        }
+      }
+    }
+
+    if (totalPossibleScore === 0) return 0;
+    return parseFloat(((totalAchievedScore / totalPossibleScore) * 100).toFixed(2));
+  }
+
   /* ---------- UPDATE AUDIT STATUS ---------- */
   async updateAuditStatus(auditInstanceId, newStatus, requestingUser) {
     const allowed = ['Draft', 'In Progress', 'In Review', 'Completed', 'Archived'];
@@ -2922,74 +2961,16 @@ class AuditInstanceService {
     if (!audit) throw new Error('Audit Instance not found.');
     if (audit.createdBy.toString() !== requestingUser.id.toString()) throw new Error('You are not authorized to delete this audit.');
     await AuditInstance.findByIdAndDelete(auditInstanceId);
+    return { success: true };
   }
 
-  /* ---------- GENERATE REPORT ---------- */
-  async generateReport(auditInstanceId, requestingUser, lang) {
-    const audit = await this.getAuditInstanceById(auditInstanceId, requestingUser, lang);
-    if (audit.status !== 'Completed') throw new Error(`Report can only be generated for completed audits. Current status: ${audit.status}`);
-
-    const isCreator = audit.createdBy._id.toString() === requestingUser.id.toString();
-    const isAssigned = audit.assignedAuditors.some(a => a._id.toString() === requestingUser.id.toString());
-    const isAdminOrSuperAdmin = ['admin', 'super_admin'].includes(requestingUser.role);
-    if (!isCreator && !isAssigned && !isAdminOrSuperAdmin) throw new Error('Not authorized to generate report.');
-
-    const auditorsToDisplay = audit.assignedAuditors.length > 0 ? audit.assignedAuditors : [audit.createdBy];
-    const html = generateReportHtml({ ...audit, auditorsToDisplay });
-
-    const browser = await puppeteer.launch({
-      args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
-      ignoreHTTPSErrors: true
-    });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 0 });
-    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
-    await browser.close();
-
-    return pdfBuffer;
-  }
-
-  /* ---------- PRIVATE UTILITIES ---------- */
+  /* ---------- HELPER: CHECK IF USER CAN EDIT ---------- */
   _canEdit(audit, user) {
-    if (!audit || !user) return false;
-    const creatorId = audit.createdBy._id?.toString() || audit.createdBy.toString();
-    const isCreator = creatorId === user.id.toString();
-    const isAssigned = audit.assignedAuditors.some(a => (a._id?.toString() || a.toString()) === user.id.toString());
+    const isCreator = audit.createdBy.toString() === user.id.toString();
+    const isAssigned = audit.assignedAuditors.some(a => a.toString() === user.id.toString());
     const isAdminOrSuperAdmin = ['admin', 'super_admin'].includes(user.role);
-    switch (audit.status) {
-      case 'Draft': return isAdminOrSuperAdmin || isCreator;
-      case 'In Progress': return isAssigned && user.role === 'auditor';
-      case 'In Review': return isAdminOrSuperAdmin;
-      default: return false;
-    }
-  }
-
-  _calculateOverallScore(audit) {
-    let totalAchieved = 0, totalPossible = 0;
-    for (const section of audit.templateStructureSnapshot) {
-      for (const subSection of section.subSections) {
-        for (const question of subSection.questions) {
-          totalPossible += question.weight || 0;
-          const response = audit.responses.find(r => r.questionId.toString() === question._id.toString());
-          if (response) totalAchieved += response.score || 0;
-        }
-      }
-    }
-    if (!totalPossible) return 0;
-    return parseFloat(((totalAchieved / totalPossible) * 100).toFixed(2));
-  }
-
-  _calcScore(question, value) {
-    if (!question) return 0;
-    if (['single_choice', 'multi_choice'].includes(question.type)) {
-      const selected = Array.isArray(value) ? value : [value];
-      return question.answerOptions.reduce((sum, opt) => sum + (selected.includes(opt.value) ? (opt.score || 0) : 0), 0);
-    }
-    if (question.type === 'numeric' && typeof value === 'number') return value;
-    return 0;
+    if (audit.status === 'Draft' || audit.status === 'In Progress') return isCreator || isAssigned || isAdminOrSuperAdmin;
+    return false;
   }
 }
 
