@@ -152,16 +152,152 @@
 
 // export default new AuditInstanceController();
 
+// import auditInstanceService from '../services/auditInstance.service.js';
+// import { sendSuccessResponse, sendErrorResponse } from '../utils/responseHandler.js';
+// import { getLangFromReq } from '../utils/langHelper.js';
+
+// class AuditInstanceController {
+//   async createAuditInstance(req, res) {
+//     const lang = getLangFromReq(req);
+//     try {
+//       const auditData = req.body;
+//       const requestingUser = req.user;
+//       const newAuditInstance = await auditInstanceService.createAuditInstance(auditData, requestingUser, lang);
+//       sendSuccessResponse(res, 201, 'AUDIT_INSTANCE_CREATED', newAuditInstance, lang);
+//     } catch (error) {
+//       sendErrorResponse(res, 400, error.message, lang);
+//     }
+//   }
+
+//   async getAllAuditInstances(req, res) {
+//     const lang = getLangFromReq(req);
+//     try {
+//       const requestingUser = req.user;
+//       const auditInstances = await auditInstanceService.getAllAuditInstances(requestingUser, lang);
+//       sendSuccessResponse(res, 200, 'AUDIT_INSTANCES_RETRIEVED', auditInstances, lang);
+//     } catch (error) {
+//       sendErrorResponse(res, 500, error.message, lang);
+//     }
+//   }
+
+//   async getAuditInstanceById(req, res) {
+//     const lang = getLangFromReq(req);
+//     try {
+//       const { id } = req.params;
+//       const requestingUser = req.user;
+//       const auditInstance = await auditInstanceService.getAuditInstanceById(id, requestingUser, lang);
+//       sendSuccessResponse(res, 200, 'AUDIT_INSTANCE_RETRIEVED', auditInstance, lang);
+//     } catch (error) {
+//       sendErrorResponse(res, 404, error.message, lang);
+//     }
+//   }
+
+//   async submitResponses(req, res) {
+//     const lang = getLangFromReq(req);
+//     try {
+//       const { id } = req.params;
+//       const responsesData = req.body.responses;
+//       const requestingUser = req.user;
+
+//       if (!Array.isArray(responsesData)) {
+//         return sendErrorResponse(res, 400, 'RESPONSES_NOT_ARRAY', lang);
+//       }
+
+//       const updatedAuditInstance = await auditInstanceService.submitResponses(id, responsesData, requestingUser, lang);
+//       sendSuccessResponse(res, 200, 'AUDIT_RESPONSES_SUBMITTED', updatedAuditInstance, lang);
+//     } catch (error) {
+//       sendErrorResponse(res, 400, error.message, lang);
+//     }
+//   }
+
+//   async updateAuditStatus(req, res) {
+//     const lang = getLangFromReq(req);
+//     try {
+//       const { id } = req.params;
+//       const { status } = req.body;
+//       const requestingUser = req.user;
+//       const updatedAuditInstance = await auditInstanceService.updateAuditStatus(id, status, requestingUser, lang);
+//       sendSuccessResponse(res, 200, 'AUDIT_STATUS_UPDATED', updatedAuditInstance, lang);
+//     } catch (error) {
+//       sendErrorResponse(res, 400, error.message, lang);
+//     }
+//   }
+
+//   async assignAuditors(req, res) {
+//     const lang = getLangFromReq(req);
+//     try {
+//       const { id } = req.params;
+//       const { auditorIds } = req.body;
+//       const requestingUser = req.user;
+
+//       if (!Array.isArray(auditorIds) || auditorIds.length === 0) {
+//         return sendErrorResponse(res, 400, 'AUDITOR_IDS_INVALID', lang);
+//       }
+
+//       const updated = await auditInstanceService.assignAuditors(
+//         id,
+//         auditorIds,
+//         requestingUser.id,
+//         requestingUser.role,
+//         lang
+//       );
+//       sendSuccessResponse(res, 200, 'AUDITORS_ASSIGNED', updated, lang);
+//     } catch (err) {
+//       sendErrorResponse(res, 400, err.message, lang);
+//     }
+//   }
+
+//   async deleteAuditInstance(req, res) {
+//     const lang = getLangFromReq(req);
+//     try {
+//       const { id } = req.params;
+//       const requestingUser = req.user;
+//       await auditInstanceService.deleteAuditInstance(id, requestingUser, lang);
+//       sendSuccessResponse(res, 200, 'AUDIT_INSTANCE_DELETED', null, lang);
+//     } catch (error) {
+//       sendErrorResponse(res, 400, error.message, lang);
+//     }
+//   }
+
+//   async generateReport(req, res) {
+//     const lang = getLangFromReq(req);
+//     try {
+//       const { id } = req.params;
+//       const { preview } = req.query;
+//       const requestingUser = req.user;
+
+//       const pdfBuffer = await auditInstanceService.generateReport(id, requestingUser, lang);
+
+//       const filename = `audit_report_${id}.pdf`;
+//       const disposition = (preview === 'false') ? 'attachment' : 'inline';
+
+//       res.setHeader('Content-Type', 'application/pdf');
+//       res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
+//       res.send(pdfBuffer);
+//     } catch (error) {
+//       sendErrorResponse(res, 400, error.message, lang);
+//     }
+//   }
+// }
+
+// export default new AuditInstanceController();
+
+
 import auditInstanceService from '../services/auditInstance.service.js';
 import { sendSuccessResponse, sendErrorResponse } from '../utils/responseHandler.js';
 import { getLangFromReq } from '../utils/langHelper.js';
 
 class AuditInstanceController {
+  /* ---- CREATE ---- */
   async createAuditInstance(req, res) {
     const lang = getLangFromReq(req);
     try {
       const auditData = req.body;
       const requestingUser = req.user;
+
+      /*  ➜  plan limit enforced here  */
+      await auditInstanceService._checkAuditInstanceLimit(requestingUser);
+
       const newAuditInstance = await auditInstanceService.createAuditInstance(auditData, requestingUser, lang);
       sendSuccessResponse(res, 201, 'AUDIT_INSTANCE_CREATED', newAuditInstance, lang);
     } catch (error) {
@@ -169,6 +305,7 @@ class AuditInstanceController {
     }
   }
 
+  /* ----  READ  ---- */
   async getAllAuditInstances(req, res) {
     const lang = getLangFromReq(req);
     try {
@@ -192,6 +329,7 @@ class AuditInstanceController {
     }
   }
 
+  /* ----  UPDATE  ---- */
   async submitResponses(req, res) {
     const lang = getLangFromReq(req);
     try {
@@ -199,12 +337,10 @@ class AuditInstanceController {
       const responsesData = req.body.responses;
       const requestingUser = req.user;
 
-      if (!Array.isArray(responsesData)) {
-        return sendErrorResponse(res, 400, 'RESPONSES_NOT_ARRAY', lang);
-      }
+      if (!Array.isArray(responsesData)) return sendErrorResponse(res, 400, 'RESPONSES_NOT_ARRAY', lang);
 
-      const updatedAuditInstance = await auditInstanceService.submitResponses(id, responsesData, requestingUser, lang);
-      sendSuccessResponse(res, 200, 'AUDIT_RESPONSES_SUBMITTED', updatedAuditInstance, lang);
+      const updated = await auditInstanceService.submitResponses(id, responsesData, requestingUser, lang);
+      sendSuccessResponse(res, 200, 'AUDIT_RESPONSES_SUBMITTED', updated, lang);
     } catch (error) {
       sendErrorResponse(res, 400, error.message, lang);
     }
@@ -216,8 +352,8 @@ class AuditInstanceController {
       const { id } = req.params;
       const { status } = req.body;
       const requestingUser = req.user;
-      const updatedAuditInstance = await auditInstanceService.updateAuditStatus(id, status, requestingUser, lang);
-      sendSuccessResponse(res, 200, 'AUDIT_STATUS_UPDATED', updatedAuditInstance, lang);
+      const updated = await auditInstanceService.updateAuditStatus(id, status, requestingUser, lang);
+      sendSuccessResponse(res, 200, 'AUDIT_STATUS_UPDATED', updated, lang);
     } catch (error) {
       sendErrorResponse(res, 400, error.message, lang);
     }
@@ -230,23 +366,16 @@ class AuditInstanceController {
       const { auditorIds } = req.body;
       const requestingUser = req.user;
 
-      if (!Array.isArray(auditorIds) || auditorIds.length === 0) {
-        return sendErrorResponse(res, 400, 'AUDITOR_IDS_INVALID', lang);
-      }
+      if (!Array.isArray(auditorIds) || auditorIds.length === 0) return sendErrorResponse(res, 400, 'AUDITOR_IDS_INVALID', lang);
 
-      const updated = await auditInstanceService.assignAuditors(
-        id,
-        auditorIds,
-        requestingUser.id,
-        requestingUser.role,
-        lang
-      );
+      const updated = await auditInstanceService.assignAuditors(id, auditorIds, requestingUser.id, requestingUser.role, lang);
       sendSuccessResponse(res, 200, 'AUDITORS_ASSIGNED', updated, lang);
     } catch (err) {
       sendErrorResponse(res, 400, err.message, lang);
     }
   }
 
+  /* ----  DELETE  ---- */
   async deleteAuditInstance(req, res) {
     const lang = getLangFromReq(req);
     try {
@@ -259,6 +388,7 @@ class AuditInstanceController {
     }
   }
 
+  /* ----  REPORT  ---- */
   async generateReport(req, res) {
     const lang = getLangFromReq(req);
     try {
