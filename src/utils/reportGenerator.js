@@ -2023,8 +2023,9 @@
 
 
 //============================================================TRANSLATED REPORT=========================//
+
 //____________________________________________________________
-//  1.  MINI TRILINGUAL DICTIONARY
+//  1.  HAND-WRITTEN TRILINGUAL MINI-DICTIONARY
 //____________________________________________________________
 const DICT = {
   REPORT_TITLE:  { EN: 'REPORT', FR: 'RAPPORT', DE: 'BERICHT' },
@@ -2095,7 +2096,7 @@ const getStatusInfo = (selectedValue) => {
 };
 
 //____________________________________________________________
-//  3.  TOC BUILDER  (FIXED ORDER + NESTED CONTENT)
+//  3.  TOC BUILDER  (FLAT NUMBERING UNDER “The Content”)
 //____________________________________________________________
 const buildToc = (templateStructure, lang) => {
   const order = [
@@ -2112,17 +2113,25 @@ const buildToc = (templateStructure, lang) => {
   ];
 
   let html = '<ul class="toc-root">';
+  let contentCounter = 0; // running number for sections under “The Content”
+
   order.forEach((item, idx) => {
-    html += `<li><a href="#sec-${idx}">${escapeHtml(item.label)}</a>`;
-    // nest sections / sub-sections only under “The Content”
+    const topId = `sec-${idx}`;
+    html += `<li><a href="#${topId}">${escapeHtml(item.label)}</a>`;
+
+    /*  ONLY “The Content” expands  */
     if (item.key === 'content' && Array.isArray(templateStructure) && templateStructure.length) {
       html += '<ul>';
       templateStructure.forEach((sec, sIdx) => {
-        html += `<li><a href="#content-sec-${sIdx}">${escapeHtml(sec.name || 'Unnamed Section')}</a>`;
+        contentCounter += 1;
+        const secId = `content-sec-${sIdx}`;
+        html += `<li><a href="#${secId}">${contentCounter}. ${escapeHtml(sec.name || 'Unnamed Section')}</a>`;
+
+        /*  sub-sections (if any)  */
         if (Array.isArray(sec.subSections) && sec.subSections.length) {
           html += '<ul>';
           sec.subSections.forEach((sub, ssIdx) => {
-            html += `<li><a href="#content-sec-${sIdx}-sub-${ssIdx}">${escapeHtml(sub.name || 'Unnamed Subsection')}</a></li>`;
+            html += `<li><a href="#${secId}-sub-${ssIdx}">${contentCounter}.${ssIdx + 1} ${escapeHtml(sub.name || 'Unnamed Subsection')}</a></li>`;
           });
           html += '</ul>';
         }

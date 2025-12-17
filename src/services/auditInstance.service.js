@@ -4160,21 +4160,20 @@ async function deepTranslateTemplateStructure(sections, lang) {
 /* --------------  SERVICE CLASS  -------------- */
 class AuditInstanceService {
   /* ---------- CHECK SUBSCRIPTION LIMIT  (EXPOSED) ---------- */
-  async _checkAuditInstanceLimit(requestingUser) {
-    const subscription = await Subscription.findOne({ ownerId: requestingUser.id });
-    if (!subscription) return;                       // free / no plan
-    const max = subscription.maxAuditInstances;
-    if (max === null || max >= 99999) return;        // unlimited
+async _checkAuditInstanceLimit(requestingUser) {
+  const subscription = await Subscription.findOne({ ownerId: requestingUser.id });
+  if (!subscription) return;                       // free / no plan
+  const max = subscription.maxAuditInstances;
+  if (max === null || max >= 99999) return;        // unlimited
 
-    const activeStatuses = ['Draft', 'In Progress', 'In Review'];
-    const current = await AuditInstance.countDocuments({
-      createdBy: requestingUser.id,
-      status: { $in: activeStatuses }
-    });
-    if (current >= max) {
-      throw new Error(`SUBSCRIPTION_LIMIT_REACHED: You have reached your limit of ${max} concurrent audit instances.`);
-    }
+  /*  ➜  count **ALL** audits that belong to this owner  */
+  const current = await AuditInstance.countDocuments({ createdBy: requestingUser.id });
+
+  console.log(`[LIMIT] User ${requestingUser.id} has ${current}/${max} total audits`);
+  if (current >= max) {
+    throw new Error(`SUBSCRIPTION_LIMIT_REACHED: You have reached your limit of ${max} audit instances.`);
   }
+}
 
   /* ---------- ATTACH EXAM ENV FROM COMPANY ---------- */
   _attachExamEnv(auditDoc) {
