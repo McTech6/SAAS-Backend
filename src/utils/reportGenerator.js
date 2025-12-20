@@ -2718,22 +2718,23 @@ ${company.generalInfo ? `<p class="justify-text">${escapeHtml(company.generalInf
   </table>
 </div>`;
 
-  /*  “Thank You” – duplicate sentence removed  */
- const thankYouHtml = `
+/*  “Thank You” – new paragraph placed BEFORE contact/slogan  */
+const thankYouHtml = `
 <div style="text-align:center;">
   <h2 style="border-bottom:none;margin-bottom:5px;font-size:26pt;color:#014f65;margin-top:0;font-family:'Lexend',sans-serif;">${DICT.THANK_YOU[lang]}</h2>
   <p style="font-size:16pt;margin-bottom:15px;margin-top:5px;font-weight:bold;line-height:1.5;">for choosing ISARION</p>
   <p class="justify-text static-text">We are committed to enhancing your organisation's security posture and ensuring compliance in an ever-evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
-  <p class="justify-text static-text">For further discussions or to schedule a follow-up consultation, please contact your partner:</p>
-  <div class="contact">
-    <p class="static-text"><strong>${escapeHtml(examinerName)} – <a href="mailto:${escapeHtml(examinerEmail)}" class="no-style-link">${escapeHtml(examinerEmail)}</a></strong></p>
-  </div>
-  <h3 class="slogan-center" style="font-size:14pt;margin-top:20px;"><strong>"Improvement begins with assessment and assessment begins with the right questions"</strong></h3>
   
   <!-- NEW PARAGRAPH STARTS HERE -->
   <p class="justify-text static-text" style="margin-top:25px;">
     Our team is dedicated to supporting your journey beyond this assessment. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.
   </p>
+
+  <p class="justify-text static-text">For further discussions or to schedule a follow-up consultation, please contact your partner:</p>
+  <div class="contact">
+    <p class="static-text"><strong>${escapeHtml(examinerName)} – <a href="mailto:${escapeHtml(examinerEmail)}" class="no-style-link">${escapeHtml(examinerEmail)}</a></strong></p>
+  </div>
+  <h3 class="slogan-center" style="font-size:14pt;margin-top:20px;"><strong>"Improvement begins with assessment and assessment begins with the right questions"</strong></h3>
 </div>`;
 
   /* =========================================================
