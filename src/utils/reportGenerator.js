@@ -2545,8 +2545,7 @@ const buildToc = (templateStructure, lang) => {
   ];
 
   let html = '<ul class="toc-root">';
-  let contentCounter = 0; // running number for sections under "The Content"
-
+  
   order.forEach((item, idx) => {
     const topId = `sec-${idx}`;
     const sectionNumber = idx + 1; // Starting from 1
@@ -2556,15 +2555,15 @@ const buildToc = (templateStructure, lang) => {
     if (item.key === 'content' && Array.isArray(templateStructure) && templateStructure.length) {
       html += '<ul>';
       templateStructure.forEach((sec, sIdx) => {
-        contentCounter += 1;
         const secId = `content-sec-${sIdx}`;
-        html += `<li><a href="#${secId}">${sectionNumber}.${contentCounter}. ${escapeHtml(sec.name || 'Unnamed Section')}</a>`;
+        // Use the actual section number (8 for Content) + subsection number
+        html += `<li><a href="#${secId}">${sectionNumber}.${sIdx + 1}. ${escapeHtml(sec.name || 'Unnamed Section')}</a>`;
 
         /*  sub-sections (if any)  */
         if (Array.isArray(sec.subSections) && sec.subSections.length) {
           html += '<ul>';
           sec.subSections.forEach((sub, ssIdx) => {
-            html += `<li><a href="#${secId}-sub-${ssIdx}">${sectionNumber}.${contentCounter}.${ssIdx + 1} ${escapeHtml(sub.name || 'Unnamed Subsection')}</a></li>`;
+            html += `<li><a href="#${secId}-sub-${ssIdx}">${sectionNumber}.${sIdx + 1}.${ssIdx + 1} ${escapeHtml(sub.name || 'Unnamed Subsection')}</a></li>`;
           });
           html += '</ul>';
         }
@@ -2603,8 +2602,15 @@ const generateReportHtml = (auditInstance = {}, lang = 'EN') => {
   const startDate  = formatDate(auditInstance.startDate);
   const endDate    = formatDate(auditInstance.endDate);
   let assessmentDateRange = 'N/A';
-  if (startDate && endDate) assessmentDateRange = `${startDate} - ${endDate}`;
-  else if (startDate) assessmentDateRange = startDate;
+  
+  // Fix: Only show date range if both dates exist, otherwise just show single date
+  if (startDate && endDate && startDate !== 'N/A' && endDate !== 'N/A') {
+    assessmentDateRange = `${startDate} - ${endDate}`;
+  } else if (startDate && startDate !== 'N/A') {
+    assessmentDateRange = startDate;
+  } else if (endDate && endDate !== 'N/A') {
+    assessmentDateRange = endDate;
+  }
 
   /* ---------- examiner (DYNAMIC) ---------- */
   const examinerName  = auditors[0]?.firstName && auditors[0]?.lastName
@@ -2622,20 +2628,18 @@ const generateReportHtml = (auditInstance = {}, lang = 'EN') => {
 
   /* ---------- CONTENT (questions) ---------- */
   let contentHtml = '';
-  let sectionCounter = 0;
   
   // Find the index of "The Content" section (should be 8th section, index 7)
   const contentSectionNumber = 8; // Since sections start from 1: Intro=1, Consulting=2, Audited=3, Preface=4, Disclaimer=5, Exec=6, Env=7, Content=8
   
   struct.forEach((section, sIdx) => {
     const secId = `content-sec-${sIdx}`;
-    sectionCounter += 1;
-    contentHtml += `<div id="${secId}"><h2 class="header-spacing">${contentSectionNumber}.${sectionCounter}. ${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
+    contentHtml += `<div id="${secId}"><h2 class="header-spacing">${contentSectionNumber}.${sIdx + 1}. ${escapeHtml(section.name || 'Unnamed Section')}</h2>`;
     if (section.description) contentHtml += `<p class="section-desc">${escapeHtml(section.description)}</p>`;
 
     (section.subSections || []).forEach((sub, ssIdx) => {
       const subId = `${secId}-sub-${ssIdx}`;
-      contentHtml += `<div id="${subId}"><h3 class="header-spacing">${contentSectionNumber}.${sectionCounter}.${ssIdx + 1}. ${escapeHtml(sub.name || 'Unnamed Subsection')}</h3>`;
+      contentHtml += `<div id="${subId}"><h3 class="header-spacing">${contentSectionNumber}.${sIdx + 1}.${ssIdx + 1}. ${escapeHtml(sub.name || 'Unnamed Subsection')}</h3>`;
       if (sub.description) contentHtml += `<p class="subsection-desc">${escapeHtml(sub.description)}</p>`;
 
       (sub.questions || []).forEach((q) => {
@@ -2796,12 +2800,15 @@ ${company.generalInfo ? `<p class="justify-text">${escapeHtml(company.generalInf
     .evidence{background:#fff8e6; padding:8px; border-left:4px solid #014f65;}
 
     /* --- TOC --- */
-    .toc-root{counter-reset:section; padding-left:0; margin-top:8px; font-size:14pt;}
-    .toc-root>li{counter-increment:section; margin-top:4px; list-style:none;}
-    .toc-root>li:before{content:counter(section) ". "; font-weight:bold;}
-    .toc-root>li ul{list-style:none; padding-left:30px; margin-top:2px; counter-reset:subsection;}
-    .toc-root>li li{counter-increment:subsection; margin-top:2px;}
-    .toc-root>li li:before{content:counter(section)"."counter(subsection)". "; font-weight:normal;}
+    .toc-root{counter-reset:toc-section; padding-left:0; margin-top:8px; font-size:14pt;}
+    .toc-root>li{counter-increment:toc-section; margin-top:4px; list-style:none;}
+    .toc-root>li>a:before{content:counter(toc-section) ". "; font-weight:bold; margin-right:5px;}
+    .toc-root>li ul{list-style:none; padding-left:30px; margin-top:2px; counter-reset:toc-subsection;}
+    .toc-root>li li{counter-increment:toc-subsection; margin-top:2px;}
+    .toc-root>li li>a:before{content:counter(toc-section)"."counter(toc-subsection)". "; font-weight:normal; margin-right:5px;}
+    .toc-root>li li ul{list-style:none; padding-left:30px; margin-top:2px; counter-reset:toc-subsubsection;}
+    .toc-root>li li li{counter-increment:toc-subsubsection; margin-top:2px;}
+    .toc-root>li li li>a:before{content:counter(toc-section)"."counter(toc-subsection)"."counter(toc-subsubsection)". "; font-weight:normal; margin-right:5px;}
     .toc-root a{text-decoration:none; color:#003340;}
 
     /* --- handover table (blank) --- */
