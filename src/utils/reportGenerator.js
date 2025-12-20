@@ -2666,9 +2666,9 @@ Only when these three elements are combined can we create real protection. Focus
 <p>This assessment report is designed to make this approach practical and understandable. It gives a transparent overview of your current situation, highlights strengths and weaknesses, and provides clear guidance for next steps. The goal is not only to identify risks but also to enable your organization to <strong>build sustainable protection</strong> so that technology, organization, and people are aligned and your company can continue to operate with confidence and resilience.</p>`;
 
   const aboutConsulting = `
-<p>We at <strong>BKGS Consulting</strong> believe that audits and assessments should strengthen companies rather than slow them down. In a world where compliance requirements, standards, and technologies evolve faster than ever, many companies still rely on rigid tools and outdated methods to evaluate performance, security, and quality. At <strong>BKGS Consulting</strong>, we exist to change that. Our mission is to make assessments and audits simple, smart, and adaptable — transforming them from static checklists into dynamic instruments for growth, trust, and improvement. We believe that every organization, regardless of its size, sector, or country deserves access to modern, intelligent solutions that align with its specific needs, frameworks, and ambitions.
+<p>We at <strong>BKGS Consulting</strong> believe that audits and assessments should strengthen companies rather than slow them down. In a world where compliance requirements, standards, and technologies evolve faster than ever, many companies still rely on rigid tools and outdated methods to evaluate performance, security, and quality. At <strong>BKGS Consulting</strong>, we exist to change that. Our mission is to make assessments and audits simple, smart, and adaptable, transforming them from static checklists into dynamic instruments for growth, trust, and improvement. We believe that every organization, regardless of its size, sector, or country deserves access to modern, intelligent solutions that align with its specific needs, frameworks, and ambitions.
 <p>We combine <strong>technology, methodology,</strong> and <strong>human expertise</strong> to develop flexible, powerful audit and assessment solutions tailored to the individual needs of our clients. Our work combines <strong>32 years of consulting experience</strong> with state-of-the-art software platforms, ensuring that every client benefits from precision, scalability, and adaptability.
-<p>We don't just deliver tools — we build <strong>solutions that fit your context</strong>. From defining requirements to designing dashboards, from building reporting logic to automating workflows, our team ensures that your assessment system reflects <strong>your goals, standards</strong>, and <strong>operational culture</strong>.
+<p>We don't just deliver tools, we build <strong>solutions that fit your context</strong>. From defining requirements to designing dashboards, from building reporting logic to automating workflows, our team ensures that your assessment system reflects <strong>your goals, standards</strong>, and <strong>operational culture</strong>.
 <p>We envision a future where audits and assessments are not bureaucratic obligations, but <strong>strategic enablers of trust and performance</strong>. A world where organizations of any size can assess themselves <strong>continuously</strong>, adjust in real time, and make decisions with confidence.
 <h3 class="slogan-local">"Improvement begins with assessment and assessment begins with the right questions"</h3>`;
 
@@ -2680,7 +2680,7 @@ ${company.generalInfo ? `<p class="justify-text">${escapeHtml(company.generalInf
   const prefaceText = `
 <p>The <strong>ISARION (Information Security Assessment Evolution) - Report</strong> has been developed to provide organizations with a structured and independent assessment of their information security posture. The aim is not only to identify technical issues, but to create a holistic view that combines <strong>technology, organization, and people</strong>.
 <p>This report is designed as a practical tool for decision-makers at all levels. Whether you have a technical background or not, the findings and recommendations are presented in a way that allows you to clearly understand where strengths lie, where risks exist, and what steps can be taken to achieve sustainable improvement.
-<p>Our mission is to support organizations in treating cybersecurity as an integral part of their business strategy and daily operations—helping to build trust, ensure compliance, and strengthen resilience in an ever-changing digital world.`;
+<p>Our mission is to support organizations in treating cybersecurity as an integral part of their business strategy and daily operations, helping to build trust, ensure compliance, and strengthen resilience in an ever-changing digital world.`;
 
   const disclaimerText = `
 <p>This report is based on the information, data, and evidence made available during the assessment process. While every effort has been made to provide accurate and reliable findings, the results and recommendations are limited to the scope of the assessment and the time of its execution.
@@ -2696,7 +2696,7 @@ ${company.generalInfo ? `<p class="justify-text">${escapeHtml(company.generalInf
 <h3 class="slogan-local" style="text-align:center;margin-top:25px;">"Cyber resilience as part of your organization's reputation"</h3>
 <p>Cyber resilience refers to an entity's ability to continuously deliver the intended outcome, despite cyber-attacks. Resilience to cyber-attacks is essential to IT systems, critical infrastructure, business processes, organizations, societies, and nation-states.
 <p>Resilience is like juggling lots of balls: it is not enough to optimize individual points. The key to success lies in the ability to think holistically and to orchestrate several strands of action in parallel, from awareness training and technical security to clear crisis management. Resources (budget and people) alone does not lead to success. This is also evident in reality: organizations with the largest IT budgets are not automatically the best protected. The decisive factor is whether security and resilience issues are at the top of the agenda and whether processes, responsibilities and recovery concepts are regularly reviewed, tested and further developed. Cyber resilience is therefore not a project with an end date, but an ongoing management task. As with sustainability, it requires a cultural shift: away from pure compliance thinking and towards genuine risk competence at all levels.
-<p>The biggest mistake is to believe that you are not affected, or even to rely on getting help in an emergency. Because when cyber-attacks become a reality, only one thing matters: <strong>"how well prepared an organization is"</strong>. Resilience begins in the mind and unfolds its effect where technology, processes and people interact. Those who take the issue seriously not only gain security, but also the trust of customers, partners, employees and ultimately the market. Cyber resilience is not just about keeping systems running. It's about taking responsibility and maintaining trust, especially when it matters — and with this assessment, you have just taken the first step. Congratulations!</p>`;
+<p>The biggest mistake is to believe that you are not affected, or even to rely on getting help in an emergency. Because when cyber-attacks become a reality, only one thing matters: <strong>"how well prepared an organization is"</strong>. Resilience begins in the mind and unfolds its effect where technology, processes and people interact. Those who take the issue seriously not only gain security, but also the trust of customers, partners, employees and ultimately the market. Cyber resilience is not just about keeping systems running. It's about taking responsibility and maintaining trust, especially when it matters, and with this assessment, you have just taken the first step. Congratulations!</p>`;
 
   const handoverHtml = `
 <p class="justify-text static-text">This page confirms that the assessment report titled "<strong>${escapeHtml(template.name || '')}</strong>" has been formally handed over by the assessor to the assessed company.
@@ -2719,7 +2719,7 @@ ${company.generalInfo ? `<p class="justify-text">${escapeHtml(company.generalInf
 </div>`;
 
   /*  “Thank You” – duplicate sentence removed  */
-  const thankYouHtml = `
+ const thankYouHtml = `
 <div style="text-align:center;">
   <h2 style="border-bottom:none;margin-bottom:5px;font-size:26pt;color:#014f65;margin-top:0;font-family:'Lexend',sans-serif;">${DICT.THANK_YOU[lang]}</h2>
   <p style="font-size:16pt;margin-bottom:15px;margin-top:5px;font-weight:bold;line-height:1.5;">for choosing ISARION</p>
@@ -2729,6 +2729,11 @@ ${company.generalInfo ? `<p class="justify-text">${escapeHtml(company.generalInf
     <p class="static-text"><strong>${escapeHtml(examinerName)} – <a href="mailto:${escapeHtml(examinerEmail)}" class="no-style-link">${escapeHtml(examinerEmail)}</a></strong></p>
   </div>
   <h3 class="slogan-center" style="font-size:14pt;margin-top:20px;"><strong>"Improvement begins with assessment and assessment begins with the right questions"</strong></h3>
+  
+  <!-- NEW PARAGRAPH STARTS HERE -->
+  <p class="justify-text static-text" style="margin-top:25px;">
+    Our team is dedicated to supporting your journey beyond this assessment. We encourage you to review the findings and recommendations carefully and reach out to us for any clarifications or assistance in implementing the suggested improvements.
+  </p>
 </div>`;
 
   /* =========================================================
