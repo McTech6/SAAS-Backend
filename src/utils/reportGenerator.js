@@ -2451,6 +2451,7 @@
 // };
 
 // export default generateReportHtml;
+ 
 
 
 //============================================================COMPLETE FIXED REPORT=========================//
@@ -2717,12 +2718,12 @@ ${company.generalInfo ? `<p class="justify-text">${escapeHtml(company.generalInf
   </table>
 </div>`;
 
-  /*  “Thank You” sentence duplicated in old version – removed  */
+  /*  “Thank You” – duplicate sentence removed  */
   const thankYouHtml = `
 <div style="text-align:center;">
   <h2 style="border-bottom:none;margin-bottom:5px;font-size:26pt;color:#014f65;margin-top:0;font-family:'Lexend',sans-serif;">${DICT.THANK_YOU[lang]}</h2>
   <p style="font-size:16pt;margin-bottom:15px;margin-top:5px;font-weight:bold;line-height:1.5;">for choosing ISARION</p>
-  <p class="justify-text static-text">We are committed to enhancing your organization's security posture and ensuring compliance in an ever-evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
+  <p class="justify-text static-text">We are committed to enhancing your organisation's security posture and ensuring compliance in an ever-evolving threat landscape. This report serves as a foundational step towards a more resilient and secure future.</p>
   <p class="justify-text static-text">For further discussions or to schedule a follow-up consultation, please contact your partner:</p>
   <div class="contact">
     <p class="static-text"><strong>${escapeHtml(examinerName)} – <a href="mailto:${escapeHtml(examinerEmail)}" class="no-style-link">${escapeHtml(examinerEmail)}</a></strong></p>
