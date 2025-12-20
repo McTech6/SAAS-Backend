@@ -2023,7 +2023,6 @@
 
 
 //============================================================TRANSLATED REPORT=========================//
-
 //____________________________________________________________
 //  1.  HAND-WRITTEN TRILINGUAL MINI-DICTIONARY
 //____________________________________________________________
@@ -2095,9 +2094,9 @@ const getStatusInfo = (selectedValue) => {
   return { label: raw.join(', ') || 'N/A', color };
 };
 
-//____________________________________________________________
-//  3.  TOC BUILDER  (FLAT NUMBERING UNDER “The Content”)
-//____________________________________________________________
+/* --------------------------------------------------------
+   Flat TOC  –  only “The Content” expands into sections
+   -------------------------------------------------------- */
 const buildToc = (templateStructure, lang) => {
   const order = [
     { key: 'intro',      label: DICT.INTRO[lang] },
